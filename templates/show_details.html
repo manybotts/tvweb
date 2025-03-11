@@ -1,27 +1,29 @@
-{% extends "base.html" %}
+{% extends 'base.html' %}
 
 {% block title %}{{ show.show_name }}{% endblock %}
 
 {% block content %}
-    <h1>{{ show.show_name }}</h1>
-    <p>{{ show.season_episode }}</p>
+    <div class="show-details">
+        {% if show.poster_path %}
+        <img src="{{ show.poster_path }}" alt="{{ show.show_name }}" class="show-detail-poster">
+        {% else %}
+         <div class="no-poster">No Poster Available</div>
+        {% endif %}
 
-   {% if show.poster_path %}
-    <img src="{{ show.poster_path or url_for('static', filename='posters/placeholder.webp')}}" alt="{{ show.show_name }}" style="max-width:300px;" loading="lazy">
-    {% else %}
-    <div class="telegram-loader">
-        <div class="plane"></div>
-        <div class="circle"></div>
+        <h1>{{ show.show_name }}</h1>
+        <p><strong>Season/Episode:</strong> {{ show.season_episode }}</p>
+        {% if show.overview %}
+            <p><strong>Overview:</strong> {{ show.overview }}</p>
+        {% endif %}
+        {% if show.vote_average %}
+            <p><strong>Rating:</strong> {{ show.vote_average }}/10</p>
+        {% endif %}
+
+        {% if show.download_link %}
+        <a href="{{ url_for('redirect_to_download', message_id=show.message_id) }}" class="download-button">Download HERE ✔️</a>
+
+        {% else %}
+            <p>Download link not available.</p>
+        {% endif %}
     </div>
-    {% endif %}
-
-    {% if show.overview %}
-        <p><strong>Overview:</strong> {{ show.overview }}</p>
-    {% endif %}
-
-    {% if show.vote_average %}
-        <p><strong>Rating:</strong> {{ show.vote_average }}/10</p>
-    {% endif %}
-
-    <a href="{{ url_for('redirect_to_download', message_id=show.message_id) }}" class="download-button">Download</a>
 {% endblock %}
