@@ -1,50 +1,40 @@
 import os
 import re
-import sqlite3
-from flask import Flask, render_template, redirect, url_for, g, request
 import requests
+from flask import Flask, render_template, redirect, url_for, g, request
 from telegram import Bot
 from telegram.error import TelegramError
 import asyncio
+from urllib.parse import quote_plus
+from pymongo import MongoClient  # Import MongoClient
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your_secret_key')
 app.config['TELEGRAM_BOT_TOKEN'] = os.environ.get('TELEGRAM_BOT_TOKEN')
 app.config['TMDB_API_KEY'] = os.environ.get('TMDB_API_KEY')
 app.config['TELEGRAM_CHANNEL_ID'] = os.environ.get('TELEGRAM_CHANNEL_ID')
-app.config['DATABASE'] = 'tv_shows.db'
+app.config['MONGO_URI'] = os.environ.get('MONGO_URI')  # Get MongoDB URI from environment
+app.config['DATABASE_NAME'] = os.environ.get('MONGO_DATABASE_NAME', 'tv_shows') #Get DB name
 
-if not all([app.config['TELEGRAM_BOT_TOKEN'], app.config['TMDB_API_KEY'], app.config['TELEGRAM_CHANNEL_ID']]):
-    raise ValueError("Missing required environment variables: TELEGRAM_BOT_TOKEN, TMDB_API_KEY, or TELEGRAM_CHANNEL_ID")
+if not all([app.config['TELEGRAM_BOT_TOKEN'], app.config['TMDB_API_KEY'], app.config['TELEGRAM_CHANNEL_ID'], app.config['MONGO_URI']]):
+    raise ValueError("Missing required environment variables")
 
-# --- Database Setup ---
+# --- Database Setup (MongoDB) ---
 
 def get_db():
     db = getattr(g, '_database', None)
     if db is None:
-        db = g._database = sqlite3.connect(app.config['DATABASE'])
-        db.row_factory = sqlite3.Row
+        client = MongoClient(app.config['MONGO_URI'])
+        db = g._database = client[app.config['DATABASE_NAME']]  # Use get_database() and config variable
     return db
 
 @app.teardown_appcontext
 def close_connection(exception):
     db = getattr(g, '_database', None)
     if db is not None:
-        db.close()
+        db.client.close()  # Close the client connection
 
-def init_db():
-    with app.app_context():
-        db = get_db()
-        cursor = db.cursor()
-        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='tv_shows'")
-        table_exists = cursor.fetchone()
-
-        if not table_exists:
-            with app.open_resource('schema.sql', mode='r') as f:
-                db.cursor().executescript(f.read())
-            db.commit()
-
-# --- Helper Functions ---
+# --- Helper Functions --- (No changes needed here)
 
 def fetch_telegram_posts():
     """Fetches recent posts from the Telegram channel."""
@@ -115,104 +105,91 @@ def fetch_tmdb_data(show_name, language='en-US'):
         print(f"Error fetching TMDb data: {e}")
         return None
 
+# --- Database Operations (MongoDB) ---
 def update_tv_shows():
     """Fetches new posts and updates the database."""
     posts = fetch_telegram_posts()
+    if not posts:
+        return
+
     db = get_db()
-    for post in reversed(posts):
+    for post in posts:
         parsed_data = parse_telegram_post(post)
         if parsed_data:
-            existing_show = db.execute('SELECT * FROM tv_shows WHERE message_id = ?', (parsed_data['message_id'],)).fetchone()
+            # Check if the show already exists using message_id
+            existing_show = db.tv_shows.find_one({'message_id': parsed_data['message_id']})
             if not existing_show:
-                tmdb_data = fetch_tmdb_data(parsed_data['show_name'], language='en-US')
-                if tmdb_data:
-                    db.execute('''
-                        INSERT INTO tv_shows (message_id, show_name, season_episode, download_link, poster_path, overview, vote_average)
-                        VALUES (?, ?, ?, ?, ?, ?, ?)
-                    ''', (parsed_data['message_id'], parsed_data['show_name'], parsed_data['season_episode'],
-                          parsed_data['download_link'], tmdb_data['poster_path'], tmdb_data['overview'],
-                          tmdb_data['vote_average']))
-                    db.commit()
+                tmdb_data = fetch_tmdb_data(parsed_data['show_name'])
+                show_data = {
+                    'message_id': parsed_data['message_id'],
+                    'show_name': parsed_data['show_name'],
+                    'season_episode': parsed_data['season_episode'],
+                    'download_link': parsed_data['download_link'],
+                    'overview': tmdb_data.get('overview') if tmdb_data else None,
+                    'vote_average': tmdb_data.get('vote_average') if tmdb_data else None,
+                    'poster_path': tmdb_data.get('poster_path') if tmdb_data else None
+                }
+                # Insert the new show
+                db.tv_shows.insert_one(show_data)
 
-def get_all_tv_shows(page=1, per_page=9, search_query=None):
-    """Retrieves TV shows with pagination and search."""
-    db = get_db()
-    offset = (page - 1) * per_page
-    query = 'SELECT * FROM tv_shows'
-    params = []
-
-    if search_query:
-        query += ' WHERE show_name LIKE ?'
-        params.append('%' + search_query + '%')
-
-    query += ' ORDER BY message_id DESC LIMIT ? OFFSET ?'
-    params.extend([per_page, offset])
-
-    cur = db.execute(query, params)
-    return cur.fetchall()
-
-def get_total_tv_shows_count(search_query=None):
-    """Gets the total count of TV shows (for pagination)."""
-    db = get_db()
-    query = 'SELECT COUNT(*) FROM tv_shows'
-    params = []
-    if search_query:
-        query += ' WHERE show_name LIKE ?'
-        params.append('%' + search_query + '%')
-    cur = db.execute(query, params)
-    return cur.fetchone()[0]
-
-def get_all_show_names():
-    """Retrieves a list of all unique show names."""
-    db = get_db()
-    cur = db.execute('SELECT DISTINCT show_name FROM tv_shows ORDER BY show_name')
-    return [row['show_name'] for row in cur.fetchall()]
-
-def get_tv_show_by_message_id(message_id):
-    """Retrieves a single TV show by its message_id."""
-    db = get_db()
-    cur = db.execute('SELECT * FROM tv_shows WHERE message_id = ?', (message_id,))
-    return cur.fetchone()
 
 # --- Routes ---
 
 @app.route('/')
 def index():
     """Homepage: displays TV shows with pagination and search."""
-    update_tv_shows()  # Update data
-    page = request.args.get('page', 1, type=int)
     search_query = request.args.get('search', '')
-    per_page = 9
-    tv_shows = get_all_tv_shows(page, per_page, search_query)
-    total_count = get_total_tv_shows_count(search_query)
-    total_pages = (total_count + per_page - 1) // per_page
+    page = request.args.get('page', 1, type=int)
+    per_page = 12
+    db = get_db()
+    if search_query:
+        # Use a regex for case-insensitive partial matching
+        regex_query = re.compile(f".*{re.escape(search_query)}.*", re.IGNORECASE)
+        query = {'show_name': {'$regex': regex_query}}
+        # Count total matching documents for pagination
+        total_shows = db.tv_shows.count_documents(query)
+        # Fetch shows for the current page
+        tv_shows_cursor = db.tv_shows.find(query).sort('message_id', -1).skip((page - 1) * per_page).limit(per_page)
+
+    else:
+        # Count total documents for pagination
+        total_shows = db.tv_shows.count_documents({})
+        # Fetch shows for the current page
+        tv_shows_cursor = db.tv_shows.find().sort('message_id', -1).skip((page - 1) * per_page).limit(per_page)
+
+    tv_shows = list(tv_shows_cursor)  # Convert cursor to a list
+    total_pages = (total_shows + per_page - 1) // per_page
+
     return render_template('index.html', tv_shows=tv_shows, page=page, total_pages=total_pages, search_query=search_query)
+
 
 @app.route('/show/<int:message_id>')
 def show_details(message_id):
     """Displays details for a single TV show."""
-    update_tv_shows()
-    show = get_tv_show_by_message_id(message_id)
+    db = get_db()
+    show = db.tv_shows.find_one({'message_id': message_id})
     if show:
-        return render_template('show_details.html', show=show)
-    return "Show not found", 404
+      return render_template('show_details.html', show=show)
+    else:
+      return "Show not found", 404
 
-@app.route('/redirect/<int:message_id>')
-def redirect_to_download(message_id):
-    """Redirects to the download link for a TV show."""
-    update_tv_shows()
-    show = get_tv_show_by_message_id(message_id)
-    if show and show['download_link']:
-        return redirect(show['download_link'])
-    return "Show or link not found", 404
 
 @app.route('/shows')
 def list_shows():
     """Displays a list of all available TV show names."""
-    show_names = get_all_show_names()
+    db = get_db()
+    show_names_cursor = db.tv_shows.distinct('show_name')  # Use distinct
+    show_names = list(show_names_cursor)
     return render_template('shows.html', show_names=show_names)
 
-init_db() #Called Once.
+@app.route('/redirect/<int:message_id>')
+def redirect_to_download(message_id):
+    """Redirects to the download link for a TV show."""
+    db = get_db()
+    show = db.tv_shows.find_one({'message_id': message_id})
+    if show and show.get('download_link'):
+        return redirect(show['download_link'])
+    return "Show or link not found", 404
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
