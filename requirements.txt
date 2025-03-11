@@ -1,6 +1,7 @@
-Flask
-python-telegram-bot
-requests
-gunicorn
-pymongo
-dnspython
+Flask==3.0.2
+python-telegram-bot==20.8
+requests==2.31.0
+gunicorn==21.2.0
+pymongo==4.6.2
+dnspython==2.6.1
+python-dotenv==1.0.1
