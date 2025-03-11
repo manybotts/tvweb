@@ -4,7 +4,8 @@ from flask import Flask, render_template, redirect, url_for, g, request
 from pymongo import MongoClient, ASCENDING, DESCENDING
 import logging
 from dotenv import load_dotenv
-from tasks import update_tv_shows  # Import the Celery task
+# IMPORTANT: Import the *task* from tasks.py, not the whole module
+from tasks import update_tv_shows, test_task
 
 load_dotenv()
 
@@ -38,11 +39,7 @@ def close_connection(exception):
     if db is not None:
         db.client.close()
 
-# --- Helper Functions (for Flask only) ---
-# Removed: fetch_telegram_posts, parse_telegram_post, fetch_tmdb_data
-
 # --- Database Operations (MongoDB) --- (Keep these for Flask)---
-# Removed: async_update_tv_shows
 
 def get_all_tv_shows(page=1, per_page=9, search_query=None):
     """Retrieves TV shows with pagination and search."""
@@ -83,8 +80,15 @@ def index():
     page = request.args.get('page', 1, type=int)
     per_page = 9
 
-    # Enqueue the update task (doesn't block!)
-    update_tv_shows.delay()  # Add task to queue
+    # TEMPORARY: Use the test_task for now
+    logger.info("About to enqueue test_task")
+    test_task.delay()  # Use .delay() to enqueue the task!
+    logger.info("test_task enqueued")
+
+    # Original task enqueueing (commented out for now)
+    # logger.info("About to enqueue update_tv_shows task")
+    # update_tv_shows.delay()
+    # logger.info("update_tv_shows task enqueued")
 
     tv_shows, total_pages = get_all_tv_shows(page, per_page, search_query)
     return render_template('index.html', tv_shows=tv_shows, page=page, total_pages=total_pages, search_query=search_query)
