@@ -17,11 +17,11 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your_secret_key')
 app.config['TELEGRAM_BOT_TOKEN'] = os.environ.get('TELEGRAM_BOT_TOKEN')
 app.config['TMDB_API_KEY'] = os.environ.get('TMDB_API_KEY')
-app.config['TELEGRAM_CHANNEL_IDS'] = os.environ.get('TELEGRAM_CHANNEL_IDS', '') # Get comma separated channel IDs
+app.config['TELEGRAM_CHANNEL_ID'] = os.environ.get('TELEGRAM_CHANNEL_ID')  # Single Channel ID
 app.config['MONGO_URI'] = os.environ.get('MONGO_URI')
 app.config['DATABASE_NAME'] = os.environ.get('MONGO_DATABASE_NAME', 'tv_shows')
 
-if not all([app.config['TELEGRAM_BOT_TOKEN'], app.config['TMDB_API_KEY'], app.config['MONGO_URI'], app.config['TELEGRAM_CHANNEL_IDS']]):
+if not all([app.config['TELEGRAM_BOT_TOKEN'], app.config['TMDB_API_KEY'], app.config['MONGO_URI'], app.config['TELEGRAM_CHANNEL_ID']]):
     raise ValueError("Missing required environment variables")
 
 # --- Database Setup (MongoDB) ---
@@ -48,70 +48,56 @@ def close_connection(exception):
 # --- Helper Functions ---
 
 async def fetch_telegram_posts():
-    """Fetches recent posts from all configured Telegram channels."""
+    """Fetches recent posts from the configured Telegram channel."""
     try:
         bot = Bot(token=app.config['TELEGRAM_BOT_TOKEN'])
-        all_posts = []
-        channel_ids_str = app.config['TELEGRAM_CHANNEL_IDS']
-        channel_ids = [cid.strip() for cid in channel_ids_str.split(',') if cid.strip()]
+        updates = await bot.get_updates(allowed_updates=['channel_post'], timeout=60, offset=None)
 
-        async def get_updates_for_channel(channel_id):
-            # No asyncio.run() here!  Use await directly.
-            updates = await bot.get_updates(allowed_updates=['channel_post'], timeout=60, offset=None)
-            channel_posts = []
-            for update in updates:
-                if update.channel_post and update.channel_post.sender_chat and str(update.channel_post.sender_chat.id) == str(channel_id):
-                    if update.channel_post.caption or update.channel_post.text:
-                        channel_posts.append(update.channel_post)
-            return channel_posts
+        posts = []
+        for update in updates:
+            if update.channel_post and update.channel_post.sender_chat and str(update.channel_post.sender_chat.id) == app.config['TELEGRAM_CHANNEL_ID']:
+                if update.channel_post.caption:
+                    posts.append(update.channel_post)
+        return posts
 
-        for channel_id in channel_ids:
-            try:
-                posts = await get_updates_for_channel(channel_id)  # Await the coroutine
-                all_posts.extend(posts)
-            except TelegramError as e:
-                logger.error(f"Error fetching posts from channel {channel_id}: {e}")
-                continue
-
-        return all_posts  #Return all the posts
-
+    except TelegramError as e:
+        logger.error(f"Error fetching updates from Telegram: {e}")
+        return []
     except Exception as e:
         logger.exception(f"An unexpected error occurred in fetch_telegram_posts: {e}")
         return []
 
 def parse_telegram_post(post):
-    """Parses a Telegram post (caption of media) to extract show info."""
+    """Parses a Telegram post (caption) to extract show info."""
     try:
-        if post.caption:
-            text = post.caption
-            match = re.search(r"^(.*?)\n(Season\s+\d+.*)\n(.*?)HERE", text, re.DOTALL | re.IGNORECASE)
-            if match:
-                show_name = match.group(1).strip()
-                season_episode = match.group(2).strip()
-                link_text = match.group(3).strip()
+        text = post.caption
+        match = re.search(r"^(.*?)\n(Season\s+\d+.*)\n(.*?)HERE", text, re.DOTALL | re.IGNORECASE)
+        if match:
+            show_name = match.group(1).strip()
+            season_episode = match.group(2).strip()
+            link_text = match.group(3).strip()
+            download_link = None
+            if post.caption_entities:
+                for entity in post.caption_entities:
+                    if entity.type == 'text_link' and text[entity.offset:entity.offset + entity.length] == "HERE ✔️":
+                         download_link = entity.url
+                         break
 
-                download_link = None
-                if post.caption_entities:
-                  for entity in post.caption_entities:
-                      if entity.type == 'text_link' and text[entity.offset:entity.offset+entity.length] == "HERE ✔️":
-                        download_link = entity.url
-                        break
-
-                return {
-                    'show_name': show_name,
-                    'season_episode': season_episode,
-                    'download_link': download_link,
-                    'message_id': post.message_id,
-                }
+            return {
+                'show_name': show_name,
+                'season_episode': season_episode,
+                'download_link': download_link,
+                'message_id': post.message_id,
+            }
         return None
     except Exception as e:
-        logger.error(f"Error parsing post: {e}")  # Use logger for consistency
-        return None
+      logger.error(f"Error parsing post: {e}")
+      return None
 
 def fetch_tmdb_data(show_name, language='en-US'):
-    """Fetches TV show data from TMDb (NO image resizing)."""
+    """Fetches TV show data from TMDb."""
     try:
-        search_url = f"https://api.themoviedb.org/3/search/tv?api_key={app.config['TMDB_API_KEY']}&query={show_name}&language={language}"
+        search_url = f"https://api.themoviedb.org/3/search/tv?api_key={app.config['TMDB_API_KEY']}&query={quote_plus(show_name)}&language={language}"
         search_response = requests.get(search_url)
         search_response.raise_for_status()
         search_data = search_response.json()
@@ -124,7 +110,6 @@ def fetch_tmdb_data(show_name, language='en-US'):
             details_data = details_response.json()
 
             return {
-                # Return the *original* poster path URL from TMDb, *not* a local path.
                 'poster_path': f"https://image.tmdb.org/t/p/w500{details_data.get('poster_path')}" if details_data.get('poster_path') else None,
                 'overview': details_data.get('overview'),
                 'vote_average': details_data.get('vote_average'),
@@ -141,7 +126,7 @@ def fetch_tmdb_data(show_name, language='en-US'):
 # --- Database Operations (MongoDB) ---
 async def async_update_tv_shows():
     """Fetches new posts and updates the database (async version)."""
-    posts = await fetch_telegram_posts()  # Await the fetch
+    posts = await fetch_telegram_posts()
     if not posts:
         return
 
@@ -151,21 +136,19 @@ async def async_update_tv_shows():
         if parsed_data:
             tmdb_data = fetch_tmdb_data(parsed_data['show_name'])
             show_data = {
-                'show_name': parsed_data['show_name'],  # Use show_name as the key
+                'show_name': parsed_data['show_name'],
                 'season_episode': parsed_data['season_episode'],
                 'download_link': parsed_data['download_link'],
                 'message_id': parsed_data['message_id'],
                 'overview': tmdb_data.get('overview') if tmdb_data else None,
                 'vote_average': tmdb_data.get('vote_average') if tmdb_data else None,
-                'poster_path': tmdb_data.get('poster_path') if tmdb_data else None, # Use get
+                'poster_path': tmdb_data.get('poster_path') if tmdb_data else None,
             }
-            # Use update_one with upsert=True. This is how we replace existing shows.
             db.tv_shows.update_one(
-                {'show_name': parsed_data['show_name']},  # Find by show_name
-                {'$set': show_data},  # Update or set these fields
-                upsert=True  # Insert if it doesn't exist
+                {'show_name': parsed_data['show_name']},
+                {'$set': show_data},
+                upsert=True
             )
-    #Ensure we have indexes
     db.tv_shows.create_index([("show_name", ASCENDING)], unique=True)
     db.tv_shows.create_index([("message_id", ASCENDING)])
 
@@ -195,9 +178,10 @@ def get_tv_show_by_message_id(message_id):
 def get_all_show_names():
     """Retrieves a list of all unique show names."""
     db = get_db()
-    show_names_cursor = db.tv_shows.distinct('show_name')  # Use distinct
+    show_names_cursor = db.tv_shows.distinct('show_name')
     show_names = list(show_names_cursor)
     return show_names
+
 # --- Routes ---
 
 @app.route('/')
@@ -206,14 +190,13 @@ def index():
     search_query = request.args.get('search', '')
     page = request.args.get('page', 1, type=int)
     per_page = 9
-    asyncio.run(async_update_tv_shows())  # Update data (using asyncio.run for the async function)
+    asyncio.run(async_update_tv_shows())
     tv_shows, total_pages = get_all_tv_shows(page, per_page, search_query)
     return render_template('index.html', tv_shows=tv_shows, page=page, total_pages=total_pages, search_query=search_query)
 
 @app.route('/show/<int:message_id>')
 def show_details(message_id):
     """Displays details for a single TV show."""
-    # No update_tv_shows() call here - details page doesn't need to trigger a full update
     show = get_tv_show_by_message_id(message_id)
     if show:
         return render_template('show_details.html', show=show)
@@ -222,7 +205,7 @@ def show_details(message_id):
 @app.route('/redirect/<int:message_id>')
 def redirect_to_download(message_id):
     """Redirects to the download link for a TV show."""
-    show = get_tv_show_by_message_id(message_id)  # No update_tv_shows() call here either
+    show = get_tv_show_by_message_id(message_id)
     if show and show.get('download_link'):
         return redirect(show['download_link'])
     return "Show or link not found", 404
