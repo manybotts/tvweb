@@ -81,14 +81,14 @@ def index():
     per_page = 9
 
     # TEMPORARY: Use the test_task for now
-    logger.info("About to enqueue test_task")
-    test_task.delay()  # Use .delay() to enqueue the task!
-    logger.info("test_task enqueued")
+    # logger.info("About to enqueue test_task")
+    # test_task.delay()  # Call the test task
+    # logger.info("test_task enqueued")
 
     # Original task enqueueing (commented out for now)
-    # logger.info("About to enqueue update_tv_shows task")
-    # update_tv_shows.delay()
-    # logger.info("update_tv_shows task enqueued")
+    logger.info("About to enqueue update_tv_shows task")
+    update_tv_shows.delay()
+    logger.info("update_tv_shows task enqueued")
 
     tv_shows, total_pages = get_all_tv_shows(page, per_page, search_query)
     return render_template('index.html', tv_shows=tv_shows, page=page, total_pages=total_pages, search_query=search_query)
