@@ -71,20 +71,21 @@ async def fetch_telegram_posts():
 def parse_telegram_post(post):
     """Parses a Telegram post (caption) to extract show info."""
     try:
-        text = post.caption
-        # Regex to extract show name, season/episode, and download link
-        match = re.search(r"^(.*?)\n(Season\s+\d+.*)\n(.*?)HERE", text, re.DOTALL | re.IGNORECASE)
-        if match:
-            show_name = match.group(1).strip()
-            season_episode = match.group(2).strip()
-            link_text = match.group(3).strip()
-            download_link = None
-            # Find the URL entity associated with the "HERE" text
-            if post.caption_entities:
-                for entity in post.caption_entities:
-                    if entity.type == 'text_link' and text[entity.offset:entity.offset + entity.length] == "HERE ✔️":
-                         download_link = entity.url
-                         break  # Stop searching after finding the first matching link
+        if post.caption:
+            text = post.caption
+            # Regex to extract show name, season/episode, and download link
+            match = re.search(r"^(.*?)\n(Season\s+\d+.*)\n(.*?)HERE", text, re.DOTALL | re.IGNORECASE)
+            if match:
+                show_name = match.group(1).strip()
+                season_episode = match.group(2).strip()
+                link_text = match.group(3).strip()
+                download_link = None
+                # Find the URL entity associated with the "HERE" text
+                if post.caption_entities:
+                    for entity in post.caption_entities:
+                        if entity.type == 'text_link' and text[entity.offset:entity.offset + entity.length] == "HERE ✔️":
+                             download_link = entity.url
+                             break  # Stop searching after finding the first matching link
 
             return {
                 'show_name': show_name,
@@ -221,6 +222,7 @@ def redirect_to_download(message_id):
 
 @app.route('/shows')
 def list_shows():
+    """Displays a list of all available TV show names."""
     show_names = get_all_show_names()
     return render_template('shows.html', show_names=show_names)
 
