@@ -7,7 +7,6 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" integrity="sha512-9usAa10IRO0HhonpyAIVpjrylPvoDwiPUiKdWk5t3PyolY1cOd4DSE0Ga+ri4AuTroPR5aQvXU9xC6qOPnzFeg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
     <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
     <style>
-        /* Basic styling */
         body {
             font-family: 'Open Sans', sans-serif;
             line-height: 1.6;
@@ -17,44 +16,42 @@
             color: #333;
         }
 
-        /* --- Navbar Styles --- */
+        /* --- Navbar --- */
         .navbar {
             background-color: #007bff;
             color: white;
             padding: 10px 20px;
             display: flex;
-            justify-content: space-between; /* Space out items horizontally */
+            justify-content: space-between; /* Key for horizontal layout */
             align-items: center;          /* Vertically center items */
             flex-wrap: wrap;             /* Allow wrapping on smaller screens */
         }
 
-        .logo-container {
+        .logo-and-links { /* Container for logo and links */
             display: flex;
             align-items: center;
-            order: 1; /* Logo on the left */
         }
 
         .logo {
-            width: 40px;  /* Adjust as needed */
+            width: 40px;
             height: auto;
             margin-right: 10px;
             border-radius: 50%;
         }
 
         .nav-links {
-            display: flex;
+            display: flex; /* Keep links horizontal */
             align-items: center;
-            order: 2; /* Nav links in the middle */
         }
 
         .navbar a {
             color: white;
             text-decoration: none;
-            padding: 10px 15px;
+            padding: 5px 10px; /* Smaller padding */
             margin: 0 5px;
             border-radius: 5px;
             transition: background-color 0.3s ease;
-            font-size: 1.2em;
+            font-size: 1em;   /* Smaller font size */
             white-space: nowrap;
         }
 
@@ -64,29 +61,26 @@
 
         .navbar-center {
             font-weight: bold;
-            font-size: 1.5em;
+            font-size: 1.2em; /* Smaller title */
             white-space: nowrap;
-            order: 3; /* Title after nav links */
-            margin-right: auto; /* Push title to the center */
-            margin-left: auto; /* Push title to the center */
+            flex-grow: 1;       /* Allow title to take available space */
+            text-align: center; /* Center the title */
         }
 
         .search-form {
             display: flex;
             align-items: center;
-            order: 4; /* Search form on the right */
         }
 
         .search-form input[type="text"] {
-            padding: 8px;
+            padding: 5px; /* Smaller padding */
             border: 1px solid #ddd;
             border-radius: 4px;
             margin-right: 5px;
-            flex-grow: 1;  /* Allow input to grow on larger screens */
         }
 
         .search-form button {
-            padding: 8px 15px;
+            padding: 5px 10px; /* Smaller padding */
             background-color: #fff;
             color: #007bff;
             border: 1px solid #007bff;
@@ -95,12 +89,7 @@
             transition: background-color 0.3s ease, color 0.3s ease;
             white-space: nowrap;
         }
-
-        .search-form button:hover {
-            background-color: #007bff;
-            color: white;
-        }
-        /* --- End Navbar Styles --- */
+        /* --- End Navbar --- */
 
         .container {
             max-width: 1200px;
@@ -113,11 +102,11 @@
             text-align: center;
             margin-bottom: 30px;
             color: #007bff;
-          font-family: sans-serif; /* More professional font */
-          font-size: 1.5em;       /* Smaller font size */
-          display: flex;          /* Use flexbox for centering with the dot */
-          align-items: center;    /* Vertically center */
-          justify-content: center; /* Horizontally center */
+            font-family: sans-serif; /* More professional font */
+            font-size: 1.5em;       /* Smaller font size */
+            display: flex;          /* Use flexbox for centering with the dot */
+            align-items: center;    /* Vertically center */
+            justify-content: center; /* Horizontally center */
         }
 
         .blinking-dot {
@@ -139,24 +128,23 @@
         .tv-shows {
             display: flex;
             flex-wrap: wrap;
-            justify-content: flex-start;
-            gap: 20px;
+            justify-content: flex-start; /* Align to the left */
+            gap: 10px;  /* Smaller gap */
         }
 
         .card {
             border: 1px solid #ddd;
-            padding: 15px;
-            margin: 0; /* Use gap instead of margin */
-            width: calc(33.333% - 20px); /* Three cards per row on desktop */
+            padding: 10px; /* Smaller padding */
+            margin: 0;
+            width: calc(25% - 10px); /* Four cards per row on larger screens*/
             text-align: center;
             background-color: #fff;
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
             transition: transform 0.2s ease;
             box-sizing: border-box;
-            flex-grow: 0;
-            flex-shrink: 0;
+            flex-grow: 0;  /* Don't allow growing */
+            flex-shrink: 0; /* Don't allow shrinking */
         }
-
         .card:hover {
             transform: translateY(-5px);
         }
@@ -165,17 +153,17 @@
             max-width: 100%;
             height: auto;
             border-bottom: 1px solid #eee;
-            margin-bottom: 10px;
+            margin-bottom: 5px; /* Less margin */
         }
 
         .card h2 {
-            font-size: 1.2em;
-            margin-bottom: 5px;
+            font-size: 1em;  /* Smaller font size */
+            margin-bottom: 2px; /* Less margin */
             color: #007bff;
         }
 
         .card p {
-            font-size: 0.9em;
+            font-size: 0.8em; /* Smaller font size */
             color: #666;
         }
 
@@ -185,18 +173,18 @@
         }
 
         .telegram-loader {
-            width: 50px;
-            height: 50px;
-            margin: 20px auto;
+            width: 40px;  /* Smaller loader */
+            height: 40px;
+            margin: 10px auto; /* Less margin */
             position: relative;
         }
 
         .telegram-loader .plane {
             width: 0;
             height: 0;
-            border-top: 25px solid #007bff;
-            border-left: 15px solid transparent;
-            border-right: 15px solid transparent;
+            border-top: 20px solid #007bff; /* Smaller plane */
+            border-left: 12px solid transparent;
+            border-right: 12px solid transparent;
             position: absolute;
             top: 50%;
             left: 50%;
@@ -205,10 +193,10 @@
         }
 
         .telegram-loader .circle {
-          width: 50px;
-          height: 50px;
+          width: 40px;  /* Smaller circle */
+          height: 40px;
           border-radius: 50%;
-          border: 3px solid rgba(0, 123, 255, 0.3);
+          border: 2px solid rgba(0, 123, 255, 0.3); /* Thinner border */
           position: absolute;
           top: 0;
           left: 0;
@@ -229,15 +217,15 @@
         .pagination {
             text-align: center;
             margin-top: 20px;
-            clear: both;
+             clear: both; /* Add clear: both; */
         }
 
         .pagination a {
-            padding: 8px 16px;
+            padding: 5px 10px; /* Smaller padding */
             text-decoration: none;
             color: #007bff;
             border: 1px solid #ddd;
-            margin: 0 4px;
+            margin: 0 2px;  /* Less margin */
             border-radius: 5px;
         }
 
@@ -245,9 +233,10 @@
             background-color: #007bff;
             color: white;
         }
+
         .pagination .current-page {
-            padding: 8px 16px;
-            margin: 0 4px;
+            padding: 5px 10px; /* Smaller padding */
+            margin: 0 2px;  /* Less margin */
             border-radius: 5px;
             background-color: #007bff;
             color: white;
@@ -256,19 +245,20 @@
 
         .download-button {
             display: inline-block;
-            padding: 12px 25px;
-            font-size: 1.1em;
+            padding: 8px 15px; /* Smaller button */
+            font-size: 1em;
             background-color: #007bff;
             color: white;
             text-decoration: none;
             border-radius: 5px;
-            transition: background-color: 0.3s ease;
+            transition: background-color 0.3s ease;
         }
 
         .download-button:hover {
             background-color: #0056b3;
         }
-        ul{
+
+       ul{
           list-style: none;
           padding: 0;
         }
@@ -291,72 +281,61 @@
           text-decoration: none;
           color: #007bff;
       }
+
         /* --- Media Queries --- */
 
         /* Mobile Styles (max-width: 768px) */
         @media (max-width: 768px) {
             .navbar {
                 flex-direction: column; /* Stack elements vertically */
-                align-items: stretch; /* Stretch items to full width */
-                padding: 10px; /* Reduce padding */
             }
 
-             .logo-container{
-               justify-content: center;
+            .logo-and-links {
+                width: 100%; /* Full width */
+                justify-content: center; /* Center logo and links */
+                margin-bottom: 5px; /* Less margin */
             }
 
             .nav-links {
-                flex-direction: row;
-                justify-content: center; /* Center links horizontally */
-                width: 100%;            /* Full width */
-                margin: 10px 0;        /* Add vertical margin */
-                align-items: stretch; /* Make links stretch vertically */
-            }
-            .nav-links a{
-               text-align: center;
-                display: block;
-                width: 100%;
-                box-sizing: border-box;
+                justify-content: center; /* Center links */
             }
 
             .navbar-center {
-               order: -1; /* Center text at the top on mobile */
-               margin-bottom: 10px; /* Add space below title */
-               width: 100%; /* Full width */
+                width: 100%; /* Full width */
+                margin-bottom: 5px; /* Less margin */
             }
 
             .search-form {
                 width: 100%; /* Full width */
-                margin-bottom: 10px;
-                 justify-content: center;
+                 justify-content: center; /* Add  to center */
             }
 
             .card {
-                width: calc(50% - 20px); /* Two cards per row on mobile */
+                width: calc(50% - 10px); /* Two cards per row on mobile */
             }
         }
 
         /* Very Small Screens (max-width: 480px) */
         @media (max-width: 480px) {
-            .card {
-                width: calc(100% - 20px); /* One card per row on very small screens */
-            }
-               .search-form input[type="text"]{
+             .search-form input[type="text"]{
                width: 60%;
+            }
+            .card {
+                width: calc(100% - 10px); /* One card per row */
             }
         }
     </style>
 </head>
 <body>
     <div class="navbar">
-        <div class="logo-container">
-          <a href="{{ url_for('index') }}">
-            <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" class="logo">
-          </a>
-          <div class ="nav-links">
-            <a href="{{ url_for('index') }}">Home</a>
-            <a href="{{ url_for('list_shows') }}">Available Shows</a>
-          </div>
+        <div class="logo-and-links">
+            <a href="{{ url_for('index') }}">
+                <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" class="logo">
+            </a>
+            <div class="nav-links">
+                <a href="{{ url_for('index') }}">Home</a>
+                <a href="{{ url_for('list_shows') }}">Available Shows</a>
+            </div>
         </div>
         <div class="navbar-center">
             𝕚𝔹𝕆𝕏 𝕋𝕍
