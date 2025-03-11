@@ -3,27 +3,16 @@
 {% block title %}TV Show Updates{% endblock %}
 
 {% block content %}
-    <h1><span class="blinking-dot"></span>New TV Show Updates</h1>
-    <div class="search-form">
-        <form action="{{ url_for('index') }}" method="GET">
-            <input type="text" name="search" placeholder="Search for a show..." value="{{ search_query }}">
-            <button type="submit">Search</button>
-        </form>
-    </div>
-
+  <h1><span class="blinking-dot"></span>New TV Show Updates</h1>
     {% if tv_shows %}
-    <div class = "container">
         {% for show in tv_shows %}
-            <div class="card">
+              <div class="card">
                 <a href="{{ url_for('show_details', message_id=show.message_id) }}">
-                    {% if show.poster_path %}
-                        <img src="{{ show.poster_path }}" alt="{{ show.show_name }}" loading="lazy">
-                    {% else %}
-                        <div class="telegram-loader">
-                            <div class="plane"></div>
-                            <div class="circle"></div>
-                        </div>
-                    {% endif %}
+                  {% if show.poster_path %}
+                    <img src="{{ show.poster_path }}" alt="{{ show.show_name }}" loading="lazy">
+                   {% else %}
+                    <p>Image Not Found</p>
+                  {% endif %}
                     <h2>{{ show.show_name }}</h2>
                     <p>{{ show.season_episode }}</p>
                 </a>
@@ -42,5 +31,4 @@
             <a href="{{ url_for('index', page=page+1, search=search_query) }}">Next</a>
         {% endif %}
     </div>
-        </div>
 {% endblock %}
