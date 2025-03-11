@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+
+{% block title %}All Shows{% endblock %}
+
+{% block content %}
+    <h1>All Shows</h1>
+    <ul>
+        {% for show_name in show_names %}
+            <li>{{ show_name }}</li>
+        {% endfor %}
+    </ul>
+{% endblock %}
