@@ -61,9 +61,22 @@ def fetch_telegram_posts():
           return updates
         updates = asyncio.run(get_updates())
         posts = []
+        print(f"Raw updates from Telegram: {updates}")  # Keep this
         for update in updates:
-            if update.channel_post and (update.channel_post.caption or update.channel_post.text): #Check caption
-                posts.append(update.channel_post)
+            print(f"Processing update: {update}") # Add this - VERY IMPORTANT
+            if update.channel_post:
+                print(f"  Channel post found: {update.channel_post}") # Add this
+                if update.channel_post.caption:
+                    print(f"    Caption found: {update.channel_post.caption}") # Add this
+                    posts.append(update.channel_post)
+                elif update.channel_post.text:
+                    print(f"    Text found: {update.channel_post.text}") # Add this
+                    posts.append(update.channel_post)
+                else:
+                    print("    No caption or text found in channel post.") # Add this
+            else:
+                print("  Not a channel post.") # Add this
+        print(f"Posts found: {posts}")
         return posts
     except TelegramError as e:
         print(f"Error fetching Telegram posts: {e}")
@@ -75,18 +88,23 @@ def parse_telegram_post(post):
         # Check if post.caption exists and is not None
         if post.caption:
             text = post.caption  # Use post.caption instead of post.text
-            match = re.search(r"^(.*?)\n(Season\s+\d+(?:\s*-\s*\d+)?(?:,\s*Episode\s+\d+(?:\s*-\s*\d+)?)?)\n.*?CLICK HERE", text, re.DOTALL | re.IGNORECASE)
+            print(f"Parsing post caption: {text}")  # Add this line
+            match = re.search(r"^(.*?)\n(Season\s+\d+.*)\n(.*?)HERE", text, re.DOTALL | re.IGNORECASE)
             if match:
                 show_name = match.group(1).strip()
                 season_episode = match.group(2).strip()
+                link_text = match.group(3).strip()
                 link_match = re.search(r"(https?://[^\s]+)", text)
                 download_link = link_match.group(1).strip() if link_match else None
+                print(f"Parsed data: show_name={show_name}, season_episode={season_episode}, download_link={download_link}, link_text={link_text}")  # Add this
                 return {
                     'show_name': show_name,
                     'season_episode': season_episode,
                     'download_link': download_link,
                     'message_id': post.message_id
                 }
+            else:
+                print(f"Regex did not match for caption: {text}") #Log
         else:
             print(f"Skipping post with ID {post.message_id}: No caption content.") #Log if no caption
         return None  # Return None if post.caption is None or no match is found
@@ -100,12 +118,14 @@ def fetch_tmdb_data(show_name, language='en-US'):
         search_url = f"https://api.themoviedb.org/3/search/tv?api_key={app.config['TMDB_API_KEY']}&query={show_name}&language={language}"
         search_response = requests.get(search_url)
         search_data = search_response.json()
+        print(f"TMDb search data for '{show_name}': {search_data}")  # Add this
 
         if search_data['results']:
             show_id = search_data['results'][0]['id']
             details_url = f"https://api.themoviedb.org/3/tv/{show_id}?api_key={app.config['TMDB_API_KEY']}&language={language}"
             details_response = requests.get(details_url)
             details_data = details_response.json()
+            print(f"TMDb details data for show ID {show_id}: {details_data}")  # Add this
 
             return {
                 'poster_path': f"https://image.tmdb.org/t/p/w500{details_data.get('poster_path')}" if details_data.get('poster_path') else None,
@@ -123,10 +143,12 @@ def update_tv_shows():
     db = get_db()
     for post in reversed(posts):
         parsed_data = parse_telegram_post(post)
+        print(f"Parsed Data: {parsed_data}") #Log before database
         if parsed_data:
             existing_show = db.execute('SELECT * FROM tv_shows WHERE message_id = ?', (parsed_data['message_id'],)).fetchone()
             if not existing_show:
                 tmdb_data = fetch_tmdb_data(parsed_data['show_name'], language='en-US')
+                print(f"TMDB data {tmdb_data}") #log before insert
                 if tmdb_data:
                     db.execute('''
                         INSERT INTO tv_shows (message_id, show_name, season_episode, download_link, poster_path, overview, vote_average)
@@ -135,6 +157,7 @@ def update_tv_shows():
                           parsed_data['download_link'], tmdb_data['poster_path'], tmdb_data['overview'],
                           tmdb_data['vote_average']))
                     db.commit()
+                    print(f"Inserted show into database: {parsed_data['show_name']}") #Add this line
 
 def get_all_tv_shows():
     """Retrieves all TV shows from the database."""
