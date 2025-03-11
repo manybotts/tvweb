@@ -2,7 +2,9 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+
+
     <title>{% block title %}{% endblock %} - TV Show Tracker</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" integrity="sha512-9usAa10IRO0HhonpyAIVpjrylPvoDwiPUiKdWk5t3PyolY1cOd4DSE0Ga+ri4AuTroPR5aQvXU9xC6qOPnzFeg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
     <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
@@ -16,20 +18,20 @@
             color: #333;
         }
 
-        /* --- Navbar --- */
         .navbar {
             background-color: #007bff;
             color: white;
             padding: 10px 20px;
             display: flex;
-            justify-content: space-between; /* Key for horizontal layout */
-            align-items: center;          /* Vertically center items */
-            flex-wrap: wrap;             /* Allow wrapping on smaller screens */
+            justify-content: space-between;
+            align-items: center;
+            /* Removed flex-wrap: wrap; */
         }
 
-        .logo-and-links { /* Container for logo and links */
+        .logo-container {
             display: flex;
             align-items: center;
+              /* Removed margin-bottom */
         }
 
         .logo {
@@ -40,18 +42,21 @@
         }
 
         .nav-links {
-            display: flex; /* Keep links horizontal */
+            display: flex;
             align-items: center;
+            margin-left: 10px;
+            /* Removed margin-bottom */
+            /*Removed flex-wrap*/
         }
 
         .navbar a {
             color: white;
             text-decoration: none;
-            padding: 5px 10px; /* Smaller padding */
+            padding: 10px 15px;
             margin: 0 5px;
             border-radius: 5px;
             transition: background-color 0.3s ease;
-            font-size: 1em;   /* Smaller font size */
+            font-size: 1.2em;
             white-space: nowrap;
         }
 
@@ -61,26 +66,32 @@
 
         .navbar-center {
             font-weight: bold;
-            font-size: 1.2em; /* Smaller title */
+            font-size: 1.5em;
             white-space: nowrap;
-            flex-grow: 1;       /* Allow title to take available space */
-            text-align: center; /* Center the title */
+            order: 2; /* Correct order */
+            margin-right: auto;
+            margin-left: auto;
         }
+
 
         .search-form {
             display: flex;
             align-items: center;
+            /* Removed margin-bottom */
+            /* Removed width: 100% */
         }
 
         .search-form input[type="text"] {
-            padding: 5px; /* Smaller padding */
+            padding: 8px;
             border: 1px solid #ddd;
             border-radius: 4px;
             margin-right: 5px;
+             /* Removed flex-grow */
+
         }
 
         .search-form button {
-            padding: 5px 10px; /* Smaller padding */
+            padding: 8px 15px;
             background-color: #fff;
             color: #007bff;
             border: 1px solid #007bff;
@@ -89,32 +100,36 @@
             transition: background-color 0.3s ease, color 0.3s ease;
             white-space: nowrap;
         }
-        /* --- End Navbar --- */
 
-        .container {
+        .search-form button:hover {
+            background-color: #007bff;
+            color: white;
+        }
+
+       .container {
             max-width: 1200px;
             margin: auto;
             overflow: hidden;
             padding: 20px;
         }
 
-       h1 {
+        h1 {
             text-align: center;
             margin-bottom: 30px;
             color: #007bff;
-            font-family: sans-serif; /* More professional font */
-            font-size: 1.5em;       /* Smaller font size */
-            display: flex;          /* Use flexbox for centering with the dot */
-            align-items: center;    /* Vertically center */
-            justify-content: center; /* Horizontally center */
+            font-family: sans-serif;
+            font-size: 1.5em;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .blinking-dot {
           width: 10px;
           height: 10px;
           background-color: green;
-          border-radius: 50%; /* Make it round */
-          margin-right: 8px; /* Space between dot and text */
+          border-radius: 50%;
+          margin-right: 8px;
           animation: blink 1s steps(5, start) infinite;
         }
 
@@ -124,27 +139,20 @@
           }
         }
 
-        /* --- Card Styles (using Flexbox) --- */
-        .tv-shows {
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: flex-start; /* Align to the left */
-            gap: 10px;  /* Smaller gap */
-        }
-
         .card {
             border: 1px solid #ddd;
-            padding: 10px; /* Smaller padding */
-            margin: 0;
-            width: calc(25% - 10px); /* Four cards per row on larger screens*/
+            padding: 10px;
+            margin: 0; /* Use gap instead of margin */
+            width: calc(25% - 10px);  /* Four cards per row on larger screens */
             text-align: center;
             background-color: #fff;
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
             transition: transform 0.2s ease;
             box-sizing: border-box;
-            flex-grow: 0;  /* Don't allow growing */
-            flex-shrink: 0; /* Don't allow shrinking */
+            flex-grow: 0;
+            flex-shrink: 0;
         }
+
         .card:hover {
             transform: translateY(-5px);
         }
@@ -153,17 +161,17 @@
             max-width: 100%;
             height: auto;
             border-bottom: 1px solid #eee;
-            margin-bottom: 5px; /* Less margin */
+            margin-bottom: 5px;
         }
 
         .card h2 {
-            font-size: 1em;  /* Smaller font size */
-            margin-bottom: 2px; /* Less margin */
+            font-size: 1em;
+            margin-bottom: 2px;
             color: #007bff;
         }
 
         .card p {
-            font-size: 0.8em; /* Smaller font size */
+            font-size: 0.8em;
             color: #666;
         }
 
@@ -171,18 +179,24 @@
           text-decoration: none;
           color: inherit;
         }
+        .tv-shows {
+          display: flex;        /* Enable Flexbox */
+          flex-wrap: wrap;      /* Allow cards to wrap to the next line */
+          justify-content: flex-start; /* Align cards to the start (left) */
+          gap: 10px; /* Space between the cards */
+        }
 
         .telegram-loader {
-            width: 40px;  /* Smaller loader */
+            width: 40px;
             height: 40px;
-            margin: 10px auto; /* Less margin */
+            margin: 10px auto;
             position: relative;
         }
 
         .telegram-loader .plane {
             width: 0;
             height: 0;
-            border-top: 20px solid #007bff; /* Smaller plane */
+            border-top: 20px solid #007bff;
             border-left: 12px solid transparent;
             border-right: 12px solid transparent;
             position: absolute;
@@ -193,10 +207,10 @@
         }
 
         .telegram-loader .circle {
-          width: 40px;  /* Smaller circle */
+          width: 40px;
           height: 40px;
           border-radius: 50%;
-          border: 2px solid rgba(0, 123, 255, 0.3); /* Thinner border */
+          border: 2px solid rgba(0, 123, 255, 0.3);
           position: absolute;
           top: 0;
           left: 0;
@@ -217,15 +231,15 @@
         .pagination {
             text-align: center;
             margin-top: 20px;
-             clear: both; /* Add clear: both; */
+            clear: both;
         }
 
         .pagination a {
-            padding: 5px 10px; /* Smaller padding */
+            padding: 5px 10px;
             text-decoration: none;
             color: #007bff;
             border: 1px solid #ddd;
-            margin: 0 2px;  /* Less margin */
+            margin: 0 2px;
             border-radius: 5px;
         }
 
@@ -235,8 +249,8 @@
         }
 
         .pagination .current-page {
-            padding: 5px 10px; /* Smaller padding */
-            margin: 0 2px;  /* Less margin */
+            padding: 5px 10px;
+            margin: 0 2px;
             border-radius: 5px;
             background-color: #007bff;
             color: white;
@@ -245,7 +259,7 @@
 
         .download-button {
             display: inline-block;
-            padding: 8px 15px; /* Smaller button */
+            padding: 8px 15px;
             font-size: 1em;
             background-color: #007bff;
             color: white;
@@ -258,7 +272,7 @@
             background-color: #0056b3;
         }
 
-       ul{
+        ul{
           list-style: none;
           padding: 0;
         }
@@ -283,56 +297,30 @@
       }
 
         /* --- Media Queries --- */
+      @media (max-width: 768px) {
 
-        /* Mobile Styles (max-width: 768px) */
-        @media (max-width: 768px) {
-            .navbar {
-                flex-direction: column; /* Stack elements vertically */
-            }
-
-            .logo-and-links {
-                width: 100%; /* Full width */
-                justify-content: center; /* Center logo and links */
-                margin-bottom: 5px; /* Less margin */
-            }
-
-            .nav-links {
-                justify-content: center; /* Center links */
-            }
-
-            .navbar-center {
-                width: 100%; /* Full width */
-                margin-bottom: 5px; /* Less margin */
-            }
-
-            .search-form {
-                width: 100%; /* Full width */
-                 justify-content: center; /* Add  to center */
-            }
-
-            .card {
-                width: calc(50% - 10px); /* Two cards per row on mobile */
-            }
+        .card {
+            width: calc(50% - 20px); /* Two cards per row */
         }
+    }
 
-        /* Very Small Screens (max-width: 480px) */
-        @media (max-width: 480px) {
-             .search-form input[type="text"]{
-               width: 60%;
-            }
-            .card {
-                width: calc(100% - 10px); /* One card per row */
-            }
+
+    @media (max-width: 480px) {
+
+        .card {
+            width: calc(100% - 20px); /* One card per row, taking full width */
         }
+    }
+
     </style>
 </head>
 <body>
     <div class="navbar">
-        <div class="logo-and-links">
-            <a href="{{ url_for('index') }}">
-                <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" class="logo">
-            </a>
-            <div class="nav-links">
+        <div class="logo-container">
+          <a href="{{ url_for('index') }}">
+            <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" class="logo">
+          </a>
+            <div class ="nav-links">
                 <a href="{{ url_for('index') }}">Home</a>
                 <a href="{{ url_for('list_shows') }}">Available Shows</a>
             </div>
