@@ -1,118 +1,27 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>{{ show.show_name }}</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" integrity="sha512-9usAa10IRO0HhonpyAIVpjrylPvoDwiPUiKdWk5t3PyolY1cOd4DSE0Ga+ri4AuTroPR5aQvXU9xC6qOPnzFeg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
-    <style>
-     body {
-            font-family: 'Open Sans', sans-serif;
-            line-height: 1.6;
-            margin: 0;
-            padding: 20px;
-            background-color: #f4f4f4;
-            color: #333;
-        }
-        h1 {
-            color: #007bff;
-            margin-bottom: 10px;
-        }
-        .container {
-            max-width: 800px;
-            margin: auto;
-            background-color: #fff;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-        }
-        img {
-            max-width: 300px; /* Adjust as needed */
-            height: auto;
-            display: block;
-            margin: 20px auto;
-            border: 1px solid #ddd;
-        }
-        p {
-            margin-bottom: 10px;
-        }
-        .download-button {
-            display: inline-block;
-            padding: 12px 25px;
-            font-size: 1.1em;
-            background-color: #007bff;
-            color: white;
-            text-decoration: none;
-            border-radius: 5px;
-            transition: background-color 0.3s ease;
-        }
-        .download-button:hover {
-            background-color: #0056b3;
-        }
-        .telegram-loader {
-            width: 50px;
-            height: 50px;
-            margin: 20px auto;
-            position: relative;
-        }
+{% extends "base.html" %}
 
-        .telegram-loader .plane {
-            width: 0;
-            height: 0;
-            border-top: 25px solid #007bff; /* Blue plane */
-            border-left: 15px solid transparent;
-            border-right: 15px solid transparent;
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform-origin: 50% 0%; /* Rotate from the top */
-            animation: fly 1.5s linear infinite;
-        }
+{% block title %}{{ show.show_name }}{% endblock %}
 
-        .telegram-loader .circle {
-          width: 50px;
-          height: 50px;
-          border-radius: 50%;
-          border: 3px solid rgba(0, 123, 255, 0.3); /* Semi-transparent blue */
-          position: absolute;
-          top: 0;
-          left: 0;
-          animation: rotate 2s linear infinite; /* Slower rotation */
-        }
+{% block content %}
+    <h1>{{ show.show_name }}</h1>
+    <p>{{ show.season_episode }}</p>
 
-        @keyframes fly {
-          0% { transform: translate(-50%, -50%) rotate(0deg); }
-          50% { transform: translate(-50%, -100%) rotate(45deg); } /* Move up and rotate */
-          100% { transform: translate(-50%, -50%) rotate(90deg); }
-        }
+    {% if show.poster_path %}
+        <img src="{{ show.poster_path }}" alt="{{ show.show_name }}" style="max-width:300px;">
+    {% else %}
+        <div class="telegram-loader">
+            <div class="plane"></div>
+            <div class="circle"></div>
+        </div>
+    {% endif %}
 
-        @keyframes rotate {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1>{{ show.show_name }}</h1>
-        <p>{{ show.season_episode }}</p>
+    {% if show.overview %}
+        <p><strong>Overview:</strong> {{ show.overview }}</p>
+    {% endif %}
 
-        {% if show.poster_path %}
-            <img src="{{ show.poster_path }}" alt="{{ show.show_name }}" style="max-width:300px;">
-        {% else %}
-            <div class="telegram-loader">
-                <div class="plane"></div>
-                <div class="circle"></div>
-            </div>
-        {% endif %}
+    {% if show.vote_average %}
+        <p><strong>Rating:</strong> {{ show.vote_average }}/10</p>
+    {% endif %}
 
-        {% if show.overview %}
-            <p><strong>Overview:</strong> {{ show.overview }}</p>
-        {% endif %}
-
-        {% if show.vote_average %}
-            <p><strong>Rating:</strong> {{ show.vote_average }}/10</p>
-        {% endif %}
-
-        <a href="{{ url_for('redirect_to_download', message_id=show.message_id) }}" class="download-button">Download</a>
-    </div>
-</body>
-</html>
+    <a href="{{ url_for('redirect_to_download', message_id=show.message_id) }}" class="download-button">Download</a>
+{% endblock %}
