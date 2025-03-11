@@ -7,6 +7,12 @@ from telegram.error import TelegramError
 import asyncio
 from urllib.parse import quote_plus
 from pymongo import MongoClient
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.INFO,  # Set the minimum level to log. Change to DEBUG for more detailed logs.
+                    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your_secret_key')
@@ -29,9 +35,9 @@ def get_db():
         try:
             # Attempt a simple command to check the connection
             db.command('ping')
-            print("Successfully connected to MongoDB!")
+            logger.info("Successfully connected to MongoDB!") # INFO level log
         except Exception as e:
-            print(f"Error connecting to MongoDB: {e}")
+            logger.error(f"Error connecting to MongoDB: {e}") # ERROR level log
             raise  # Re-raise the exception
     return db
 
@@ -52,25 +58,25 @@ def fetch_telegram_posts():
           return updates
         updates = asyncio.run(get_updates())
         posts = []
-        print(f"Raw updates from Telegram: {updates}")  # KEEP THIS
+        # print(f"Raw updates from Telegram: {updates}")  # COMMENTED OUT
         for update in updates:
-            print(f"Processing update: {update}") # KEEP THIS
+            # print(f"Processing update: {update}") # COMMENTED OUT
             if update.channel_post:
-                print(f"  Channel post found: {update.channel_post}") # KEEP THIS
+                # print(f"  Channel post found: {update.channel_post}") # COMMENTED OUT
                 if update.channel_post.caption:
-                    print(f"    Caption found: {update.channel_post.caption}") # KEEP THIS
+                    # print(f"    Caption found: {update.channel_post.caption}") # COMMENTED OUT
                     posts.append(update.channel_post)
                 elif update.channel_post.text:
-                    print(f"    Text found: {update.channel_post.text}") # KEEP THIS
+                    # print(f"    Text found: {update.channel_post.text}") # COMMENTED OUT
                     posts.append(update.channel_post)
-                else:
-                    print("    No caption or text found in channel post.") # KEEP THIS
-            else:
-                print("  Not a channel post.") # KEEP THIS
-        print(f"Posts found: {posts}")  # KEEP THIS
+                # else:
+                    # print("    No caption or text found in channel post.") # COMMENTED OUT
+            # else:
+                # print("  Not a channel post.") # COMMENTED OUT
+        # print(f"Posts found: {posts}")  # COMMENTED OUT
         return posts
     except TelegramError as e:
-        print(f"Error fetching Telegram posts: {e}")
+        logger.error(f"Error fetching Telegram posts: {e}") # ERROR level log
         return []
 
 def parse_telegram_post(post):
@@ -79,7 +85,7 @@ def parse_telegram_post(post):
         # Check if post.caption exists and is not None
         if post.caption:
             text = post.caption  # Use post.caption instead of post.text
-            print(f"Parsing post caption: {text}")  # KEEP THIS
+            # print(f"Parsing post caption: {text}")  # COMMENTED OUT
             match = re.search(r"^(.*?)\n(Season\s+\d+.*)\n(.*?)HERE", text, re.DOTALL | re.IGNORECASE)
             if match:
                 show_name = match.group(1).strip()
@@ -89,26 +95,26 @@ def parse_telegram_post(post):
                 download_link = None  # Initialize to None
                 if post.caption_entities:
                   for entity in post.caption_entities:
-                      print(f"  Entity: {entity}")  # KEEP THIS
+                      # print(f"  Entity: {entity}")  # COMMENTED OUT
                       if entity.type == 'text_link' and text[entity.offset:entity.offset+entity.length] == "HERE ✔️":
                         download_link = entity.url
-                        print(f"    Found text_link URL: {download_link}")  # KEEP THIS
+                        # print(f"    Found text_link URL: {download_link}")  # COMMENTED OUT
                         break  # Stop after finding the first matching text_link
 
-                print(f"Parsed data: show_name={show_name}, season_episode={season_episode}, download_link={download_link}, link_text={link_text}")  # KEEP THIS
+                # print(f"Parsed data: show_name={show_name}, season_episode={season_episode}, download_link={download_link}, link_text={link_text}")  # COMMENTED OUT
                 return {
                     'show_name': show_name,
                     'season_episode': season_episode,
                     'download_link': download_link,
                     'message_id': post.message_id
                 }
-            else:
-                print(f"Regex did not match for caption: {text}") #Log
-        else:
-            print(f"Skipping post with ID {post.message_id}: No caption content.") #Log if no caption
+            # else:
+                # print(f"Regex did not match for caption: {text}") # COMMENTED OUT
+        # else:
+            # print(f"Skipping post with ID {post.message_id}: No caption content.") # COMMENTED OUT
         return None  # Return None if post.caption is None or no match is found
     except Exception as e:
-        print(f"Error parsing post: {e}")
+        logger.error(f"Error parsing post: {e}") # ERROR level log
         return None
 
 def fetch_tmdb_data(show_name, language='en-US'):
@@ -117,14 +123,14 @@ def fetch_tmdb_data(show_name, language='en-US'):
         search_url = f"https://api.themoviedb.org/3/search/tv?api_key={app.config['TMDB_API_KEY']}&query={show_name}&language={language}"
         search_response = requests.get(search_url)
         search_data = search_response.json()
-        print(f"TMDb search data for '{show_name}': {search_data}")  # KEEP THIS
+        # print(f"TMDb search data for '{show_name}': {search_data}")  # COMMENTED OUT
 
         if search_data['results']:
             show_id = search_data['results'][0]['id']
             details_url = f"https://api.themoviedb.org/3/tv/{show_id}?api_key={app.config['TMDB_API_KEY']}&language={language}"
             details_response = requests.get(details_url)
             details_data = details_response.json()
-            print(f"TMDb details data for show ID {show_id}: {details_data}")  # KEEP THIS
+            # print(f"TMDb details data for show ID {show_id}: {details_data}")  # COMMENTED OUT
 
             return {
                 'poster_path': f"https://image.tmdb.org/t/p/w500{details_data.get('poster_path')}" if details_data.get('poster_path') else None,
@@ -133,7 +139,7 @@ def fetch_tmdb_data(show_name, language='en-US'):
             }
         return None
     except Exception as e:
-        print(f"Error fetching TMDb data: {e}")
+        logger.error(f"Error fetching TMDb data: {e}") #ERROR Level Log
         return None
 
 # --- Database Operations (MongoDB) ---
@@ -144,11 +150,11 @@ def update_tv_shows():
         return
 
     db = get_db()
-    print(f"Connected to MongoDB database: {db.name}")  # Add this
+    # print(f"Connected to MongoDB database: {db.name}")  # COMMENTED OUT
     for post in posts:
         parsed_data = parse_telegram_post(post)
         if parsed_data:
-            print(f"Checking if show exists with message_id: {parsed_data['message_id']}")  # Add this
+            # print(f"Checking if show exists with message_id: {parsed_data['message_id']}")  # COMMENTED OUT
             existing_show = db.tv_shows.find_one({'message_id': parsed_data['message_id']})
             if not existing_show:
                 tmdb_data = fetch_tmdb_data(parsed_data['show_name'])
@@ -161,11 +167,11 @@ def update_tv_shows():
                     'vote_average': tmdb_data.get('vote_average') if tmdb_data else None,
                     'poster_path': tmdb_data.get('poster_path') if tmdb_data else None
                 }
-                print(f"Inserting show data: {show_data}")  # Add this
+                # print(f"Inserting show data: {show_data}")  # COMMENTED OUT
                 result = db.tv_shows.insert_one(show_data)
-                print(f"Inserted document ID: {result.inserted_id}")  # Add this
-            else:
-                print(f"Show already exists with message_id: {parsed_data['message_id']}")
+                # print(f"Inserted document ID: {result.inserted_id}")  # COMMENTED OUT
+            # else:
+                # print(f"Show already exists with message_id: {parsed_data['message_id']}") # COMMENTED OUT
 
 
 def get_all_tv_shows(page=1, per_page=9, search_query=None):
