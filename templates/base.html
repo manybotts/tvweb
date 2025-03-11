@@ -18,7 +18,7 @@
             background-color: #007bff;
             color: white;
             padding: 10px 0;
-            text-align: center; /* Center the content */
+            /* text-align: center;  Removed text-align: center */
             display: flex;         /* Use flexbox for layout */
             justify-content: space-between; /* Space between items */
             align-items: center;     /* Vertically center items */
@@ -31,11 +31,11 @@
             margin: 0 5px;
             border-radius: 5px;
             transition: background-color 0.3s ease;
-            font-size: 1.2em; /* Increased font size */
+            font-size: 1.2em;
         }
         .navbar a:hover {
             background-color: #0056b3;
-             /* Darker blue on hover */
+
         }
         .nav-links{
           display: flex; /* Put links and search on same line */
@@ -78,6 +78,26 @@
             text-align: center;
             margin-bottom: 30px;
             color: #007bff;
+          font-family: sans-serif; /* More professional font */
+          font-size: 1.5em;       /* Smaller font size */
+          display: flex;          /* Use flexbox for centering with the dot */
+          align-items: center;    /* Vertically center */
+          justify-content: center; /* Horizontally center */
+        }
+
+        .blinking-dot {
+          width: 10px;
+          height: 10px;
+          background-color: green;
+          border-radius: 50%; /* Make it round */
+          margin-right: 8px; /* Space between dot and text */
+          animation: blink 1s steps(5, start) infinite;
+        }
+
+        @keyframes blink {
+          to {
+            visibility: hidden;
+          }
         }
         .card {
             border: 1px solid #ddd;
@@ -225,4 +245,43 @@
       .logo {
           width: 40px;  /* Adjust as needed */
           height: auto; /* Maintain aspect ratio */
-          margin-right: 1
+          margin-right: 10px; /* Add spacing between logo and links */
+          border-radius: 50%; /* Makes the image round */
+      }
+      .navbar-center {
+        font-weight: bold;
+        font-size: 1.5em;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-grow: 1; /* Allow it to take up the available space */
+       }
+
+
+    </style>
+</head>
+<body>
+    <div class="navbar">
+        <div class="logo-container">
+          <a href="{{ url_for('index') }}">
+            <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" class="logo">
+          </a>
+            <div class="nav-links">
+                <a href="{{ url_for('index') }}">Home</a>
+                <a href="{{ url_for('list_shows') }}">All Shows</a>
+            </div>
+        </div>
+        <div class="navbar-center">
+            𝕚𝔹𝕆𝕏 𝕋𝕍
+        </div>
+        <form action="{{ url_for('index') }}" method="GET" class="search-form">
+            <input type="text" name="search" placeholder="Search for shows..." value="{{ search_query }}">
+            <button type="submit"><i class="fas fa-search"></i></button>
+        </form>
+    </div>
+
+    <div class="container">
+        {% block content %}{% endblock %}
+    </div>
+</body>
+</html>
