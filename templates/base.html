@@ -20,40 +20,40 @@
         .navbar {
             background-color: #007bff;
             color: white;
-            padding: 5px 20px; /* Reduced padding */
+            padding: 5px 10px;
             display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap; /* Important for responsiveness */
-            position: relative; /* Needed for absolute positioning */
+            align-items: center; /* Vertical centering */
+            position: relative;  /* For absolute positioning of title */
+            min-height: 50px; /* Ensure enough height */
         }
 
-        .logo-container {
+        .logo-and-links {
             display: flex;
             align-items: center;
+            margin-right: 20px; /* Space from the title */
         }
 
         .logo {
-            width: 30px; /* Smaller logo */
+            width: 30px;
             height: auto;
             margin-right: 5px;
             border-radius: 50%;
         }
 
         .nav-links {
-            display: flex;
+            display: flex; /* Horizontal links */
             align-items: center;
-             margin-right: 20px; /* Add space between links and center text*/
+
         }
 
         .navbar a {
             color: white;
             text-decoration: none;
-            padding: 5px 8px;  /* Smaller padding */
-            margin: 0;        /* Remove extra margin */
+            padding: 5px 8px;
+            margin: 0 2px;
             border-radius: 5px;
             transition: background-color 0.3s ease;
-            font-size: 1em;   /* Smaller font */
+            font-size: 0.9em;  /* Slightly smaller font */
             white-space: nowrap;
         }
 
@@ -61,41 +61,38 @@
             background-color: #0056b3;
         }
 
-      .navbar-center {
-        font-weight: bold;
-        font-size: 1.5em; /* Keep consistent with before */
-        position: absolute; /* Absolute positioning for true centering */
-        left: 50%;
-        top: 50%;
-        transform: translate(-50%, -50%);
-        white-space: nowrap;
-        margin: 0; /* Remove margin */
-        padding: 0;
-
-     }
+        .navbar-center {
+            font-weight: bold;
+            font-size: 1.2em;  /* Adjusted size */
+            position: absolute; /* Absolute positioning for true center */
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            white-space: nowrap;
+        }
 
         .search-form {
             display: flex;
             align-items: center;
-             margin-left: auto; /* Push search form to the right */
-
+            margin-left: auto; /* Push to the right */
         }
 
-      .search-form input[type="text"] {
-            padding: 5px;  /* Smaller padding */
+        .search-form input[type="text"] {
+            padding: 5px;
             border: 1px solid #ddd;
             border-radius: 4px;
             margin-right: 5px;
-            width: 100px;   /* Initial width (not completely collapsed) */
+            width: 100px; /* Initial width */
             transition: width 0.4s ease; /* Smooth transition */
         }
+
         .search-form:hover input[type="text"],
         .search-form input[type="text"]:focus {
-             width: 180px; /* Wider on hover/focus */
+            width: 180px; /* Expanded width */
         }
 
         .search-form button {
-            padding: 5px 10px; /* Smaller padding */
+            padding: 5px 10px;
             background-color: #fff;
             color: #007bff;
             border: 1px solid #007bff;
@@ -103,11 +100,6 @@
             cursor: pointer;
             transition: background-color 0.3s ease, color 0.3s ease;
             white-space: nowrap;
-        }
-
-        .search-form button:hover {
-            background-color: #007bff;
-            color: white;
         }
         /* --- End Navbar --- */
 
@@ -118,23 +110,23 @@
             padding: 20px;
         }
 
-        h1 {
+       h1 {
             text-align: center;
             margin-bottom: 30px;
             color: #007bff;
-            font-family: sans-serif;
-            font-size: 1.5em;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+          font-family: sans-serif; /* More professional font */
+          font-size: 1.5em;       /* Smaller font size */
+          display: flex;          /* Use flexbox for centering with the dot */
+          align-items: center;    /* Vertically center */
+          justify-content: center; /* Horizontally center */
         }
 
         .blinking-dot {
           width: 10px;
           height: 10px;
           background-color: green;
-          border-radius: 50%;
-          margin-right: 8px;
+          border-radius: 50%; /* Make it round */
+          margin-right: 8px; /* Space between dot and text */
           animation: blink 1s steps(5, start) infinite;
         }
 
@@ -144,26 +136,27 @@
           }
         }
 
-        /* Card Styles (using Flexbox)*/
+        /* --- Card Styles (using Flexbox) --- */
+
         .tv-shows {
             display: flex;
             flex-wrap: wrap;
-            justify-content: flex-start;
+            justify-content: flex-start; /* Align to the left */
             gap: 10px;  /* Smaller gap */
         }
 
         .card {
             border: 1px solid #ddd;
             padding: 10px; /* Smaller padding */
-            margin: 0; /* Use gap instead of margin */
-            width: calc(25% - 10px); /* Four cards per row, accounting for gap */
+            margin: 0; /* Use gap */
+            width: calc(25% - 10px);  /* Four/row desktop */
             text-align: center;
             background-color: #fff;
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
             transition: transform 0.2s ease;
             box-sizing: border-box;
-            flex-grow: 0;
-            flex-shrink: 0;
+            flex-grow: 0;  /* No grow */
+            flex-shrink: 0; /* No shrink */
         }
 
         .card:hover {
@@ -176,13 +169,9 @@
             border-bottom: 1px solid #eee;
             margin-bottom: 5px;
         }
-        .card a{
-          text-decoration: none;
-          color: inherit;
-        }
 
         .card h2 {
-            font-size: 1em; /*Smaller Font size*/
+            font-size: 1em;
             margin-bottom: 2px;
             color: #007bff;
         }
@@ -190,6 +179,10 @@
         .card p {
             font-size: 0.8em;
             color: #666;
+        }
+          .card a{
+          text-decoration: none;
+          color: inherit;
         }
 
         .telegram-loader {
@@ -208,7 +201,7 @@
             position: absolute;
             top: 50%;
             left: 50%;
-            transform-origin: 50% 0%; /* Rotate from the top */
+            transform-origin: 50% 0%; /* Rotate from top */
             animation: fly 1.5s linear infinite;
         }
 
@@ -216,16 +209,16 @@
           width: 40px;  /* Smaller circle */
           height: 40px;
           border-radius: 50%;
-          border: 2px solid rgba(0, 123, 255, 0.3); /* Thinner border */
+          border: 2px solid rgba(0, 123, 255, 0.3); /* Thinner */
           position: absolute;
           top: 0;
           left: 0;
-          animation: rotate 2s linear infinite; /* Slower rotation */
+          animation: rotate 2s linear infinite; /* Slower */
         }
 
         @keyframes fly {
           0% { transform: translate(-50%, -50%) rotate(0deg); }
-          50% { transform: translate(-50%, -100%) rotate(45deg); } /* Move up and rotate */
+          50% { transform: translate(-50%, -100%) rotate(45deg); }
           100% { transform: translate(-50%, -50%) rotate(90deg); }
         }
 
@@ -239,12 +232,13 @@
             margin-top: 20px;
             clear: both;
         }
-         .pagination a {
-            padding: 5px 10px; /* Smaller padding */
+
+        .pagination a {
+            padding: 5px 10px;
             text-decoration: none;
             color: #007bff;
             border: 1px solid #ddd;
-            margin: 0 2px;  /* Less margin */
+            margin: 0 2px;
             border-radius: 5px;
         }
 
@@ -253,13 +247,14 @@
             color: white;
         }
         .pagination .current-page {
-            padding: 5px 10px; /* Smaller padding */
-            margin: 0 2px;  /* Less margin */
+            padding: 5px 10px;
+            margin: 0 2px;
             border-radius: 5px;
             background-color: #007bff;
             color: white;
             border: 1px solid #007bff;
         }
+
         .download-button {
             display: inline-block;
             padding: 8px 15px;
@@ -268,13 +263,14 @@
             color: white;
             text-decoration: none;
             border-radius: 5px;
-            transition: background-color: 0.3s ease;
+            transition: background-color 0.3s ease;
         }
-        .download-button:hover {
+
+        .download-button {
             background-color: #0056b3;
         }
 
-       ul{
+      ul{
           list-style: none;
           padding: 0;
         }
@@ -300,69 +296,39 @@
 
         /* --- Media Queries --- */
 
-        /* Mobile Styles (max-width: 768px) */
-       @media (max-width: 768px) {
-            .navbar {
-                flex-direction: column; /* Stack on mobile */
-                align-items: stretch;   /* Stretch items */
-                padding: 10px;         /* Less padding */
-            }
-             .logo-container{
-                justify-content: center;
-            }
-            .nav-links {
-                justify-content: center; /* Center links */
-                margin: 10px 0;        /* Add vertical margin */
-                width: 100%;
-                flex-direction: row;
-            }
-            .nav-links a{
-               text-align: center;
-                display: block;
-                width: 100%;
-                box-sizing: border-box;
-
-            }
-
-            .navbar-center {
-              position: static;      /* Remove absolute positioning */
-              transform: none;      /* Remove transform */
-              margin: 10px 0;    /* Center and add margin */
-              width: 100%;
-            }
-
-            .search-form {
-                width: 100%; /* Full width on mobile */
-                margin-bottom: 10px;
-                justify-content: center;
-
-            }
-
-             .search-form input[type="text"] {
-                width: 70%; /* Adjust as needed */
-             }
+        @media (max-width: 768px) {
             .card {
-                width: calc(50% - 20px); /* Two cards per row */
+                width: calc(50% - 10px); /* Two cards/row */
             }
-
+            .search-form input[type="text"] {
+                width: 60px; /* Smaller initial width */
+            }
+            .search-form:hover input[type="text"],
+            .search-form input[type="text"]:focus {
+                width: 120px; /* Smaller expanded width */
+            }
         }
 
-         @media (max-width: 480px){
+        @media (max-width: 480px) {
+
             .card {
-                width: calc(100% - 20px); /* One cards per row */
+                width: calc(100% - 10px); /* One card/row */
             }
-         }
+              .search-form input[type="text"]{
+               width: 60px;
+            }
+        }
     </style>
 </head>
 <body>
     <div class="navbar">
-        <div class="logo-container">
-          <a href="{{ url_for('index') }}">
-            <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" class="logo">
-          </a>
-             <div class="nav-links">
+        <div class="logo-and-links">
+            <a href="{{ url_for('index') }}">
+                <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" class="logo">
+            </a>
+            <div class="nav-links">
                 <a href="{{ url_for('index') }}">Home</a>
-                <a href="{{ url_for('list_shows') }}">Available Shows</a>
+                <a href="{{ url_for('list_shows') }}">Shows</a>
             </div>
         </div>
         <div class="navbar-center">
