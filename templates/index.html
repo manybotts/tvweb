@@ -4,7 +4,7 @@
 
 {% block content %}
   <h1><span class="blinking-dot"></span>New TV Show Updates</h1>
-   <div class="tv-shows">
+  <div class="tv-shows">
     {% if tv_shows %}
         {% for show in tv_shows %}
             <div class="card">
@@ -12,7 +12,10 @@
                     {% if show.poster_path %}
                         <img src="{{ show.poster_path }}" alt="{{ show.show_name }}" loading="lazy">
                     {% else %}
-                        <p>Image Not Found</p>
+                        <div class="telegram-loader">
+                            <div class="plane"></div>
+                            <div class="circle"></div>
+                        </div>
                     {% endif %}
                     <h2>{{ show.show_name }}</h2>
                     <p>{{ show.season_episode }}</p>
@@ -22,7 +25,7 @@
     {% else %}
         <p>No TV shows found.</p>
     {% endif %}
-   </div>
+  </div>
 
     <div class="pagination">
         {% if page > 1 %}
@@ -33,5 +36,4 @@
             <a href="{{ url_for('index', page=page+1, search=search_query) }}">Next</a>
         {% endif %}
     </div>
-
 {% endblock %}
