@@ -1,6 +1,6 @@
-Flask>=2.0.0,<3.0.0
-python-telegram-bot>=20.0,<21.0
-requests>=2.25.0,<3.0.0
-pymongo>=4.0.0,<5.0.0
-Pillow>=8.0.0,<11.0.0
-gunicorn>=20.0.0,<23.0.0
+Flask
+python-telegram-bot
+requests
+gunicorn
+pymongo
+dnspython
