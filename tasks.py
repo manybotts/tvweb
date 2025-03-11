@@ -107,8 +107,8 @@ def parse_telegram_post(post):
                                 download_link = entity.url
                                 logger.info(f"Download Link Found: {download_link}") # Log found link
                                 break  # Stop after finding the first link
-                if download_link:
-                    break
+                    if download_link:
+                        break
 
         if show_name:  # Only return data if show_name was found
             return {
@@ -200,3 +200,9 @@ def update_tv_shows(self):
         asyncio.run(async_helper())
     except Exception as exc:
         raise self.retry(exc=exc, countdown=60)
+
+# Simple test task
+@celery.task
+def test_task():
+    logger.info("This is a test task!")
+    return "Test task completed"
