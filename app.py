@@ -8,13 +8,16 @@ import asyncio
 from urllib.parse import quote_plus
 from pymongo import MongoClient, ASCENDING, DESCENDING
 import logging
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your_secret_key')
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your_secret_key')  # Use a strong secret key!
 app.config['TELEGRAM_BOT_TOKEN'] = os.environ.get('TELEGRAM_BOT_TOKEN')
 app.config['TMDB_API_KEY'] = os.environ.get('TMDB_API_KEY')
 app.config['TELEGRAM_CHANNEL_ID'] = os.environ.get('TELEGRAM_CHANNEL_ID')  # Single Channel ID
@@ -22,7 +25,13 @@ app.config['MONGO_URI'] = os.environ.get('MONGO_URI')
 app.config['DATABASE_NAME'] = os.environ.get('MONGO_DATABASE_NAME', 'tv_shows')
 
 if not all([app.config['TELEGRAM_BOT_TOKEN'], app.config['TMDB_API_KEY'], app.config['MONGO_URI'], app.config['TELEGRAM_CHANNEL_ID']]):
-    raise ValueError("Missing required environment variables")
+    missing_vars = [var for var, val in {
+        'TELEGRAM_BOT_TOKEN': app.config['TELEGRAM_BOT_TOKEN'],
+        'TMDB_API_KEY': app.config['TMDB_API_KEY'],
+        'MONGO_URI': app.config['MONGO_URI'],
+        'TELEGRAM_CHANNEL_ID': app.config['TELEGRAM_CHANNEL_ID']
+    }.items() if not val]
+    raise ValueError(f"Missing required environment variables: {', '.join(missing_vars)}")
 
 # --- Database Setup (MongoDB) ---
 
@@ -51,7 +60,9 @@ async def fetch_telegram_posts():
     """Fetches recent posts from the configured Telegram channel."""
     try:
         bot = Bot(token=app.config['TELEGRAM_BOT_TOKEN'])
+        logger.info(f"Fetching updates from Telegram channel: {app.config['TELEGRAM_CHANNEL_ID']}")
         updates = await bot.get_updates(allowed_updates=['channel_post'], timeout=60, offset=None)
+        logger.info(f"Received {len(updates)} updates from Telegram")
 
         posts = []
         for update in updates:
@@ -71,17 +82,17 @@ def parse_telegram_post(post):
     """Parses a Telegram post (caption) to extract show info."""
     try:
         text = post.caption
-        match = re.search(r"^(.*?)\n(Season\s+\d+.*)\n(.*?)HERE", text, re.DOTALL | re.IGNORECASE)
+        match = re.search(r"^(.*?)\n(Season\s+\d+.*?)\n(.*?)(here\s*✔️?)", text, re.DOTALL | re.IGNORECASE)  # Updated regex
         if match:
             show_name = match.group(1).strip()
             season_episode = match.group(2).strip()
-            link_text = match.group(3).strip()
+            link_text = match.group(3).strip() # Capture up to "here"
             download_link = None
             if post.caption_entities:
                 for entity in post.caption_entities:
-                    if entity.type == 'text_link' and text[entity.offset:entity.offset + entity.length] == "HERE ✔️":
-                         download_link = entity.url
-                         break
+                    if entity.type == 'text_link' and match.group(4).lower() in text[entity.offset:entity.offset + entity.length].lower(): # Check against captured "here"
+                        download_link = entity.url
+                        break
 
             return {
                 'show_name': show_name,
@@ -91,8 +102,8 @@ def parse_telegram_post(post):
             }
         return None
     except Exception as e:
-      logger.error(f"Error parsing post: {e}")
-      return None
+        logger.error(f"Error parsing post: {e}, Post text: {post.caption}")  # Log the post text
+        return None
 
 def fetch_tmdb_data(show_name, language='en-US'):
     """Fetches TV show data from TMDb."""
@@ -134,6 +145,7 @@ async def async_update_tv_shows():
     for post in posts:
         parsed_data = parse_telegram_post(post)
         if parsed_data:
+            logger.info(f"Processing show: {parsed_data['show_name']}")
             tmdb_data = fetch_tmdb_data(parsed_data['show_name'])
             show_data = {
                 'show_name': parsed_data['show_name'],
@@ -144,11 +156,17 @@ async def async_update_tv_shows():
                 'vote_average': tmdb_data.get('vote_average') if tmdb_data else None,
                 'poster_path': tmdb_data.get('poster_path') if tmdb_data else None,
             }
-            db.tv_shows.update_one(
-                {'show_name': parsed_data['show_name']},
-                {'$set': show_data},
-                upsert=True
-            )
+            try:
+                db.tv_shows.update_one(
+                    {'show_name': parsed_data['show_name']},
+                    {'$set': show_data},
+                    upsert=True
+                )
+                logger.info(f"Successfully updated/inserted: {parsed_data['show_name']}")
+            except Exception as e:
+                logger.error(f"Error updating database for {parsed_data['show_name']}: {e}")
+
+
     db.tv_shows.create_index([("show_name", ASCENDING)], unique=True)
     db.tv_shows.create_index([("message_id", ASCENDING)])
 
@@ -190,9 +208,16 @@ def index():
     search_query = request.args.get('search', '')
     page = request.args.get('page', 1, type=int)
     per_page = 9
-    asyncio.run(async_update_tv_shows())
+
+    try:
+        asyncio.run(asyncio.wait_for(async_update_tv_shows(), timeout=30.0))  # Wait up to 30 seconds
+    except asyncio.TimeoutError:
+        logger.warning("async_update_tv_shows timed out!")
+        # Handle the timeout, render with empty data and a message.
+        return render_template('index.html', tv_shows=[], page=page, total_pages=0, search_query=search_query, update_timed_out=True)
+
     tv_shows, total_pages = get_all_tv_shows(page, per_page, search_query)
-    return render_template('index.html', tv_shows=tv_shows, page=page, total_pages=total_pages, search_query=search_query)
+    return render_template('index.html', tv_shows=tv_shows, page=page, total_pages=total_pages, search_query=search_query, update_timed_out=False)
 
 @app.route('/show/<int:message_id>')
 def show_details(message_id):
