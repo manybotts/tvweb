@@ -74,14 +74,14 @@ def parse_telegram_post(post):
     """Parses a Telegram post (caption) to extract show info."""
     try:
         text = post.caption
-        logger.info(f"Parsing post: {post.message_id}, Caption: {text}") # Log the entire caption
+        logger.info(f"Parsing post: {post.message_id}, Caption: {text!r}") # Log the entire caption
         lines = text.splitlines()
         logger.info(f"Lines: {lines}") # Log the lines
         show_name = None
         season_episode = None
         download_link = None
 
-        if len(lines) >= 4 : #we need at least 4 lines
+        if len(lines) >= 3 : #we need at least 3 lines
             show_name = lines[0].strip()
             logger.info(f"Show Name: {show_name}") # Log show name
             # Check if second line is valid or starts with '#_'
@@ -91,14 +91,14 @@ def parse_telegram_post(post):
                 logger.info("Season/Episode: None (starts with #_)") # Log season/episode status
             else:
                 season_episode = lines[1].strip()
-                link_line_index = 3
+                link_line_index = 2
                 logger.info(f"Season/Episode: {season_episode}") # Log season/episode
 
             #Find the Donwload link
             for i in range(link_line_index, len(lines)):
                 line_lower = lines[i].lower()
 
-                if "here ✔️" in line_lower or "download" in line_lower or "getviabot" in line_lower:
+                if "click here" in line_lower: #Changed
                     logger.info(f"Found potential link line: {lines[i]}") # Log potential link line
                     if post.caption_entities:
                         for entity in post.caption_entities:
@@ -120,10 +120,9 @@ def parse_telegram_post(post):
         else:
             logger.warning(f"No show name found in post: {post.message_id}") # Log if no show name
             return None
-
     except Exception as e:
-        logger.error(f"Error parsing post: {e}, Post text: {post.caption}")
-        return None
+      logger.error(f"Error during parsing: {e}")
+      return None
 
 def fetch_tmdb_data(show_name, language='en-US'):
     """Fetches TV show data from TMDb."""
@@ -184,25 +183,22 @@ def update_tv_shows(self):
                         'poster_path': tmdb_data.get('poster_path') if tmdb_data else None,
                     }
                     logger.debug(f"Show data to be saved: {show_data}") # Log the data before saving
-                    try:
-                        db.tv_shows.update_one(
-                            {'show_name': parsed_data['show_name']},
-                            {'$set': show_data},
-                            upsert=True
-                        )
-                        logger.info(f"Successfully updated/inserted: {parsed_data['show_name']}")
-                    except Exception as e:
-                        logger.error(f"Error updating database for {parsed_data['show_name']}: {e}")
-                        raise  # Re-raise for Celery retry
+
+                    # TEMPORARY: Bypass the database update for debugging
+                    # try:
+                    #     db.tv_shows.update_one(
+                    #         {'show_name': parsed_data['show_name']},
+                    #         {'$set': show_data},
+                    #         upsert=True
+                    #     )
+                    #     logger.info(f"Successfully updated/inserted: {parsed_data['show_name']}")
+                    # except Exception as e:
+                    #     logger.error(f"Error updating database for {parsed_data['show_name']}: {e}")
+                    #     raise  # Re-raise for Celery retry
+                    logger.info(f"TEMPORARY: Skipping database update for {parsed_data['show_name']}") #Temporary
 
             db.tv_shows.create_index([("show_name", ASCENDING)], unique=True)
             db.tv_shows.create_index([("message_id", ASCENDING)])
         asyncio.run(async_helper())
     except Exception as exc:
         raise self.retry(exc=exc, countdown=60)
-
-# Simple test task
-@celery.task
-def test_task():
-    logger.info("This is a test task!")
-    return "Test task completed"
