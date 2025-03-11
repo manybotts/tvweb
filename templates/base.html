@@ -16,39 +16,33 @@
             background-color: #f4f4f4;
             color: #333;
         }
-
-        /* --- Navbar Styles --- */
         .navbar {
             background-color: #007bff;
             color: white;
-            padding: 10px 20px; /* Consistent padding */
+            padding: 10px 20px;
             display: flex;
-            justify-content: space-between; /* Space out items */
-            align-items: center;          /* Vertically center */
-            flex-wrap: wrap;             /* Allow wrapping on smaller screens */
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap; /* Important for responsiveness */
         }
-
         .logo-container {
             display: flex;
             align-items: center;
-            /* Removed margin-bottom: This was pushing other elements down */
+            margin-bottom: 10px; /* Space below on mobile */
         }
-
         .logo {
-            width: 40px;  /* Adjust as needed */
+            width: 40px;
             height: auto;
             margin-right: 10px;
             border-radius: 50%;
         }
-
         .nav-links {
             display: flex;
             align-items: center;
-            /* Removed margin-left, margin-bottom */
-            /* Removed flex-wrap: Allow wrapping handled by navbar */
-            order: 1; /* Correct order */
+            margin-left: 10px;
+            margin-bottom: 10px; /* Space below on mobile */
+            flex-wrap: wrap; /* Important for responsiveness */
         }
-
         .navbar a {
             color: white;
             text-decoration: none;
@@ -59,7 +53,6 @@
             font-size: 1.2em;
             white-space: nowrap;
         }
-
         .navbar a:hover {
             background-color: #0056b3;
         }
@@ -67,26 +60,25 @@
       .navbar-center {
             font-weight: bold;
             font-size: 1.5em;
-            white-space: nowrap;
-            order: 2;
-            flex-grow: 1;
+            margin-bottom: 10px;
+            order: -1; /* Move to the beginning on mobile */
+            width: 100%; /* Full width on mobile */
             text-align: center;
         }
 
         .search-form {
             display: flex;
             align-items: center;
-            order: 3;
+             margin-bottom: 10px; /* Add margin for smaller screens */
+             width: 100%; /* Take full width on mobile */
         }
-
         .search-form input[type="text"] {
             padding: 8px;
             border: 1px solid #ddd;
             border-radius: 4px;
             margin-right: 5px;
-            flex-grow: 1;  /* Allow input to grow */
+            flex-grow: 1; /* Allow input to grow */
         }
-
         .search-form button {
             padding: 8px 15px;
             background-color: #fff;
@@ -95,31 +87,28 @@
             border-radius: 4px;
             cursor: pointer;
             transition: background-color 0.3s ease, color 0.3s ease;
-            white-space: nowrap;
+            white-space: nowrap; /* Prevent button text wrapping */
         }
-
         .search-form button:hover {
             background-color: #007bff;
             color: white;
         }
-        /* --- End Navbar Styles --- */
-
         .container {
             max-width: 1200px;
             margin: auto;
-            overflow: hidden;
+            overflow: hidden; /* Clear floats is no longer needed with flexbox */
             padding: 20px;
         }
 
-       h1 {
+        h1 {
             text-align: center;
             margin-bottom: 30px;
             color: #007bff;
-          font-family: sans-serif;
-          font-size: 1.5em;
-          display: flex;
-          align-items: center;
-          justify-content: center;
+            font-family: sans-serif;
+            font-size: 1.5em;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .blinking-dot {
@@ -136,19 +125,33 @@
             visibility: hidden;
           }
         }
+
+        /* --- Card Styles (using Flexbox) --- */
+        .tv-shows {
+            display: flex;        /* Enable Flexbox */
+            flex-wrap: wrap;      /* Allow cards to wrap to the next line */
+            justify-content: flex-start; /* Align cards to the start (left) */
+            gap: 20px;
+           /* width: 100%; Remove fixed width */
+        }
+
         .card {
             border: 1px solid #ddd;
             padding: 15px;
-            margin: 10px;
-            width: 220px;
-            display: inline-block;
-            vertical-align: top;
+            margin: 0; /* Remove margin, use gap instead */
+            width: calc(33.333% - 20px); /*  3 cards per row, accounting for gap */
+            /*display: inline-block;  Removed inline-block */
+            /*vertical-align: top; Removed vertical-align */
             text-align: center;
             background-color: #fff;
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
             transition: transform 0.2s ease;
-            box-sizing: border-box; /* Include padding/border in width */
+            box-sizing: border-box;
+            flex-grow: 0;
+            flex-shrink: 0;
+
         }
+
 
         .card:hover {
             transform: translateY(-5px);
@@ -171,12 +174,12 @@
             font-size: 0.9em;
             color: #666;
         }
-
-       .card a {
-            text-decoration: none; /* Remove underlines from links */
-            color: inherit; /* Inherit text color */
+        .card a {
+            text-decoration: none;
+            color: inherit;
         }
-        .telegram-loader {  /* Style for when there is no image */
+
+        .telegram-loader {
             width: 50px;
             height: 50px;
             margin: 20px auto;
@@ -186,13 +189,13 @@
         .telegram-loader .plane {
             width: 0;
             height: 0;
-            border-top: 25px solid #007bff; /* Blue plane */
+            border-top: 25px solid #007bff;
             border-left: 15px solid transparent;
             border-right: 15px solid transparent;
             position: absolute;
             top: 50%;
             left: 50%;
-            transform-origin: 50% 0%; /* Rotate from the top */
+            transform-origin: 50% 0%;
             animation: fly 1.5s linear infinite;
         }
 
@@ -200,16 +203,16 @@
           width: 50px;
           height: 50px;
           border-radius: 50%;
-          border: 3px solid rgba(0, 123, 255, 0.3); /* Semi-transparent blue */
+          border: 3px solid rgba(0, 123, 255, 0.3);
           position: absolute;
           top: 0;
           left: 0;
-          animation: rotate 2s linear infinite; /* Slower rotation */
+          animation: rotate 2s linear infinite;
         }
 
         @keyframes fly {
           0% { transform: translate(-50%, -50%) rotate(0deg); }
-          50% { transform: translate(-50%, -100%) rotate(45deg); } /* Move up and rotate */
+          50% { transform: translate(-50%, -100%) rotate(45deg); }
           100% { transform: translate(-50%, -50%) rotate(90deg); }
         }
 
@@ -217,9 +220,11 @@
           0% { transform: rotate(0deg); }
           100% { transform: rotate(360deg); }
         }
+
         .pagination {
             text-align: center;
             margin-top: 20px;
+            clear: both; /* Add clear: both; */
         }
 
         .pagination a {
@@ -283,55 +288,54 @@
           color: #007bff;
       }
 
-      /* Media query for smaller screens */
         @media (max-width: 768px) {
             .navbar {
                 flex-direction: column;
-                align-items: center;
-            }
-             .logo-container{
-               justify-content: center;
+                align-items: stretch;
             }
 
-            .navbar-center {
+            .logo-container {
+                 justify-content: center;
+                margin-bottom: 10px;
+            }
+           .navbar-center {
                order: -1; /* Center text at the top on mobile */
                margin-bottom: 10px;
+               width: 100%;
 
             }
 
             .nav-links {
-                justify-content: center; /* Center the navigation links */
-                margin-left: 0; /* Remove the left margin */
+                justify-content: center;
+                margin-left: 0;
                 flex-direction: row;
                 align-items: stretch;
                 margin-bottom: 10px;
 
             }
-
-            .nav-links a{
+             .nav-links a{
                text-align: center;
                 display: block;
                 width: 100%;
                 box-sizing: border-box;
 
             }
-
             .search-form {
-                width: 100%; /* Full width on mobile */
                 justify-content: center;
-            }
-              .search-form input[type="text"] {
-                width: 70%; /* Adjust as needed */
-             }
+                width: 70%;
 
+            }
+             .search-form input[type="text"]{
+               width: 60%;
+            }
             .card {
-                width: 45%; /* Two cards per row on smaller screens*/
+                width: calc(50% - 20px); /* Two cards per row */
             }
         }
 
         @media (max-width: 480px) {
             .card {
-                width: 95%; /* One card per row on very small screens*/
+                width: calc(100% - 20px); /* One card per row */
             }
         }
     </style>
@@ -342,11 +346,11 @@
           <a href="{{ url_for('index') }}">
             <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" class="logo">
           </a>
-        </div>
-        <div class ="nav-links">
+          <div class ="nav-links">
             <a href="{{ url_for('index') }}">Home</a>
             <a href="{{ url_for('list_shows') }}">Available Shows</a>
           </div>
+        </div>
         <div class="navbar-center">
             𝕚𝔹𝕆𝕏 𝕋𝕍
         </div>
