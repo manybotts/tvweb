@@ -57,18 +57,29 @@ def close_connection(exception):
 # --- Helper Functions ---
 
 async def fetch_telegram_posts():
-    """Fetches recent posts from the configured Telegram channel."""
+    """Fetches all unacknowledged posts from the configured Telegram channel."""
     try:
         bot = Bot(token=app.config['TELEGRAM_BOT_TOKEN'])
         logger.info(f"Fetching updates from Telegram channel: {app.config['TELEGRAM_CHANNEL_ID']}")
-        updates = await bot.get_updates(allowed_updates=['channel_post'], timeout=60, offset=None)
-        logger.info(f"Received {len(updates)} updates from Telegram")
 
         posts = []
-        for update in updates:
-            if update.channel_post and update.channel_post.sender_chat and str(update.channel_post.sender_chat.id) == app.config['TELEGRAM_CHANNEL_ID']:
-                if update.channel_post.caption:
-                    posts.append(update.channel_post)
+        update_offset = None  # Initialize the offset
+
+        while True:  # Loop to retrieve all updates
+            updates = await bot.get_updates(allowed_updates=['channel_post'], timeout=60, offset=update_offset)
+            logger.info(f"Received {len(updates)} updates from Telegram")
+
+            if not updates:  # No more updates
+                break
+
+            for update in updates:
+                if update.channel_post and update.channel_post.sender_chat and str(update.channel_post.sender_chat.id) == app.config['TELEGRAM_CHANNEL_ID']:
+                    if update.channel_post.caption:
+                        posts.append(update.channel_post)
+
+                # Update the offset to the *next* update ID
+                update_offset = update.update_id + 1
+
         return posts
 
     except TelegramError as e:
@@ -82,6 +93,7 @@ def parse_telegram_post(post):
     """Parses a Telegram post (caption) to extract show info."""
     try:
         text = post.caption
+        print(f"DEBUG: Raw caption: {text!r}")  # *** DEBUG PRINT ***
         match = re.search(r"^(.*?)\n(Season\s+\d+.*?)\n(.*?)(here\s*✔️?)", text, re.DOTALL | re.IGNORECASE)  # Updated regex
         if match:
             show_name = match.group(1).strip()
@@ -139,6 +151,7 @@ async def async_update_tv_shows():
     """Fetches new posts and updates the database (async version)."""
     posts = await fetch_telegram_posts()
     if not posts:
+        logger.info("No new posts found.") #add No new post
         return
 
     db = get_db()
@@ -156,6 +169,7 @@ async def async_update_tv_shows():
                 'vote_average': tmdb_data.get('vote_average') if tmdb_data else None,
                 'poster_path': tmdb_data.get('poster_path') if tmdb_data else None,
             }
+            logger.info(f"Updating/Inserting show: {parsed_data['show_name']!r}")  # *** DEBUG LOG ***
             try:
                 db.tv_shows.update_one(
                     {'show_name': parsed_data['show_name']},
@@ -165,7 +179,6 @@ async def async_update_tv_shows():
                 logger.info(f"Successfully updated/inserted: {parsed_data['show_name']}")
             except Exception as e:
                 logger.error(f"Error updating database for {parsed_data['show_name']}: {e}")
-
 
     db.tv_shows.create_index([("show_name", ASCENDING)], unique=True)
     db.tv_shows.create_index([("message_id", ASCENDING)])
@@ -181,7 +194,7 @@ def get_all_tv_shows(page=1, per_page=9, search_query=None):
         query['show_name'] = {'$regex': regex_query}
 
     total_shows = db.tv_shows.count_documents(query)
-    tv_shows_cursor = db.tv_shows.find(query).sort('message_id', -1).skip(offset).limit(per_page)
+    tv_shows_cursor = db.tv_shows.find(query).sort('show_name', ASCENDING).skip(offset).limit(per_page) #Temporarily sorting by show name
     tv_shows = list(tv_shows_cursor)
     total_pages = (total_shows + per_page - 1) // per_page
 
