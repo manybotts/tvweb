@@ -4,7 +4,14 @@
 
 {% block content %}
   <h1><span class="blinking-dot"></span>New TV Show Updates</h1>
-   <div class="tv-shows">
+
+  {% if update_timed_out %}
+    <div class="alert alert-warning" role="alert">
+        The latest TV show updates may not be fully displayed. Please try refreshing the page later.
+    </div>
+  {% endif %}
+
+  <div class="tv-shows">
     {% if tv_shows %}
         {% for show in tv_shows %}
             <div class="card">
