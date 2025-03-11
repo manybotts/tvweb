@@ -1,38 +1,38 @@
-{% extends "base.html" %}
+{% extends 'base.html' %}
 
-{% block title %}TV Show Updates{% endblock %}
+{% block title %}Home{% endblock %}
 
 {% block content %}
-    <h1><span class="blinking-dot"></span>New TV Show Updates</h1>
+    <h1>New TV Show Updates</h1>
 
-    {% if tv_shows %}
+    <div class="tv-shows">
+        {% if tv_shows %}
         {% for show in tv_shows %}
-            <div class="card">
+            <div class="tv-show">
+                {% if show.poster_path %}
                 <a href="{{ url_for('show_details', message_id=show.message_id) }}">
-                    {% if show.poster_path %}
-                        <img src="{{ show.poster_path }}" alt="{{ show.show_name }}">
-                    {% else %}
-                        <div class="telegram-loader">
-                            <div class="plane"></div>
-                            <div class="circle"></div>
-                        </div>
-                    {% endif %}
-                    <h2>{{ show.show_name }}</h2>
-                    <p>{{ show.season_episode }}</p>
+                    <img src="{{ show.poster_path }}" alt="{{ show.show_name }}" class="tv-show-poster">
                 </a>
+                {% else %}
+                    <div class="no-poster">No Poster Available</div>
+                {% endif %}
+                <h2><a href="{{ url_for('show_details', message_id=show.message_id) }}">{{ show.show_name }}</a></h2>
+                <p>{{ show.season_episode }}</p>
             </div>
         {% endfor %}
-    {% else %}
+        {% else %}
         <p>No TV shows found.</p>
-    {% endif %}
-
-    <div class="pagination">
-        {% if page > 1 %}
-            <a href="{{ url_for('index', page=page-1, search=search_query) }}">Previous</a>
-        {% endif %}
-        <span class="current-page">{{ page }}</span>
-        {% if page < total_pages %}
-            <a href="{{ url_for('index', page=page+1, search=search_query) }}">Next</a>
         {% endif %}
     </div>
+
+     <div class="pagination">
+        {% if page > 1 %}
+        <a href="{{ url_for('index', page=page-1, search=search_query) }}"><i class="fas fa-arrow-left"></i> Previous</a>
+        {% endif %}
+        <span>Page {{ page }} of {{ total_pages }}</span>
+        {% if page < total_pages %}
+        <a href="{{ url_for('index', page=page+1, search=search_query) }}">Next <i class="fas fa-arrow-right"></i></a>
+        {% endif %}
+    </div>
+
 {% endblock %}
