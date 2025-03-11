@@ -6,7 +6,7 @@
     <h1>All Shows</h1>
     <ul>
         {% for show_name in show_names %}
-            <li>{{ show_name }}</li>
+            <li><a href="{{ url_for('index', search=show_name) }}">{{ show_name }}</a></li>
         {% endfor %}
     </ul>
 {% endblock %}
