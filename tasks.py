@@ -1,5 +1,6 @@
 # tasks.py
-from celery import Celery
+from celery import Celery, shared_task
+from celery.exceptions import MaxRetriesExceededError
 import os
 import re
 import requests
@@ -9,7 +10,7 @@ from urllib.parse import quote_plus
 from pymongo import MongoClient, ASCENDING, DESCENDING
 import logging
 from dotenv import load_dotenv
-import asyncio
+from redis import Redis
 
 load_dotenv()
 
@@ -35,7 +36,7 @@ def get_db():
 
 # --- Helper Functions ---
 
-async def fetch_telegram_posts():
+def fetch_telegram_posts():
     """Fetches all unacknowledged posts from the configured Telegram channel."""
     try:
         bot = Bot(token=os.environ.get('TELEGRAM_BOT_TOKEN'))
@@ -45,7 +46,8 @@ async def fetch_telegram_posts():
         update_offset = None  # Initialize the offset
 
         while True:  # Loop to retrieve all updates
-            updates = await bot.get_updates(allowed_updates=['channel_post'], timeout=60, offset=update_offset)
+            # No async/await here
+            updates = bot.get_updates(allowed_updates=['channel_post'], timeout=60, offset=update_offset)
             logger.info(f"Received {len(updates)} updates from Telegram")
 
             if not updates:  # No more updates
@@ -107,8 +109,8 @@ def parse_telegram_post(post):
                                 download_link = entity.url
                                 logger.info(f"Download Link Found: {download_link}") # Log found link
                                 break  # Stop after finding the first link
-                    if download_link:
-                        break
+                        if download_link:
+                            break
 
         if show_name:  # Only return data if show_name was found
             return {
@@ -121,8 +123,8 @@ def parse_telegram_post(post):
             logger.warning(f"No show name found in post: {post.message_id}") # Log if no show name
             return None
     except Exception as e:
-      logger.error(f"Error during parsing: {e}")
-      return None
+        logger.error(f"Error during parsing: {e}")
+        return None
 
 def fetch_tmdb_data(show_name, language='en-US'):
     """Fetches TV show data from TMDb."""
@@ -161,44 +163,66 @@ def fetch_tmdb_data(show_name, language='en-US'):
 @celery.task(bind=True, retry_backoff=True)
 def update_tv_shows(self):
     try:
-        async def async_helper():
-            posts = await fetch_telegram_posts()
-            if not posts:
-                logger.info("No new posts found.")
-                return
+        # Get a Redis connection
+        redis_client = Redis.from_url(os.environ.get('REDIS_URL'))
 
-            db = get_db()
-            for post in posts:
-                parsed_data = parse_telegram_post(post)
-                if parsed_data:
-                    logger.info(f"Processing show: {parsed_data['show_name']}")
-                    tmdb_data = fetch_tmdb_data(parsed_data['show_name'])
-                    show_data = {
-                        'show_name': parsed_data['show_name'],
-                        'season_episode': parsed_data['season_episode'],
-                        'download_link': parsed_data['download_link'],
-                        'message_id': parsed_data['message_id'],
-                        'overview': tmdb_data.get('overview') if tmdb_data else None,
-                        'vote_average': tmdb_data.get('vote_average') if tmdb_data else None,
-                        'poster_path': tmdb_data.get('poster_path') if tmdb_data else None,
-                    }
-                    logger.debug(f"Show data to be saved: {show_data}") # Log the data before saving
+        # Acquire the lock.  `blocking_timeout` prevents indefinite waiting.
+        lock = redis_client.lock("update_tv_shows_lock", timeout=60, blocking_timeout=5) # 60-second lock, try for 5 seconds
 
-                    # TEMPORARY: Bypass the database update for debugging
-                    # try:
-                    #     db.tv_shows.update_one(
-                    #         {'show_name': parsed_data['show_name']},
-                    #         {'$set': show_data},
-                    #         upsert=True
-                    #     )
-                    #     logger.info(f"Successfully updated/inserted: {parsed_data['show_name']}")
-                    # except Exception as e:
-                    #     logger.error(f"Error updating database for {parsed_data['show_name']}: {e}")
-                    #     raise  # Re-raise for Celery retry
-                    logger.info(f"TEMPORARY: Skipping database update for {parsed_data['show_name']}") #Temporary
+        if lock.acquire(blocking=False):  # Try to acquire the lock immediately (non-blocking)
+            logger.info("Lock acquired, starting update_tv_shows task.")
+            try:
+                posts = fetch_telegram_posts() #Removed async
+                if not posts:
+                    logger.info("No new posts found.")
+                    return
 
-            db.tv_shows.create_index([("show_name", ASCENDING)], unique=True)
-            db.tv_shows.create_index([("message_id", ASCENDING)])
-        asyncio.run(async_helper())
+                db = get_db()
+                for post in posts:
+                    parsed_data = parse_telegram_post(post)
+                    if parsed_data:
+                        logger.info(f"Processing show: {parsed_data['show_name']}")
+                        tmdb_data = fetch_tmdb_data(parsed_data['show_name'])
+                        show_data = {
+                            'show_name': parsed_data['show_name'],
+                            'season_episode': parsed_data['season_episode'],
+                            'download_link': parsed_data['download_link'],
+                            'message_id': parsed_data['message_id'],
+                            'overview': tmdb_data.get('overview') if tmdb_data else None,
+                            'vote_average': tmdb_data.get('vote_average') if tmdb_data else None,
+                            'poster_path': tmdb_data.get('poster_path') if tmdb_data else None,
+                        }
+                        logger.debug(f"Show data to be saved: {show_data}") # Log the data before saving
+
+                        try:
+                            db.tv_shows.update_one(
+                                {'show_name': parsed_data['show_name']},
+                                {'$set': show_data},
+                                upsert=True
+                            )
+                            logger.info(f"Successfully updated/inserted: {parsed_data['show_name']}")
+                        except Exception as e:
+                            logger.error(f"Error updating database for {parsed_data['show_name']}: {e}")
+                            raise  # Re-raise for Celery retry
+
+
+                db.tv_shows.create_index([("show_name", ASCENDING)], unique=True)
+                db.tv_shows.create_index([("message_id", ASCENDING)])
+            finally:
+                lock.release()
+                logger.info("Lock released.")
+        else:
+            logger.warning("Could not acquire lock.  Another update_tv_shows task is likely running.")
+
+    except MaxRetriesExceededError:
+        logger.error("Max retries exceeded for update_tv_shows task.")
     except Exception as exc:
+        logger.exception(f"Task failed")
         raise self.retry(exc=exc, countdown=60)
+
+
+# Simple test task (Keep this for easy testing)
+@celery.task
+def test_task():
+    logger.info("This is a test task!")
+    return "Test task completed"
