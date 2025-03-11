@@ -1,7 +1,7 @@
 import os
 import re
 import sqlite3
-from flask import Flask, render_template, redirect, url_for, g
+from flask import Flask, render_template, redirect, url_for, g, request
 import requests
 from telegram import Bot
 from telegram.error import TelegramError
@@ -60,11 +60,11 @@ def fetch_telegram_posts():
                 posts.append(update.channel_post)
         return posts
     except TelegramError as e:
-        print(f"Error fetching Telegram posts: {e}")  # Keep error logging
+        print(f"Error fetching Telegram posts: {e}")
         return []
 
 def parse_telegram_post(post):
-    """Parses a Telegram post (caption) to extract show info."""
+    """Parses a Telegram post (caption of media) to extract show info."""
     try:
         if post.caption:
             text = post.caption
@@ -89,7 +89,7 @@ def parse_telegram_post(post):
                 }
         return None
     except Exception as e:
-        print(f"Error parsing post: {e}")  # Keep error logging
+        print(f"Error parsing post: {e}")
         return None
 
 def fetch_tmdb_data(show_name, language='en-US'):
@@ -112,7 +112,7 @@ def fetch_tmdb_data(show_name, language='en-US'):
             }
         return None
     except Exception as e:
-        print(f"Error fetching TMDb data: {e}")  # Keep error logging
+        print(f"Error fetching TMDb data: {e}")
         return None
 
 def update_tv_shows():
@@ -134,11 +134,39 @@ def update_tv_shows():
                           tmdb_data['vote_average']))
                     db.commit()
 
-def get_all_tv_shows():
-    """Retrieves all TV shows from the database."""
+def get_all_tv_shows(page=1, per_page=9, search_query=None):
+    """Retrieves TV shows with pagination and search."""
     db = get_db()
-    cur = db.execute('SELECT * FROM tv_shows ORDER BY message_id DESC')
+    offset = (page - 1) * per_page
+    query = 'SELECT * FROM tv_shows'
+    params = []
+
+    if search_query:
+        query += ' WHERE show_name LIKE ?'
+        params.append('%' + search_query + '%')
+
+    query += ' ORDER BY message_id DESC LIMIT ? OFFSET ?'
+    params.extend([per_page, offset])
+
+    cur = db.execute(query, params)
     return cur.fetchall()
+
+def get_total_tv_shows_count(search_query=None):
+    """Gets the total count of TV shows (for pagination)."""
+    db = get_db()
+    query = 'SELECT COUNT(*) FROM tv_shows'
+    params = []
+    if search_query:
+        query += ' WHERE show_name LIKE ?'
+        params.append('%' + search_query + '%')
+    cur = db.execute(query, params)
+    return cur.fetchone()[0]
+
+def get_all_show_names():
+    """Retrieves a list of all unique show names."""
+    db = get_db()
+    cur = db.execute('SELECT DISTINCT show_name FROM tv_shows ORDER BY show_name')
+    return [row['show_name'] for row in cur.fetchall()]
 
 def get_tv_show_by_message_id(message_id):
     """Retrieves a single TV show by its message_id."""
@@ -150,12 +178,19 @@ def get_tv_show_by_message_id(message_id):
 
 @app.route('/')
 def index():
-    update_tv_shows()
-    tv_shows = get_all_tv_shows()
-    return render_template('index.html', tv_shows=tv_shows)
+    """Homepage: displays TV shows with pagination and search."""
+    update_tv_shows()  # Update data
+    page = request.args.get('page', 1, type=int)
+    search_query = request.args.get('search', '')
+    per_page = 9
+    tv_shows = get_all_tv_shows(page, per_page, search_query)
+    total_count = get_total_tv_shows_count(search_query)
+    total_pages = (total_count + per_page - 1) // per_page
+    return render_template('index.html', tv_shows=tv_shows, page=page, total_pages=total_pages, search_query=search_query)
 
 @app.route('/show/<int:message_id>')
 def show_details(message_id):
+    """Displays details for a single TV show."""
     update_tv_shows()
     show = get_tv_show_by_message_id(message_id)
     if show:
@@ -164,13 +199,20 @@ def show_details(message_id):
 
 @app.route('/redirect/<int:message_id>')
 def redirect_to_download(message_id):
+    """Redirects to the download link for a TV show."""
     update_tv_shows()
     show = get_tv_show_by_message_id(message_id)
     if show and show['download_link']:
         return redirect(show['download_link'])
     return "Show or link not found", 404
 
-init_db()
+@app.route('/shows')
+def list_shows():
+    """Displays a list of all available TV show names."""
+    show_names = get_all_show_names()
+    return render_template('shows.html', show_names=show_names)
+
+init_db() #Called Once.
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
