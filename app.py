@@ -47,15 +47,16 @@ def close_connection(exception):
 
 # --- Helper Functions ---
 
-def fetch_telegram_posts():
+async def fetch_telegram_posts():  # Make this function async
     """Fetches recent posts from all configured Telegram channels."""
     try:
         bot = Bot(token=app.config['TELEGRAM_BOT_TOKEN'])
         all_posts = []
         channel_ids_str = app.config['TELEGRAM_CHANNEL_IDS']
-        channel_ids = [cid.strip() for cid in channel_ids_str.split(',') if cid.strip()] # Split and strip whitespace
+        channel_ids = [cid.strip() for cid in channel_ids_str.split(',') if cid.strip()]
 
         async def get_updates_for_channel(channel_id):
+            # No asyncio.run() here!  Use await directly.
             updates = await bot.get_updates(allowed_updates=['channel_post'], timeout=60, offset=None)
             channel_posts = []
             for update in updates:
@@ -66,11 +67,11 @@ def fetch_telegram_posts():
 
         for channel_id in channel_ids:
             try:
-                posts = asyncio.run(get_updates_for_channel(channel_id))
-                all_posts.extend(posts)  # combine all posts
+                posts = await get_updates_for_channel(channel_id)  # Await the coroutine
+                all_posts.extend(posts)
             except TelegramError as e:
                 logger.error(f"Error fetching posts from channel {channel_id}: {e}")
-                continue
+                continue  # Continue to the next channel
 
         return all_posts
 
@@ -104,10 +105,11 @@ def parse_telegram_post(post):
                 }
         return None
     except Exception as e:
-        print(f"Error parsing post: {e}")
+        logger.error(f"Error parsing post: {e}")  # Use logger for consistency
         return None
 
 def fetch_tmdb_data(show_name, language='en-US'):
+    """Fetches TV show data from TMDb."""
     try:
         search_url = f"https://api.themoviedb.org/3/search/tv?api_key={app.config['TMDB_API_KEY']}&query={show_name}&language={language}"
         search_response = requests.get(search_url)
@@ -135,12 +137,17 @@ def fetch_tmdb_data(show_name, language='en-US'):
         return None
 # --- Database Operations (MongoDB) ---
 def update_tv_shows():
-    """Fetches new posts and updates the database."""
-    posts = fetch_telegram_posts()
+    # You need to run async functions in their own event loop if called from a sync context
+    asyncio.run(async_update_tv_shows())
+
+
+async def async_update_tv_shows(): # Make update_tv_shows async too
+    """Fetches new posts and updates the database (async version)."""
+    posts = await fetch_telegram_posts()  # Await the fetch
     if not posts:
         return
 
-    db = get_db()
+    db = get_db()  # Get the database connection (this is still synchronous)
     for post in posts:
         parsed_data = parse_telegram_post(post)
         if parsed_data:
@@ -154,7 +161,7 @@ def update_tv_shows():
                 'vote_average': tmdb_data.get('vote_average') if tmdb_data else None,
                 'poster_path': tmdb_data.get('poster_path') if tmdb_data else None,
             }
-            # Use update_one with upsert=True.  This replaces the old insert_one
+            # Use update_one with upsert=True.
             db.tv_shows.update_one(
                 {'show_name': parsed_data['show_name']},  # Find by show_name
                 {'$set': show_data},  # Update or set these fields
