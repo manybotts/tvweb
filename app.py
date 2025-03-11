@@ -11,7 +11,6 @@ import io
 import time
 import logging
 
-
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -44,17 +43,11 @@ def close_connection(exception):
 def init_db():
     with app.app_context():
         db = get_db()
-        cursor = db.cursor()
-        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='tv_shows'")
-        table_exists = cursor.fetchone()
-
-        if not table_exists:
-            with app.open_resource('schema.sql', mode='r') as f:
-                db.cursor().executescript(f.read())
-            db.commit()
+        with app.open_resource('schema.sql', mode='r') as f:
+            db.cursor().executescript(f.read())
+        db.commit()
 
 # --- Helper Functions ---
-
 async def fetch_telegram_posts():
     """Fetches recent posts from all configured Telegram channels."""
     try:
@@ -79,7 +72,6 @@ async def fetch_telegram_posts():
             except TelegramError as e:
                 logger.error(f"Error fetching posts from channel {channel_id}: {e}")
                 continue
-
         return all_posts
 
     except Exception as e:
@@ -147,7 +139,8 @@ def fetch_tmdb_data(show_name, language='en-US'):
                     thumb_io = io.BytesIO()
                     thumbnail.save(thumb_io, 'WEBP', quality=80)
                     thumb_io.seek(0)
-                    webp_path = f"/static/posters/{show_id}-{size}.webp"
+                    # Corrected path: Remove the leading slash.
+                    webp_path = f"static/posters/{show_id}-{size}.webp"
                     poster_paths[f'poster_path_{size}'] = webp_path
 
                     # Save to the file system.  Make sure the directory exists!
@@ -200,7 +193,6 @@ async def async_update_tv_shows():
                     'vote_average': tmdb_data.get('vote_average'),
                     'poster_path': tmdb_data.get('poster_path')
                 }
-
                 # Check if the show already exists
                 existing_show = db.execute('SELECT * FROM tv_shows WHERE show_name = ?', (parsed_data['show_name'],)).fetchone()
 
@@ -219,16 +211,8 @@ async def async_update_tv_shows():
                         VALUES (?, ?, ?, ?, ?, ?, ?)
                     ''', (show_data['show_name'], show_data['season_episode'], show_data['download_link'],
                           show_data['message_id'], show_data['overview'], show_data['vote_average'], show_data['poster_path']))
-
                 db.commit()
 
-    # Create indexes after updating data
-    db.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_show_name ON tv_shows(show_name)")
-    db.execute("CREATE INDEX IF NOT EXISTS idx_message_id ON tv_shows(message_id)")
-
-
-def update_tv_shows():
-    asyncio.run(async_update_tv_shows())
 
 def get_all_tv_shows(page=1, per_page=9, search_query=None):
     db = get_db()
@@ -251,7 +235,7 @@ def get_all_tv_shows(page=1, per_page=9, search_query=None):
     count_params = []
     if search_query:
         count_query += ' WHERE show_name LIKE ?'
-        count_params = ['%' + search_query + '%']  # Use a new list for count parameters
+        count_params = ['%' + search_query + '%']
 
     count_cur = db.execute(count_query, count_params)
     total_shows = count_cur.fetchone()[0]
@@ -284,7 +268,6 @@ def index():
     if current_time - LAST_UPDATE_TIME > UPDATE_INTERVAL:
         asyncio.run(async_update_tv_shows())
         LAST_UPDATE_TIME = current_time
-
     tv_shows, total_pages = get_all_tv_shows(page, per_page, search_query)
     return render_template('index.html', tv_shows=tv_shows, page=page, total_pages=total_pages, search_query=search_query)
 
@@ -306,6 +289,11 @@ def redirect_to_download(message_id):
 def list_shows():
     show_names = get_all_show_names()
     return render_template('shows.html', show_names=show_names)
+
+# Initialize the database before the first request
+@app.before_first_request
+def initialize_database():
+    init_db()
 
 if __name__ == "__main__":
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
