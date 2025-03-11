@@ -5,6 +5,7 @@ from flask import Flask, render_template, redirect, url_for, g
 import requests
 from telegram import Bot
 from telegram.error import TelegramError
+import asyncio  # Import asyncio
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your_secret_key')  # Use environment variable
@@ -45,9 +46,14 @@ def fetch_telegram_posts():
     """Fetches recent posts from the Telegram channel."""
     try:
         bot = Bot(token=app.config['TELEGRAM_BOT_TOKEN'])
-        updates = bot.get_updates(allowed_updates=['channel_post'])
+        # Get updates.  We're interested in channel posts.
+        async def get_updates():
+          updates = await bot.get_updates(allowed_updates=['channel_post'])
+          return updates
+        updates = asyncio.run(get_updates())
         posts = [update.channel_post for update in updates if update.channel_post]
         return posts
+
     except TelegramError as e:
         print(f"Error fetching Telegram posts: {e}")
         return []
@@ -73,16 +79,16 @@ def parse_telegram_post(post):
         print(f"Error parsing post: {e}")
         return None
 
-def fetch_tmdb_data(show_name):
+def fetch_tmdb_data(show_name, language='en-US'):
     """Fetches TV show data from TMDb."""
     try:
-        search_url = f"https://api.themoviedb.org/3/search/tv?api_key={app.config['TMDB_API_KEY']}&query={show_name}"
+        search_url = f"https://api.themoviedb.org/3/search/tv?api_key={app.config['TMDB_API_KEY']}&query={show_name}&language={language}"
         search_response = requests.get(search_url)
         search_data = search_response.json()
 
         if search_data['results']:
             show_id = search_data['results'][0]['id']
-            details_url = f"https://api.themoviedb.org/3/tv/{show_id}?api_key={app.config['TMDB_API_KEY']}"
+            details_url = f"https://api.themoviedb.org/3/tv/{show_id}?api_key={app.config['TMDB_API_KEY']}&language={language}"
             details_response = requests.get(details_url)
             details_data = details_response.json()
 
@@ -105,7 +111,7 @@ def update_tv_shows():
         if parsed_data:
             existing_show = db.execute('SELECT * FROM tv_shows WHERE message_id = ?', (parsed_data['message_id'],)).fetchone()
             if not existing_show:
-                tmdb_data = fetch_tmdb_data(parsed_data['show_name'])
+                tmdb_data = fetch_tmdb_data(parsed_data['show_name'], language='en-US')
                 if tmdb_data:
                     db.execute('''
                         INSERT INTO tv_shows (message_id, show_name, season_episode, download_link, poster_path, overview, vote_average)
