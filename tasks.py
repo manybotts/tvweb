@@ -22,6 +22,7 @@ logger = logging.getLogger(__name__)
 
 # Celery configuration (using Redis as the broker and result backend)
 celery = Celery(__name__, broker=os.environ.get('REDIS_URL', 'redis://localhost:6379/0'), backend=os.environ.get('REDIS_URL', 'redis://localhost:6379/0'))
+# Use REDIS_URL environment variable - Railway provides this
 
 # Database connection
 def get_db():
@@ -48,7 +49,7 @@ def fetch_telegram_posts():
         update_offset = None
 
         while True:
-            # No async/await.  Call get_updates directly.
+            # Use application.bot.get_updates
             updates = application.bot.get_updates(allowed_updates=['channel_post'], timeout=60, offset=update_offset)
             logger.info(f"Received {len(updates)} updates from Telegram")
 
@@ -63,7 +64,7 @@ def fetch_telegram_posts():
 
                 update_offset = update.update_id + 1
         # Shutdown application
-        application.shutdown()
+        application.shutdown() #correctly shutdown application
         logger.info(f"Total posts to process: {len(posts)}")
         return posts
 
