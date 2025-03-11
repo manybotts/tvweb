@@ -46,8 +46,7 @@ def close_connection(exception):
         db.client.close()
 
 # --- Helper Functions ---
-
-def fetch_telegram_posts():
+async def fetch_telegram_posts():
     """Fetches recent posts from all configured Telegram channels."""
     try:
         bot = Bot(token=app.config['TELEGRAM_BOT_TOKEN'])
@@ -67,13 +66,13 @@ def fetch_telegram_posts():
 
         for channel_id in channel_ids:
             try:
-                posts = asyncio.run(get_updates_for_channel(channel_id))  # Await the coroutine in an event loop
+                posts = await get_updates_for_channel(channel_id)  # Await the coroutine
                 all_posts.extend(posts)
             except TelegramError as e:
                 logger.error(f"Error fetching posts from channel {channel_id}: {e}")
-                continue  # Continue to the next channel
+                continue
 
-        return all_posts
+        return all_posts  #Return all the posts
 
     except Exception as e:
         logger.exception(f"An unexpected error occurred in fetch_telegram_posts: {e}")
@@ -136,12 +135,7 @@ def fetch_tmdb_data(show_name, language='en-US'):
         logger.error(f"An unexpected error occurred: {e}")
         return None
 # --- Database Operations (MongoDB) ---
-def update_tv_shows():
-    # You need to run async functions in their own event loop if called from a sync context
-    asyncio.run(async_update_tv_shows())
-
-
-async def async_update_tv_shows(): # Make update_tv_shows async too
+async def update_tv_shows():
     """Fetches new posts and updates the database (async version)."""
     posts = await fetch_telegram_posts()  # Await the fetch
     if not posts:
@@ -197,9 +191,9 @@ def get_tv_show_by_message_id(message_id):
 def get_all_show_names():
     """Retrieves a list of all unique show names."""
     db = get_db()
-    show_names_cursor = db.tv_shows.distinct('show_name')
-    return list(show_names_cursor)
-
+    show_names_cursor = db.tv_shows.distinct('show_name')  # Use distinct
+    show_names = list(show_names_cursor)
+    return show_names
 # --- Routes ---
 
 @app.route('/')
@@ -208,14 +202,14 @@ def index():
     search_query = request.args.get('search', '')
     page = request.args.get('page', 1, type=int)
     per_page = 9
-    update_tv_shows()
+    asyncio.run(update_tv_shows())  # Update data using asyncio.run
     tv_shows, total_pages = get_all_tv_shows(page, per_page, search_query)
     return render_template('index.html', tv_shows=tv_shows, page=page, total_pages=total_pages, search_query=search_query)
 
 @app.route('/show/<int:message_id>')
 def show_details(message_id):
     """Displays details for a single TV show."""
-    update_tv_shows()  # Consider removing this if show details are not expected to change frequently
+    asyncio.run(update_tv_shows()) # Update data using asyncio.run
     show = get_tv_show_by_message_id(message_id)
     if show:
         return render_template('show_details.html', show=show)
@@ -224,12 +218,11 @@ def show_details(message_id):
 @app.route('/redirect/<int:message_id>')
 def redirect_to_download(message_id):
     """Redirects to the download link for a TV show."""
-    # update_tv_shows()  # Removed update_tv_shows from here
     show = get_tv_show_by_message_id(message_id)
     if show and show.get('download_link'):
         return redirect(show['download_link'])
     return "Show or link not found", 404
-
+  
 @app.route('/shows')
 def list_shows():
     show_names = get_all_show_names()
