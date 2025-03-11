@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends 'base.html' %}
 
 {% block title %}{{ show.show_name }}{% endblock %}
 
@@ -9,10 +9,7 @@
    {% if show.poster_path %}
     <img src="{{ show.poster_path }}" alt="{{ show.show_name }}" style="max-width:300px;" loading="lazy">
     {% else %}
-        <div class="telegram-loader">
-            <div class="plane"></div>
-            <div class="circle"></div>
-        </div>
+        <p>Image Not Found</p>
     {% endif %}
 
     {% if show.overview %}
