@@ -4,7 +4,8 @@ from celery.exceptions import MaxRetriesExceededError
 import os
 import re
 import requests
-from telegram import Bot
+# Use ExtBot for synchronous calls
+from telegram import ExtBot
 from telegram.error import TelegramError
 from urllib.parse import quote_plus
 from pymongo import MongoClient, ASCENDING, DESCENDING
@@ -36,17 +37,18 @@ def get_db():
 
 # --- Helper Functions ---
 
-def fetch_telegram_posts():
+def fetch_telegram_posts(): # Removed async
     """Fetches all unacknowledged posts from the configured Telegram channel."""
     try:
-        bot = Bot(token=os.environ.get('TELEGRAM_BOT_TOKEN'))
+        # Use ExtBot instead of Bot
+        bot = ExtBot(token=os.environ.get('TELEGRAM_BOT_TOKEN'))
         logger.info(f"Fetching updates from Telegram channel: {os.environ.get('TELEGRAM_CHANNEL_ID')}")
 
         posts = []
         update_offset = None  # Initialize the offset
 
         while True:  # Loop to retrieve all updates
-            # No async/await here
+            # No await here!
             updates = bot.get_updates(allowed_updates=['channel_post'], timeout=60, offset=update_offset)
             logger.info(f"Received {len(updates)} updates from Telegram")
 
@@ -57,12 +59,12 @@ def fetch_telegram_posts():
                 if update.channel_post and update.channel_post.sender_chat and str(update.channel_post.sender_chat.id) == os.environ.get('TELEGRAM_CHANNEL_ID'):
                     if update.channel_post.caption:
                         posts.append(update.channel_post)
-                        logger.info(f"Added post to processing list: {update.channel_post.message_id}")  # Log added posts
+                        logger.info(f"Added post to processing list: {update.channel_post.message_id}")
 
                 # Update the offset to the *next* update ID
                 update_offset = update.update_id + 1
 
-        logger.info(f"Total posts to process: {len(posts)}") #Log total posts
+        logger.info(f"Total posts to process: {len(posts)}")
         return posts
 
     except TelegramError as e:
@@ -76,43 +78,41 @@ def parse_telegram_post(post):
     """Parses a Telegram post (caption) to extract show info."""
     try:
         text = post.caption
-        logger.info(f"Parsing post: {post.message_id}, Caption: {text!r}") # Log the entire caption
+        logger.info(f"Parsing post: {post.message_id}, Caption: {text!r}")
         lines = text.splitlines()
-        logger.info(f"Lines: {lines}") # Log the lines
+        logger.info(f"Lines: {lines}")
         show_name = None
         season_episode = None
         download_link = None
 
-        if len(lines) >= 3 : #we need at least 3 lines
+        if len(lines) >= 3 :
             show_name = lines[0].strip()
-            logger.info(f"Show Name: {show_name}") # Log show name
-            # Check if second line is valid or starts with '#_'
+            logger.info(f"Show Name: {show_name}")
             if lines[1].strip().startswith('#_'):
-                season_episode = None  # No season/episode info
-                link_line_index = 2 # Check from third line
-                logger.info("Season/Episode: None (starts with #_)") # Log season/episode status
+                season_episode = None
+                link_line_index = 2
+                logger.info("Season/Episode: None (starts with #_)")
             else:
                 season_episode = lines[1].strip()
                 link_line_index = 2
-                logger.info(f"Season/Episode: {season_episode}") # Log season/episode
+                logger.info(f"Season/Episode: {season_episode}")
 
-            #Find the Donwload link
             for i in range(link_line_index, len(lines)):
                 line_lower = lines[i].lower()
 
-                if "click here" in line_lower: #Changed
-                    logger.info(f"Found potential link line: {lines[i]}") # Log potential link line
+                if "click here" in line_lower:
+                    logger.info(f"Found potential link line: {lines[i]}")
                     if post.caption_entities:
                         for entity in post.caption_entities:
-                            logger.info(f"  Entity: type={entity.type}, offset={entity.offset}, length={entity.length}, url={entity.url}") # Log each entity
+                            logger.info(f"  Entity: type={entity.type}, offset={entity.offset}, length={entity.length}, url={entity.url}")
                             if entity.type == 'text_link' and (entity.offset >= sum(len(l) + 1 for l in lines[:i]) and entity.offset < sum(len(l) + 1 for l in lines[:i+1])):
                                 download_link = entity.url
-                                logger.info(f"Download Link Found: {download_link}") # Log found link
-                                break  # Stop after finding the first link
+                                logger.info(f"Download Link Found: {download_link}")
+                                break
                         if download_link:
                             break
 
-        if show_name:  # Only return data if show_name was found
+        if show_name:
             return {
                 'show_name': show_name,
                 'season_episode': season_episode,
@@ -120,7 +120,7 @@ def parse_telegram_post(post):
                 'message_id': post.message_id,
             }
         else:
-            logger.warning(f"No show name found in post: {post.message_id}") # Log if no show name
+            logger.warning(f"No show name found in post: {post.message_id}")
             return None
     except Exception as e:
         logger.error(f"Error during parsing: {e}")
@@ -129,7 +129,7 @@ def parse_telegram_post(post):
 def fetch_tmdb_data(show_name, language='en-US'):
     """Fetches TV show data from TMDb."""
     try:
-        logger.info(f"Fetching TMDb data for: {show_name}")  # Log TMDb fetch attempt
+        logger.info(f"Fetching TMDb data for: {show_name}")
         search_url = f"https://api.themoviedb.org/3/search/tv?api_key={os.environ.get('TMDB_API_KEY')}&query={quote_plus(show_name)}&language={language}"
         search_response = requests.get(search_url)
         search_response.raise_for_status()
@@ -142,7 +142,7 @@ def fetch_tmdb_data(show_name, language='en-US'):
             details_response.raise_for_status()
             details_data = details_response.json()
 
-            logger.info(f"TMDb data found for: {show_name}")  # Log success
+            logger.info(f"TMDb data found for: {show_name}")
 
             return {
                 'poster_path': f"https://image.tmdb.org/t/p/w500{details_data.get('poster_path')}" if details_data.get('poster_path') else None,
@@ -150,7 +150,7 @@ def fetch_tmdb_data(show_name, language='en-US'):
                 'vote_average': details_data.get('vote_average'),
             }
         else:
-            logger.warning(f"No TMDb data found for: {show_name}") # Log if no data found
+            logger.warning(f"No TMDb data found for: {show_name}")
         return None
 
     except requests.exceptions.RequestException as e:
@@ -166,13 +166,13 @@ def update_tv_shows(self):
         # Get a Redis connection
         redis_client = Redis.from_url(os.environ.get('REDIS_URL'))
 
-        # Acquire the lock.  `blocking_timeout` prevents indefinite waiting.
-        lock = redis_client.lock("update_tv_shows_lock", timeout=60, blocking_timeout=5) # 60-second lock, try for 5 seconds
+        # Acquire the lock.
+        lock = redis_client.lock("update_tv_shows_lock", timeout=60, blocking_timeout=5)
 
-        if lock.acquire(blocking=False):  # Try to acquire the lock immediately (non-blocking)
+        if lock.acquire(blocking=False):
             logger.info("Lock acquired, starting update_tv_shows task.")
             try:
-                posts = fetch_telegram_posts() #Removed async
+                posts = fetch_telegram_posts() # No async now
                 if not posts:
                     logger.info("No new posts found.")
                     return
@@ -192,7 +192,7 @@ def update_tv_shows(self):
                             'vote_average': tmdb_data.get('vote_average') if tmdb_data else None,
                             'poster_path': tmdb_data.get('poster_path') if tmdb_data else None,
                         }
-                        logger.debug(f"Show data to be saved: {show_data}") # Log the data before saving
+                        logger.debug(f"Show data to be saved: {show_data}")
 
                         try:
                             db.tv_shows.update_one(
@@ -203,8 +203,7 @@ def update_tv_shows(self):
                             logger.info(f"Successfully updated/inserted: {parsed_data['show_name']}")
                         except Exception as e:
                             logger.error(f"Error updating database for {parsed_data['show_name']}: {e}")
-                            raise  # Re-raise for Celery retry
-
+                            raise
 
                 db.tv_shows.create_index([("show_name", ASCENDING)], unique=True)
                 db.tv_shows.create_index([("message_id", ASCENDING)])
