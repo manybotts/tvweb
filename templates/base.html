@@ -18,11 +18,11 @@
             background-color: #007bff;
             color: white;
             padding: 10px 0;
-            /* text-align: center;  Removed text-align: center */
             display: flex;         /* Use flexbox for layout */
             justify-content: space-between; /* Space between items */
             align-items: center;     /* Vertically center items */
             padding: 10px 20px;
+            position: relative; /* Add relative positioning */
         }
         .navbar a {
             color: white;
@@ -207,7 +207,7 @@
             color: white;
             text-decoration: none;
             border-radius: 5px;
-            transition: background-color 0.3s ease;
+            transition: background-color: 0.3s ease;
         }
         .download-button:hover {
             background-color: #0056b3;
@@ -221,7 +221,7 @@
         ul li {
             padding: 10px;
             border-bottom: 1px solid #ddd;
-            transition: background-color 0.2s ease;
+            transition: background-color: 0.2s ease;
         }
           ul li:last-child {
             border-bottom: none; /* No border on the last item */
@@ -248,15 +248,16 @@
           margin-right: 10px; /* Add spacing between logo and links */
           border-radius: 50%; /* Makes the image round */
       }
-      .navbar-center {
+    .navbar-center {
         font-weight: bold;
         font-size: 1.5em;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        /* flex-grow: 1;  Removed flex-grow */
-        width: 100%; /* Added width: 100% */
-       }
+        position: absolute; /* Absolute positioning */
+        left: 50%;          /* Start at 50% of the parent */
+        transform: translateX(-50%); /* Shift it back by half its width */
+        top: 50%;
+        transform: translate(-50%, -50%);
+        white-space: nowrap; /* Prevent text wrapping, just in case */
+    }
     .logo-container {
         display: flex;
         align-items: center; /* Keep logo and nav links aligned */
@@ -277,8 +278,7 @@
           </a>
             <div class="nav-links">
                 <a href="{{ url_for('index') }}">Home</a>
-                <a href="{{ url_for('list_shows') }}">All Shows</a>
-            </div>
+                <a href="{{ url_for('list_shows') }}">Available Shows</a> </div>
         </div>
         <div class="navbar-center">
             𝕚𝔹𝕆𝕏 𝕋𝕍
