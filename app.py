@@ -8,6 +8,9 @@ import asyncio
 from urllib.parse import quote_plus
 from pymongo import MongoClient, ASCENDING, DESCENDING
 import logging
+from PIL import Image  # Import Pillow
+import io
+import time
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -108,25 +111,56 @@ def parse_telegram_post(post):
         return None
 
 def fetch_tmdb_data(show_name, language='en-US'):
-    """Fetches TV show data from TMDb."""
+    """Fetches TV show data from TMDb and optimizes the poster image."""
     try:
         search_url = f"https://api.themoviedb.org/3/search/tv?api_key={app.config['TMDB_API_KEY']}&query={show_name}&language={language}"
         search_response = requests.get(search_url)
-        search_response.raise_for_status()
+        search_response.raise_for_status()  # Add error handling!
         search_data = search_response.json()
 
         if search_data['results']:
             show_id = search_data['results'][0]['id']
             details_url = f"https://api.themoviedb.org/3/tv/{show_id}?api_key={app.config['TMDB_API_KEY']}&language={language}"
             details_response = requests.get(details_url)
-            details_response.raise_for_status()
+            details_response.raise_for_status()  # Add error handling!
             details_data = details_response.json()
 
-            return {
-                'poster_path': f"https://image.tmdb.org/t/p/w500{details_data.get('poster_path')}" if details_data.get('poster_path') else None,
-                'overview': details_data.get('overview'),
-                'vote_average': details_data.get('vote_average'),
-            }
+            poster_path = details_data.get('poster_path')
+            if poster_path:
+                image_url = f"https://image.tmdb.org/t/p/original{poster_path}"  # Get original size
+                image_response = requests.get(image_url, stream=True)
+                image_response.raise_for_status() # Add error handling
+
+                image = Image.open(io.BytesIO(image_response.content))
+
+                # Resize (create a thumbnail)
+                thumb_width = 220  # Or whatever width you want
+                w_percent = (thumb_width / float(image.size[0]))
+                h_size = int((float(image.size[1]) * float(w_percent)))
+                thumbnail = image.resize((thumb_width, h_size), Image.LANCZOS)
+
+                # Save as WebP (and optionally JPEG as a fallback)
+                thumb_io = io.BytesIO()
+                thumbnail.save(thumb_io, 'WEBP', quality=80)  # Adjust quality
+                thumb_io.seek(0)
+                webp_path = f"/static/posters/{show_id}.webp"
+
+                # Save to the file system.  Make sure the directory exists!
+                os.makedirs(os.path.join(app.root_path, 'static', 'posters'), exist_ok=True) # Creates the directory
+                with open(os.path.join(app.root_path, webp_path), 'wb') as f:
+                    f.write(thumb_io.read())
+
+                return {
+                    'poster_path': webp_path,  # Return path to the WebP
+                    'overview': details_data.get('overview'),
+                    'vote_average': details_data.get('vote_average'),
+                }
+            else:
+                return {
+                    'poster_path': None,  # Handle missing posters
+                    'overview': details_data.get('overview'),
+                    'vote_average': details_data.get('vote_average'),
+                }
         return None
     except requests.exceptions.RequestException as e:
         logger.error(f"Error fetching data from TMDb: {e}")
@@ -135,7 +169,7 @@ def fetch_tmdb_data(show_name, language='en-US'):
         logger.error(f"An unexpected error occurred: {e}")
         return None
 # --- Database Operations (MongoDB) ---
-async def update_tv_shows():
+async def async_update_tv_shows():
     """Fetches new posts and updates the database (async version)."""
     posts = await fetch_telegram_posts()  # Await the fetch
     if not posts:
@@ -153,7 +187,7 @@ async def update_tv_shows():
                 'message_id': parsed_data['message_id'],
                 'overview': tmdb_data.get('overview') if tmdb_data else None,
                 'vote_average': tmdb_data.get('vote_average') if tmdb_data else None,
-                'poster_path': tmdb_data.get('poster_path') if tmdb_data else None,
+                'poster_path': tmdb_data.get('poster_path') if tmdb_data else None, # Make sure to get the correct path.
             }
             # Use update_one with upsert=True.
             db.tv_shows.update_one(
@@ -195,21 +229,27 @@ def get_all_show_names():
     show_names = list(show_names_cursor)
     return show_names
 # --- Routes ---
+LAST_UPDATE_TIME = 0  # Global variable to store the last update time
+UPDATE_INTERVAL = 300  # Update every 300 seconds (5 minutes)
 
 @app.route('/')
 def index():
     """Homepage: displays TV shows with pagination and search."""
+    global LAST_UPDATE_TIME
     search_query = request.args.get('search', '')
     page = request.args.get('page', 1, type=int)
     per_page = 9
-    asyncio.run(update_tv_shows())  # Update data using asyncio.run
+    current_time = time.time()
+    if current_time - LAST_UPDATE_TIME > UPDATE_INTERVAL:
+         asyncio.run(async_update_tv_shows()) # Make sure it's async
+         LAST_UPDATE_TIME = current_time
     tv_shows, total_pages = get_all_tv_shows(page, per_page, search_query)
     return render_template('index.html', tv_shows=tv_shows, page=page, total_pages=total_pages, search_query=search_query)
 
 @app.route('/show/<int:message_id>')
 def show_details(message_id):
     """Displays details for a single TV show."""
-    asyncio.run(update_tv_shows()) # Update data using asyncio.run
+    # asyncio.run(update_tv_shows()) # Update data using asyncio.run REMOVED FROM HERE
     show = get_tv_show_by_message_id(message_id)
     if show:
         return render_template('show_details.html', show=show)
@@ -222,7 +262,7 @@ def redirect_to_download(message_id):
     if show and show.get('download_link'):
         return redirect(show['download_link'])
     return "Show or link not found", 404
-  
+
 @app.route('/shows')
 def list_shows():
     show_names = get_all_show_names()
