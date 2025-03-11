@@ -93,9 +93,17 @@ def parse_telegram_post(post):
             if match:
                 show_name = match.group(1).strip()
                 season_episode = match.group(2).strip()
-                link_text = match.group(3).strip()
-                link_match = re.search(r"(https?://[^\s]+)", text)
-                download_link = link_match.group(1).strip() if link_match else None
+                link_text = match.group(3).strip()  # Capture text *before* "HERE"
+
+                download_link = None  # Initialize to None
+                if post.caption_entities:
+                  for entity in post.caption_entities:
+                      print(f"  Entity: {entity}")  # Log the entity
+                      if entity.type == 'text_link' and text[entity.offset:entity.offset+entity.length] == "HERE ✔️":
+                        download_link = entity.url
+                        print(f"    Found text_link URL: {download_link}")
+                        break  # Stop after finding the first matching text_link
+
                 print(f"Parsed data: show_name={show_name}, season_episode={season_episode}, download_link={download_link}, link_text={link_text}")  # Add this
                 return {
                     'show_name': show_name,
