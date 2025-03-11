@@ -72,25 +72,43 @@ def parse_telegram_post(post):
     """Parses a Telegram post (caption) to extract show info."""
     try:
         text = post.caption
-        match = re.search(r"^(.*?)\n(Season\s+\d+.*?)\n(.*?)(here\s*✔️?)", text, re.DOTALL | re.IGNORECASE)
-        if match:
-            show_name = match.group(1).strip()
-            season_episode = match.group(2).strip()
-            link_text = match.group(3).strip()
-            download_link = None
-            if post.caption_entities:
-                for entity in post.caption_entities:
-                    if entity.type == 'text_link' and match.group(4).lower() in text[entity.offset:entity.offset + entity.length].lower():
-                        download_link = entity.url
-                        break
+        lines = text.splitlines()
+        show_name = None
+        season_episode = None
+        download_link = None
 
+        if len(lines) >= 4 : #we need at least 4 lines
+            show_name = lines[0].strip()
+            # Check if second line is valid or starts with '#_'
+            if lines[1].strip().startswith('#_'):
+                season_episode = None  # No season/episode info
+                link_line_index = 2 # Check from third line
+            else:
+                season_episode = lines[1].strip()
+                link_line_index = 3
+
+            #Find the Donwload link
+            for i in range(link_line_index, len(lines)):
+                line_lower = lines[i].lower()
+                if "here ✔️" in line_lower or "download" in line_lower or "getviabot" in line_lower:
+                    if post.caption_entities:
+                        for entity in post.caption_entities:
+                            if entity.type == 'text_link' and (entity.offset >= sum(len(l) + 1 for l in lines[:i]) and entity.offset < sum(len(l) + 1 for l in lines[:i+1])):
+                                download_link = entity.url
+                                break  # Stop after finding the first link
+                if download_link:
+                    break
+
+        if show_name:  # Only return data if show_name was found
             return {
                 'show_name': show_name,
                 'season_episode': season_episode,
                 'download_link': download_link,
                 'message_id': post.message_id,
             }
-        return None
+        else:
+            return None
+
     except Exception as e:
         logger.error(f"Error parsing post: {e}, Post text: {post.caption}")
         return None
