@@ -11,8 +11,11 @@
                   {% if show.poster_path %}
                     <img src="{{ show.poster_path }}" alt="{{ show.show_name }}" loading="lazy">
                    {% else %}
-                    <p>Image Not Found</p>
-                  {% endif %}
+                     <div class="telegram-loader">
+                        <div class="plane"></div>
+                        <div class="circle"></div>
+                    </div>
+                   {% endif %}
                     <h2>{{ show.show_name }}</h2>
                     <p>{{ show.season_episode }}</p>
                 </a>
