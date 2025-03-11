@@ -254,9 +254,18 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        flex-grow: 1; /* Allow it to take up the available space */
+        /* flex-grow: 1;  Removed flex-grow */
+        width: 100%; /* Added width: 100% */
        }
-
+    .logo-container {
+        display: flex;
+        align-items: center; /* Keep logo and nav links aligned */
+     }
+    .nav-links {
+      display: flex;
+      align-items: center;
+      margin-left: 10px; /* Add some margin to separate from the logo */
+    }
 
     </style>
 </head>
