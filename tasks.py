@@ -4,9 +4,10 @@ from celery.exceptions import MaxRetriesExceededError
 import os
 import re
 import requests
-# Use ExtBot for synchronous calls
-from telegram import ExtBot
+# No ExtBot needed
+from telegram import Bot
 from telegram.error import TelegramError
+from telegram.ext import Application
 from urllib.parse import quote_plus
 from pymongo import MongoClient, ASCENDING, DESCENDING
 import logging
@@ -21,7 +22,6 @@ logger = logging.getLogger(__name__)
 
 # Celery configuration (using Redis as the broker and result backend)
 celery = Celery(__name__, broker=os.environ.get('REDIS_URL', 'redis://localhost:6379/0'), backend=os.environ.get('REDIS_URL', 'redis://localhost:6379/0'))
-# Use REDIS_URL environment variable - Railway provides this
 
 # Database connection
 def get_db():
@@ -37,22 +37,22 @@ def get_db():
 
 # --- Helper Functions ---
 
-def fetch_telegram_posts(): # Removed async
+def fetch_telegram_posts():
     """Fetches all unacknowledged posts from the configured Telegram channel."""
     try:
-        # Use ExtBot instead of Bot
-        bot = ExtBot(token=os.environ.get('TELEGRAM_BOT_TOKEN'))
+        # Use Application for synchronous calls
+        application = Application.builder().token(os.environ.get('TELEGRAM_BOT_TOKEN')).build()
         logger.info(f"Fetching updates from Telegram channel: {os.environ.get('TELEGRAM_CHANNEL_ID')}")
 
         posts = []
-        update_offset = None  # Initialize the offset
+        update_offset = None
 
-        while True:  # Loop to retrieve all updates
-            # No await here!
-            updates = bot.get_updates(allowed_updates=['channel_post'], timeout=60, offset=update_offset)
+        while True:
+            # No async/await.  Call get_updates directly.
+            updates = application.bot.get_updates(allowed_updates=['channel_post'], timeout=60, offset=update_offset)
             logger.info(f"Received {len(updates)} updates from Telegram")
 
-            if not updates:  # No more updates
+            if not updates:
                 break
 
             for update in updates:
@@ -61,9 +61,9 @@ def fetch_telegram_posts(): # Removed async
                         posts.append(update.channel_post)
                         logger.info(f"Added post to processing list: {update.channel_post.message_id}")
 
-                # Update the offset to the *next* update ID
                 update_offset = update.update_id + 1
-
+        # Shutdown application
+        application.shutdown()
         logger.info(f"Total posts to process: {len(posts)}")
         return posts
 
