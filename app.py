@@ -21,6 +21,7 @@ app.config['TELEGRAM_CHANNEL_ID'] = os.environ.get('TELEGRAM_CHANNEL_ID')  # Sin
 app.config['MONGO_URI'] = os.environ.get('MONGO_URI')
 app.config['DATABASE_NAME'] = os.environ.get('MONGO_DATABASE_NAME', 'tv_shows')
 
+# This check is now correct for single channel ID
 if not all([app.config['TELEGRAM_BOT_TOKEN'], app.config['TMDB_API_KEY'], app.config['MONGO_URI'], app.config['TELEGRAM_CHANNEL_ID']]):
     raise ValueError("Missing required environment variables")
 
@@ -71,21 +72,20 @@ async def fetch_telegram_posts():
 def parse_telegram_post(post):
     """Parses a Telegram post (caption) to extract show info."""
     try:
-        if post.caption:
-            text = post.caption
-            # Regex to extract show name, season/episode, and download link
-            match = re.search(r"^(.*?)\n(Season\s+\d+.*)\n(.*?)HERE", text, re.DOTALL | re.IGNORECASE)
-            if match:
-                show_name = match.group(1).strip()
-                season_episode = match.group(2).strip()
-                link_text = match.group(3).strip()
-                download_link = None
-                # Find the URL entity associated with the "HERE" text
-                if post.caption_entities:
-                    for entity in post.caption_entities:
-                        if entity.type == 'text_link' and text[entity.offset:entity.offset + entity.length] == "HERE ✔️":
-                             download_link = entity.url
-                             break  # Stop searching after finding the first matching link
+        text = post.caption
+        # Regex to extract show name, season/episode, and download link
+        match = re.search(r"^(.*?)\n(Season\s+\d+.*)\n(.*?)HERE", text, re.DOTALL | re.IGNORECASE)
+        if match:
+            show_name = match.group(1).strip()
+            season_episode = match.group(2).strip()
+            link_text = match.group(3).strip()
+            download_link = None
+            # Find the URL entity associated with the "HERE" text
+            if post.caption_entities:
+                for entity in post.caption_entities:
+                    if entity.type == 'text_link' and text[entity.offset:entity.offset + entity.length] == "HERE ✔️":
+                         download_link = entity.url
+                         break  # Stop searching after finding the first matching link
 
             return {
                 'show_name': show_name,
@@ -183,7 +183,7 @@ def get_tv_show_by_message_id(message_id):
     db = get_db()
     show = db.tv_shows.find_one({'message_id': message_id})
     return show
-
+  
 def get_all_show_names():
     """Retrieves a list of all unique show names."""
     db = get_db()
@@ -222,7 +222,6 @@ def redirect_to_download(message_id):
 
 @app.route('/shows')
 def list_shows():
-    """Displays a list of all available TV show names."""
     show_names = get_all_show_names()
     return render_template('shows.html', show_names=show_names)
 
