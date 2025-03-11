@@ -4,7 +4,6 @@ from celery.exceptions import MaxRetriesExceededError
 import os
 import re
 import requests
-# No ExtBot needed
 from telegram import Bot
 from telegram.error import TelegramError
 from telegram.ext import Application
@@ -13,6 +12,8 @@ from pymongo import MongoClient, ASCENDING, DESCENDING
 import logging
 from dotenv import load_dotenv
 from redis import Redis
+import asyncio  # Import asyncio
+
 
 load_dotenv()
 
@@ -49,7 +50,7 @@ def fetch_telegram_posts():
         update_offset = None
 
         while True:
-            # Use application.bot.get_updates
+            # No async/await.  Call get_updates directly.
             updates = application.bot.get_updates(allowed_updates=['channel_post'], timeout=60, offset=update_offset)
             logger.info(f"Received {len(updates)} updates from Telegram")
 
@@ -63,8 +64,8 @@ def fetch_telegram_posts():
                         logger.info(f"Added post to processing list: {update.channel_post.message_id}")
 
                 update_offset = update.update_id + 1
-        # Shutdown application
-        application.shutdown() #correctly shutdown application
+        # Shutdown application *synchronously* using asyncio.run()
+        asyncio.run(application.shutdown()) #Corrected
         logger.info(f"Total posts to process: {len(posts)}")
         return posts
 
