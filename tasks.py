@@ -55,10 +55,12 @@ async def fetch_telegram_posts():
                 if update.channel_post and update.channel_post.sender_chat and str(update.channel_post.sender_chat.id) == os.environ.get('TELEGRAM_CHANNEL_ID'):
                     if update.channel_post.caption:
                         posts.append(update.channel_post)
+                        logger.info(f"Added post to processing list: {update.channel_post.message_id}")  # Log added posts
 
                 # Update the offset to the *next* update ID
                 update_offset = update.update_id + 1
 
+        logger.info(f"Total posts to process: {len(posts)}") #Log total posts
         return posts
 
     except TelegramError as e:
@@ -72,29 +74,38 @@ def parse_telegram_post(post):
     """Parses a Telegram post (caption) to extract show info."""
     try:
         text = post.caption
+        logger.info(f"Parsing post: {post.message_id}, Caption: {text}") # Log the entire caption
         lines = text.splitlines()
+        logger.info(f"Lines: {lines}") # Log the lines
         show_name = None
         season_episode = None
         download_link = None
 
         if len(lines) >= 4 : #we need at least 4 lines
             show_name = lines[0].strip()
+            logger.info(f"Show Name: {show_name}") # Log show name
             # Check if second line is valid or starts with '#_'
             if lines[1].strip().startswith('#_'):
                 season_episode = None  # No season/episode info
                 link_line_index = 2 # Check from third line
+                logger.info("Season/Episode: None (starts with #_)") # Log season/episode status
             else:
                 season_episode = lines[1].strip()
                 link_line_index = 3
+                logger.info(f"Season/Episode: {season_episode}") # Log season/episode
 
             #Find the Donwload link
             for i in range(link_line_index, len(lines)):
                 line_lower = lines[i].lower()
+
                 if "here ✔️" in line_lower or "download" in line_lower or "getviabot" in line_lower:
+                    logger.info(f"Found potential link line: {lines[i]}") # Log potential link line
                     if post.caption_entities:
                         for entity in post.caption_entities:
+                            logger.info(f"  Entity: type={entity.type}, offset={entity.offset}, length={entity.length}, url={entity.url}") # Log each entity
                             if entity.type == 'text_link' and (entity.offset >= sum(len(l) + 1 for l in lines[:i]) and entity.offset < sum(len(l) + 1 for l in lines[:i+1])):
                                 download_link = entity.url
+                                logger.info(f"Download Link Found: {download_link}") # Log found link
                                 break  # Stop after finding the first link
                 if download_link:
                     break
@@ -107,6 +118,7 @@ def parse_telegram_post(post):
                 'message_id': post.message_id,
             }
         else:
+            logger.warning(f"No show name found in post: {post.message_id}") # Log if no show name
             return None
 
     except Exception as e:
@@ -116,6 +128,7 @@ def parse_telegram_post(post):
 def fetch_tmdb_data(show_name, language='en-US'):
     """Fetches TV show data from TMDb."""
     try:
+        logger.info(f"Fetching TMDb data for: {show_name}")  # Log TMDb fetch attempt
         search_url = f"https://api.themoviedb.org/3/search/tv?api_key={os.environ.get('TMDB_API_KEY')}&query={quote_plus(show_name)}&language={language}"
         search_response = requests.get(search_url)
         search_response.raise_for_status()
@@ -128,11 +141,15 @@ def fetch_tmdb_data(show_name, language='en-US'):
             details_response.raise_for_status()
             details_data = details_response.json()
 
+            logger.info(f"TMDb data found for: {show_name}")  # Log success
+
             return {
                 'poster_path': f"https://image.tmdb.org/t/p/w500{details_data.get('poster_path')}" if details_data.get('poster_path') else None,
                 'overview': details_data.get('overview'),
                 'vote_average': details_data.get('vote_average'),
             }
+        else:
+            logger.warning(f"No TMDb data found for: {show_name}") # Log if no data found
         return None
 
     except requests.exceptions.RequestException as e:
@@ -166,6 +183,7 @@ def update_tv_shows(self):
                         'vote_average': tmdb_data.get('vote_average') if tmdb_data else None,
                         'poster_path': tmdb_data.get('poster_path') if tmdb_data else None,
                     }
+                    logger.debug(f"Show data to be saved: {show_data}") # Log the data before saving
                     try:
                         db.tv_shows.update_one(
                             {'show_name': parsed_data['show_name']},
