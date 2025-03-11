@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>TV Show Updates</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" integrity="sha512-9usAa10IRO0HhonpyAIVpjrylPvoDwiPUiKdWk5t3PyolY1cOd4DSE0Ga+ri4AuTroPR5aQvXU9xC6qOPnzFeg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <style>
+        body {
+            font-family: 'Open Sans', sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f4f4;
+            color: #333;
+        }
+        .container {
+            max-width: 1200px;
+            margin: auto;
+            overflow: hidden; /* Clear floats */
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #007bff;
+        }
+        .card {
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin: 10px;
+            width: 220px; /* Adjust as needed */
+            display: inline-block;
+            vertical-align: top;
+            text-align: center;
+            background-color: #fff;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            transition: transform 0.2s ease; /* Smooth hover effect */
+        }
+        .card:hover {
+            transform: translateY(-5px); /* Lift the card slightly */
+        }
+        .card img {
+            max-width: 100%;
+            height: auto;
+            border-bottom: 1px solid #eee;
+            margin-bottom: 10px;
+        }
+        .card h2 {
+            font-size: 1.2em;
+            margin-bottom: 5px;
+            color: #007bff;
+        }
+        .card p {
+            font-size: 0.9em;
+            color: #666;
+        }
+        .card a {
+            text-decoration: none; /* Remove underlines from links */
+            color: inherit; /* Inherit text color */
+        }
+        .telegram-loader {
+            width: 50px;
+            height: 50px;
+            margin: 20px auto;
+            position: relative;
+        }
+
+        .telegram-loader .plane {
+            width: 0;
+            height: 0;
+            border-top: 25px solid #007bff; /* Blue plane */
+            border-left: 15px solid transparent;
+            border-right: 15px solid transparent;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform-origin: 50% 0%; /* Rotate from the top */
+            animation: fly 1.5s linear infinite;
+        }
+
+        .telegram-loader .circle {
+          width: 50px;
+          height: 50px;
+          border-radius: 50%;
+          border: 3px solid rgba(0, 123, 255, 0.3); /* Semi-transparent blue */
+          position: absolute;
+          top: 0;
+          left: 0;
+          animation: rotate 2s linear infinite; /* Slower rotation */
+        }
+
+        @keyframes fly {
+          0% { transform: translate(-50%, -50%) rotate(0deg); }
+          50% { transform: translate(-50%, -100%) rotate(45deg); } /* Move up and rotate */
+          100% { transform: translate(-50%, -50%) rotate(90deg); }
+        }
+
+        @keyframes rotate {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>TV Show Updates</h1>
+        {% if tv_shows %}
+        {% for show in tv_shows %}
+            <div class="card">
+                <a href="{{ url_for('show_details', message_id=show.message_id) }}">
+                    {% if show.poster_path %}
+                        <img src="{{ show.poster_path }}" alt="{{ show.show_name }}">
+                    {% else %}
+                       <div class="telegram-loader">
+                            <div class="plane"></div>
+                            <div class="circle"></div>
+                        </div>
+                    {% endif %}
+                    <h2>{{ show.show_name }}</h2>
+                    <p>{{ show.season_episode }}</p>
+                </a>
+            </div>
+        {% endfor %}
+        {% else %}
+            <p>No TV shows found.</p>
+        {% endif %}
+    </div>
+</body>
+</html>
