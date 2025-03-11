@@ -5,16 +5,15 @@ from flask import Flask, render_template, redirect, url_for, g
 import requests
 from telegram import Bot
 from telegram.error import TelegramError
-import asyncio  # Import asyncio
+import asyncio
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your_secret_key')  # Use environment variable
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your_secret_key')
 app.config['TELEGRAM_BOT_TOKEN'] = os.environ.get('TELEGRAM_BOT_TOKEN')
 app.config['TMDB_API_KEY'] = os.environ.get('TMDB_API_KEY')
 app.config['TELEGRAM_CHANNEL_ID'] = os.environ.get('TELEGRAM_CHANNEL_ID')
-app.config['DATABASE'] = 'tv_shows.db'  # Database file
+app.config['DATABASE'] = 'tv_shows.db'
 
-# Check for required environment variables
 if not all([app.config['TELEGRAM_BOT_TOKEN'], app.config['TMDB_API_KEY'], app.config['TELEGRAM_CHANNEL_ID']]):
     raise ValueError("Missing required environment variables: TELEGRAM_BOT_TOKEN, TMDB_API_KEY, or TELEGRAM_CHANNEL_ID")
 
@@ -24,7 +23,7 @@ def get_db():
     db = getattr(g, '_database', None)
     if db is None:
         db = g._database = sqlite3.connect(app.config['DATABASE'])
-        db.row_factory = sqlite3.Row  # Access columns by name
+        db.row_factory = sqlite3.Row
     return db
 
 @app.teardown_appcontext
@@ -36,9 +35,18 @@ def close_connection(exception):
 def init_db():
     with app.app_context():
         db = get_db()
-        with app.open_resource('schema.sql', mode='r') as f:
-            db.cursor().executescript(f.read())
-        db.commit()
+        # Check if the table already exists
+        cursor = db.cursor()
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='tv_shows'")
+        table_exists = cursor.fetchone()
+
+        if not table_exists:
+            with app.open_resource('schema.sql', mode='r') as f:
+                db.cursor().executescript(f.read())
+            db.commit()
+            print("Database initialized.")  # Add a log message
+        else:
+            print("Database table 'tv_shows' already exists.")
 
 # --- Helper Functions ---
 
@@ -46,14 +54,12 @@ def fetch_telegram_posts():
     """Fetches recent posts from the Telegram channel."""
     try:
         bot = Bot(token=app.config['TELEGRAM_BOT_TOKEN'])
-        # Get updates.  We're interested in channel posts.
         async def get_updates():
           updates = await bot.get_updates(allowed_updates=['channel_post'])
           return updates
         updates = asyncio.run(get_updates())
         posts = [update.channel_post for update in updates if update.channel_post]
         return posts
-
     except TelegramError as e:
         print(f"Error fetching Telegram posts: {e}")
         return []
@@ -157,6 +163,9 @@ def redirect_to_download(message_id):
         return redirect(show['download_link'])
     return "Show or link not found", 404
 
+# Initialize the database (outside the if __name__ == '__main__': block)
+init_db()
+
 if __name__ == '__main__':
-    init_db()  # Initialize the database
+    #init_db()  # Don't call it here anymore
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
