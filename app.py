@@ -8,12 +8,13 @@ from telegram.error import TelegramError
 import asyncio
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your_secret_key')
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your_secret_key')  # Use environment variable
 app.config['TELEGRAM_BOT_TOKEN'] = os.environ.get('TELEGRAM_BOT_TOKEN')
 app.config['TMDB_API_KEY'] = os.environ.get('TMDB_API_KEY')
 app.config['TELEGRAM_CHANNEL_ID'] = os.environ.get('TELEGRAM_CHANNEL_ID')
-app.config['DATABASE'] = 'tv_shows.db'
+app.config['DATABASE'] = 'tv_shows.db'  # Database file
 
+# Check for required environment variables
 if not all([app.config['TELEGRAM_BOT_TOKEN'], app.config['TMDB_API_KEY'], app.config['TELEGRAM_CHANNEL_ID']]):
     raise ValueError("Missing required environment variables: TELEGRAM_BOT_TOKEN, TMDB_API_KEY, or TELEGRAM_CHANNEL_ID")
 
@@ -23,7 +24,7 @@ def get_db():
     db = getattr(g, '_database', None)
     if db is None:
         db = g._database = sqlite3.connect(app.config['DATABASE'])
-        db.row_factory = sqlite3.Row
+        db.row_factory = sqlite3.Row  # Access columns by name
     return db
 
 @app.teardown_appcontext
@@ -55,32 +56,40 @@ def fetch_telegram_posts():
     try:
         bot = Bot(token=app.config['TELEGRAM_BOT_TOKEN'])
         async def get_updates():
+            #Allow channel posts, and media types.
           updates = await bot.get_updates(allowed_updates=['channel_post'])
           return updates
         updates = asyncio.run(get_updates())
-        posts = [update.channel_post for update in updates if update.channel_post]
+        posts = []
+        for update in updates:
+            if update.channel_post and (update.channel_post.caption or update.channel_post.text): #Check caption
+                posts.append(update.channel_post)
         return posts
     except TelegramError as e:
         print(f"Error fetching Telegram posts: {e}")
         return []
 
 def parse_telegram_post(post):
-    """Parses a Telegram post to extract show info."""
+    """Parses a Telegram post (caption of media) to extract show info."""
     try:
-        text = post.text
-        match = re.search(r"^(.*?)\n(Season\s+\d+(?:\s*-\s*\d+)?(?:,\s*Episode\s+\d+(?:\s*-\s*\d+)?)?)\n.*?CLICK HERE", text, re.DOTALL | re.IGNORECASE)
-        if match:
-            show_name = match.group(1).strip()
-            season_episode = match.group(2).strip()
-            link_match = re.search(r"(https?://[^\s]+)", text)
-            download_link = link_match.group(1).strip() if link_match else None
-            return {
-                'show_name': show_name,
-                'season_episode': season_episode,
-                'download_link': download_link,
-                'message_id': post.message_id
-            }
-        return None
+        # Check if post.caption exists and is not None
+        if post.caption:
+            text = post.caption  # Use post.caption instead of post.text
+            match = re.search(r"^(.*?)\n(Season\s+\d+(?:\s*-\s*\d+)?(?:,\s*Episode\s+\d+(?:\s*-\s*\d+)?)?)\n.*?CLICK HERE", text, re.DOTALL | re.IGNORECASE)
+            if match:
+                show_name = match.group(1).strip()
+                season_episode = match.group(2).strip()
+                link_match = re.search(r"(https?://[^\s]+)", text)
+                download_link = link_match.group(1).strip() if link_match else None
+                return {
+                    'show_name': show_name,
+                    'season_episode': season_episode,
+                    'download_link': download_link,
+                    'message_id': post.message_id
+                }
+        else:
+            print(f"Skipping post with ID {post.message_id}: No caption content.") #Log if no caption
+        return None  # Return None if post.caption is None or no match is found
     except Exception as e:
         print(f"Error parsing post: {e}")
         return None
