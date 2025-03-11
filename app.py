@@ -47,7 +47,7 @@ def close_connection(exception):
 
 # --- Helper Functions ---
 
-async def fetch_telegram_posts():  # Make this function async
+def fetch_telegram_posts():
     """Fetches recent posts from all configured Telegram channels."""
     try:
         bot = Bot(token=app.config['TELEGRAM_BOT_TOKEN'])
@@ -67,7 +67,7 @@ async def fetch_telegram_posts():  # Make this function async
 
         for channel_id in channel_ids:
             try:
-                posts = await get_updates_for_channel(channel_id)  # Await the coroutine
+                posts = asyncio.run(get_updates_for_channel(channel_id))  # Await the coroutine in an event loop
                 all_posts.extend(posts)
             except TelegramError as e:
                 logger.error(f"Error fetching posts from channel {channel_id}: {e}")
@@ -194,6 +194,12 @@ def get_tv_show_by_message_id(message_id):
     show = db.tv_shows.find_one({'message_id': message_id})
     return show
 
+def get_all_show_names():
+    """Retrieves a list of all unique show names."""
+    db = get_db()
+    show_names_cursor = db.tv_shows.distinct('show_name')
+    return list(show_names_cursor)
+
 # --- Routes ---
 
 @app.route('/')
@@ -223,6 +229,11 @@ def redirect_to_download(message_id):
     if show and show.get('download_link'):
         return redirect(show['download_link'])
     return "Show or link not found", 404
+
+@app.route('/shows')
+def list_shows():
+    show_names = get_all_show_names()
+    return render_template('shows.html', show_names=show_names)
 
 if __name__ == "__main__":
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
