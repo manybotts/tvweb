@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" integrity="sha512-9usAa10IRO0HhonpyAIVpjrylPvoDwiPUiKdWk5t3PyolY1cOd4DSE0Ga+ri4AuTroPR5aQvXU9xC6qOPnzFeg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
     <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
     <style>
+        /* Basic styling */
         body {
             font-family: 'Open Sans', sans-serif;
             line-height: 1.6;
@@ -15,33 +16,39 @@
             background-color: #f4f4f4;
             color: #333;
         }
+
+        /* --- Navbar Styles --- */
         .navbar {
             background-color: #007bff;
             color: white;
-            padding: 10px 20px;
+            padding: 10px 20px; /* Consistent padding */
             display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap; /* Important for responsiveness */
+            justify-content: space-between; /* Space out items */
+            align-items: center;          /* Vertically center */
+            flex-wrap: wrap;             /* Allow wrapping on smaller screens */
         }
+
         .logo-container {
             display: flex;
             align-items: center;
-            margin-bottom: 10px; /* Space below on mobile */
+            /* Removed margin-bottom: This was pushing other elements down */
         }
+
         .logo {
-            width: 40px;
+            width: 40px;  /* Adjust as needed */
             height: auto;
             margin-right: 10px;
             border-radius: 50%;
         }
+
         .nav-links {
             display: flex;
             align-items: center;
-            margin-left: 10px; /* Space from logo */
-            margin-bottom: 10px; /* Space below on mobile */
-            flex-wrap: wrap; /* Allow links to wrap */
+            /* Removed margin-left, margin-bottom */
+            /* Removed flex-wrap: Allow wrapping handled by navbar */
+            order: 1; /* Correct order */
         }
+
         .navbar a {
             color: white;
             text-decoration: none;
@@ -50,35 +57,36 @@
             border-radius: 5px;
             transition: background-color 0.3s ease;
             font-size: 1.2em;
-            white-space: nowrap; /* Prevent wrapping of link text */
+            white-space: nowrap;
         }
+
         .navbar a:hover {
             background-color: #0056b3;
         }
 
-        .navbar-center {
+      .navbar-center {
             font-weight: bold;
             font-size: 1.5em;
-            margin-bottom: 10px;
-            order: -1; /* Move to the beginning on mobile */
-            width: 100%;
-            text-align:center;
+            white-space: nowrap;
+            order: 2;
+            flex-grow: 1;
+            text-align: center;
         }
+
         .search-form {
             display: flex;
             align-items: center;
-             margin-bottom: 10px;
-             width: 100%; /* Take full width on mobile */
-
+            order: 3;
         }
+
         .search-form input[type="text"] {
             padding: 8px;
             border: 1px solid #ddd;
             border-radius: 4px;
             margin-right: 5px;
-            flex-grow: 1; /* Allow input to grow */
-
+            flex-grow: 1;  /* Allow input to grow */
         }
+
         .search-form button {
             padding: 8px 15px;
             background-color: #fff;
@@ -89,10 +97,13 @@
             transition: background-color 0.3s ease, color 0.3s ease;
             white-space: nowrap;
         }
+
         .search-form button:hover {
             background-color: #007bff;
             color: white;
         }
+        /* --- End Navbar Styles --- */
+
         .container {
             max-width: 1200px;
             margin: auto;
@@ -104,19 +115,19 @@
             text-align: center;
             margin-bottom: 30px;
             color: #007bff;
-          font-family: sans-serif; /* More professional font */
-          font-size: 1.5em;       /* Smaller font size */
-          display: flex;          /* Use flexbox for centering with the dot */
-          align-items: center;    /* Vertically center */
-          justify-content: center; /* Horizontally center */
+          font-family: sans-serif;
+          font-size: 1.5em;
+          display: flex;
+          align-items: center;
+          justify-content: center;
         }
 
         .blinking-dot {
           width: 10px;
           height: 10px;
           background-color: green;
-          border-radius: 50%; /* Make it round */
-          margin-right: 8px; /* Space between dot and text */
+          border-radius: 50%;
+          margin-right: 8px;
           animation: blink 1s steps(5, start) infinite;
         }
 
@@ -125,7 +136,6 @@
             visibility: hidden;
           }
         }
-
         .card {
             border: 1px solid #ddd;
             padding: 15px;
@@ -279,39 +289,49 @@
                 flex-direction: column;
                 align-items: center;
             }
-            .logo-container {
-                margin-bottom: 10px; /* Add some space between logo and center text on mobile*/
+             .logo-container{
+               justify-content: center;
             }
-            .nav-links {
-                margin-left: 0;       /* Remove left margin on mobile */
-                margin-bottom: 10px;
-                justify-content: center;
-                width: 100%;
+
+            .navbar-center {
+               order: -1; /* Center text at the top on mobile */
+               margin-bottom: 10px;
 
             }
-            .navbar-center {
-               position: static; /* Remove absolute positioning */
-               transform: none;     /* Remove transform */
-               margin: 10px 0;     /* Add some margin */
-               width: auto;
+
+            .nav-links {
+                justify-content: center; /* Center the navigation links */
+                margin-left: 0; /* Remove the left margin */
+                flex-direction: row;
+                align-items: stretch;
+                margin-bottom: 10px;
+
             }
-             .nav-links a {
+
+            .nav-links a{
                text-align: center;
                 display: block;
                 width: 100%;
                 box-sizing: border-box;
+
             }
+
             .search-form {
                 width: 100%; /* Full width on mobile */
+                justify-content: center;
             }
+              .search-form input[type="text"] {
+                width: 70%; /* Adjust as needed */
+             }
+
             .card {
-                width: 45%; /* Two cards per row */
+                width: 45%; /* Two cards per row on smaller screens*/
             }
         }
 
         @media (max-width: 480px) {
             .card {
-                width: 95%; /* One card per row */
+                width: 95%; /* One card per row on very small screens*/
             }
         }
     </style>
@@ -322,11 +342,11 @@
           <a href="{{ url_for('index') }}">
             <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" class="logo">
           </a>
-          <div class ="nav-links">
+        </div>
+        <div class ="nav-links">
             <a href="{{ url_for('index') }}">Home</a>
             <a href="{{ url_for('list_shows') }}">Available Shows</a>
           </div>
-        </div>
         <div class="navbar-center">
             𝕚𝔹𝕆𝕏 𝕋𝕍
         </div>
