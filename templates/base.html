@@ -254,7 +254,6 @@
             color: white;
             border: 1px solid #007bff;
         }
-
         .download-button {
             display: inline-block;
             padding: 8px 15px;
@@ -263,7 +262,7 @@
             color: white;
             text-decoration: none;
             border-radius: 5px;
-            transition: background-color 0.3s ease;
+            transition: background-color: 0.3s ease;
         }
 
         .download-button {
@@ -295,27 +294,15 @@
       }
 
         /* --- Media Queries --- */
-
         @media (max-width: 768px) {
             .card {
-                width: calc(50% - 10px); /* Two cards/row */
-            }
-            .search-form input[type="text"] {
-                width: 60px; /* Smaller initial width */
-            }
-            .search-form:hover input[type="text"],
-            .search-form input[type="text"]:focus {
-                width: 120px; /* Smaller expanded width */
+                width: calc(50% - 10px); /* Two cards per row */
             }
         }
 
         @media (max-width: 480px) {
-
             .card {
-                width: calc(100% - 10px); /* One card/row */
-            }
-              .search-form input[type="text"]{
-               width: 60px;
+                width: calc(50% - 10px); /* Two cards per row, even on smallest */
             }
         }
     </style>
