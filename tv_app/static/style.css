@@ -15,7 +15,11 @@ body {
     padding: 5px 10px;
     display: flex;
     align-items: center;
-    position: relative;
+    position: fixed;  /* KEY CHANGE: Fixed positioning */
+    top: 0;           /* Stick to the top of the viewport */
+    left: 0;          /* Start at the left edge */
+    width: 100%;      /* Full width */
+    z-index: 1000;    /* Ensure it's above other content */
 }
 
 .logo-container {
