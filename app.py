@@ -1,13 +1,12 @@
 import os
 import re
 from flask import Flask, render_template, redirect, url_for, request, g
-from pymongo import MongoClient, ASCENDING, DESCENDING #Remove this
+# from pymongo import MongoClient, ASCENDING, DESCENDING  # REMOVE THIS LINE
 import logging
 from dotenv import load_dotenv
-from tasks import update_tv_shows, test_task
-# from datetime import datetime, timezone # Removed. Now in models.py and tasks.py
+from tasks import update_tv_shows, test_task  # Import the Celery task
+# from datetime import datetime, timezone  # Moved to models.py
 from models import db, TVShow  # Import from models.py
-
 
 load_dotenv()
 
@@ -19,16 +18,15 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your_secret_key')
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL')  # Use the DATABASE_URL
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False  # Suppress a warning
-db.init_app(app) # Initialize db with the app
+db.init_app(app)  # Initialize db with the app
 
 
 # --- Database Operations ---
-#Removed the old db operations
+# Removed the old get_db and related functions.
 
 with app.app_context():
     db.create_all()
     logger.info("SQLAlchemy and PostgreSQL Database connected")
-
 
 
 def get_all_tv_shows(page=1, per_page=9, search_query=None):
@@ -63,7 +61,7 @@ def index():
     per_page = 9
 
     logger.info("About to enqueue update_tv_shows task")
-    update_tv_shows.delay()
+    update_tv_shows.delay()  # Correctly enqueue the task
     logger.info("update_tv_shows task enqueued")
 
     tv_shows, total_pages = get_all_tv_shows(page, per_page, search_query)
