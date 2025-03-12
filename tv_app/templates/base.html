@@ -30,7 +30,7 @@
         .logo-container {
             display: flex;
             align-items: center;
-            margin-right: auto; /* Push to the left, creating space for centered title */
+            margin-right: auto; /* Push to the left */
         }
 
         .logo {
@@ -43,7 +43,7 @@
 .nav-links {
             display: flex;
             align-items: center;
-            margin-left: 10px; /* Add some space between logo and links. */
+            margin-left: 10px;
         }
         .navbar a:hover {
             background-color: #0056b3;
@@ -53,16 +53,16 @@
             font-weight: bold;
             font-size: 1.2em;
             white-space: nowrap;
-            position: absolute; /* Absolute positioning */
-            left: 50%;        /* Start at 50% of the parent */
-            transform: translateX(-50%); /* Adjust for centering */
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
         }
 
         .navbar a {
             color: white;
             text-decoration: none;
             padding: 5px 8px;
-            margin: 0 2px;  /* Much smaller margin - adjust as needed */
+            margin: 0 2px;
             border-radius: 5px;
             transition: background-color 0.3s ease;
             font-size: 0.9em;
@@ -71,7 +71,7 @@
 
         .search-form {
             margin-left: auto; /* Push search form to the right */
-            display: flex; /* Needed for alignment within flex container */
+            display: flex;
             align-items: center;
         }
 
@@ -115,19 +115,19 @@
             text-align: center;
             margin-bottom: 30px;
             color: #007bff;
-          font-family: sans-serif; /* More professional font */
-          font-size: 1.5em;       /* Smaller font size */
-          display: flex;          /* Use flexbox for centering with the dot */
-          align-items: center;    /* Vertically center */
-          justify-content: center; /* Horizontally center */
+          font-family: sans-serif;
+          font-size: 1.5em;
+          display: flex;
+          align-items: center;
+          justify-content: center;
         }
 
         .blinking-dot {
           width: 10px;
           height: 10px;
           background-color: green;
-          border-radius: 50%; /* Make it round */
-          margin-right: 8px; /* Space between dot and text */
+          border-radius: 50%;
+          margin-right: 8px;
           animation: blink 1s steps(5, start) infinite;
         }
 
@@ -229,7 +229,7 @@
     .pagination {
         text-align: center;
         margin-top: 20px;
-         clear: both; /* Add clear: both; */
+         clear: both;
     }
 
     .pagination a {
@@ -291,9 +291,9 @@
       text-decoration: none;
       color: #007bff;
   }
-  /* --- Slideshow CSS --- */
+ /* --- Slideshow CSS --- */
 
-.slideshow-container {
+ .slideshow-container {
     position: relative;
     width: 100%;
     max-width: none;
@@ -302,41 +302,44 @@
 }
 
 .slideshow-inner {
-    height: 500px; /* Adjust as needed */
+    height: 500px; /* Set a fixed height */
     display: flex;
-    align-items: center;  /* Vertically center the slides */
-    justify-content: center; /* Horizontally center */
+    align-items: center;
+    justify-content: center;
     position: relative;
-    /* Combine background images and gradient */
-     background-image: linear-gradient(to right, rgba(0,0,0,0.8) 20%, rgba(0,0,0,0.2) 40%, rgba(0,0,0,0.2) 60%, rgba(0,0,0,0.8) 80%);
-    background-size: cover; /* Ensure gradient covers the whole area */
-    background-repeat: no-repeat;
-    overflow: hidden;  /* Hide any overflowing blurred images*/
+    overflow: hidden;
+    /*  gradient, applied to the main container */
+    background-image: linear-gradient(to right, rgba(0,0,0,0.8) 20%, rgba(0,0,0,0.2) 40%, rgba(0,0,0,0.2) 60%, rgba(0,0,0,0.8) 80%);
 }
 
-/*  blurred background images */
+/* Previous and next slide backgrounds (blurred) */
 .slideshow-inner::before,
 .slideshow-inner::after {
     content: '';
     position: absolute;
     top: 0;
-    bottom: 0;
-    width: 50%;  /* Each takes up half the width */
-    background-size: cover; /* Cover their respective areas */
+    left: 0;
+    width: 50%;  /* Each pseudo-element takes up half the width */
+    height: 100%;
+    background-size: cover;
+    background-position: center;
     background-repeat: no-repeat;
     backdrop-filter: blur(15px) brightness(0.5); /* Blur and darken */
-    z-index: 1; /* Behind the main slide, but above the gradient */
+    z-index: 1;        /* Behind the main slide content, but above the gradient */
     transition: transform 0.5s ease, opacity 0.5s ease; /* Smooth transitions */
     opacity: 0;       /* Initially hidden */
-    transform: translateX(-100%); /* Initially off-screen to the LEFT */
 }
 
-/* Style for the next slide's background */
+/* Previous slide is initially off-screen to the LEFT */
+.slideshow-inner::before {
+    transform: translateX(-100%);
+}
+
+/* Next slide is initially off-screen to the RIGHT */
 .slideshow-inner::after {
-    right: 0; /* Position the 'after' pseudo-element on the right */
-  transform: translateX(100%); /* Initially off-screen to the RIGHT */
+    right: 0;  /* Position 'after' on the right */
+    transform: translateX(100%);
 }
-
 /* Active states for prev/next backgrounds */
 .slideshow-inner.prev-active::before {
     transform: translateX(0); /* Bring into view from the left */
@@ -344,45 +347,43 @@
 }
 
 .slideshow-inner.next-active::after {
-    transform: translateX(0); /* Bring into view from the right*/
+    transform: translateX(0); /* Bring into view from the right */
     opacity: 1;
 }
 
-
 .mySlides {
-    position: relative; /* For positioning the text */
-    display: none;  /* Hidden by default */
-    z-index: 2; /* Above the background images */
-    max-width: 100%;
+    position: relative;
+    display: none;    /* Hidden by default */
+    z-index: 2;    /* Above the blurred backgrounds */
+    max-width: 100%; /* Allow shrinking */
 }
 
 .mySlides.active-slide{
-  display: flex;
-}
-
-.mySlides img {
-    max-width: 500px;  /* Adjust as needed */
-    max-height: 400px; /* Adjust as needed */
-    object-fit: contain;  /* Maintain aspect ratio */
     display: block;
-     margin: 0 auto;
+}
+.mySlides img {
+    max-width: 500px;  /* Control maximum image size */
+    max-height: 400px;
+    object-fit: contain; /* Maintain aspect ratio */
+    display: block;      /* Remove extra space below inline images */
+    margin: 0 auto;      /* Center horizontally */
 }
 
-/* Next & previous buttons */
+/* Next & previous buttons (style and position)*/
 .prev, .next {
-    cursor: pointer;
-    position: absolute;
-    top: 50%;
-    transform: translateY(-50%);
-    width: auto;
-    padding: 16px;
-    color: white;
-    font-weight: bold;
-    font-size: 18px;
-    transition: 0.6s ease;
-    border-radius: 0 3px 3px 0;
-    user-select: none;
-    z-index: 3; /* Above the slides */
+  cursor: pointer;
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: auto;
+  padding: 16px;
+  color: white;
+  font-weight: bold;
+  font-size: 18px;
+  transition: 0.6s ease;
+  border-radius: 0 3px 3px 0;
+  user-select: none;
+  z-index: 3;
 }
 
 .next {
@@ -391,69 +392,59 @@
 }
 
 .prev:hover, .next:hover {
-    background-color: rgba(0, 0, 0, 0.8);
+    background-color: rgba(0,0,0,0.8);
 }
 
 /* Caption text */
 .text {
-    color: #f2f2f2;
-    font-size: 15px;
-    padding: 8px 12px;
-    position: absolute;
-    bottom: 8px;
-    width: 100%;
-    text-align: center;
-    z-index: 3; /* Above the background */
+  color: #f2f2f2;
+  font-size: 15px;
+  padding: 8px 12px;
+  position: absolute;
+  bottom: 8px;
+  width: 100%;
+  text-align: center;
+  z-index: 3; /* Above the background */
 }
-    /* Style the dots/bullets/indicators */
-    .dot {
-      cursor: pointer;
-      height: 15px;
-      width: 15px;
-      margin: 0 2px;
-      background-color: #bbb;
-      border-radius: 50%;
-      display: inline-block;
-      transition: background-color: 0.6s ease;
-    }
 
-     /* Place the dots container *below* the slideshow */
-    .dot-container {
-        text-align: center;
-        margin-top: 20px; /* Add some space between slideshow and dots */
-        position: relative; /* Ensure it's not affected by slideshow positioning */
-        z-index:4;
-    }
+/* Style the dots/bullets/indicators */
+.dot {
+cursor: pointer;
+height: 15px;
+width: 15px;
+margin: 0 2px;
+background-color: #bbb;
+border-radius: 50%;
+display: inline-block;
+transition: background-color 0.6s ease;
+}
 
-    /* Add a background color to the active dot/circle */
-    .active, .dot:hover {
-      background-color: #717171;
-    }
+/* Place the dots container *below* the slideshow */
+.dot-container {
+  text-align: center;
+  margin-top: 20px; /* Add some space */
+  position: relative;  /* Not affected by slideshow positioning */
+    z-index:4;
+}
 
-    /* Fading animation - Not used*/
-    .fade {
-      animation-name: fade;
-      animation-duration: 1.5s;
-    }
+/* active dot/circle */
+.active, .dot:hover {
+background-color: #717171;
+}
+/* --- Media Queries --- */
 
-    @keyframes fade {
-      from {opacity: .4}
-      to {opacity: 1}
-    }
-     /* --- Media Queries --- */
+    /* Mobile Styles (max-width: 768px) */
+    @media (max-width: 768px) {
 
-      /* Mobile Styles (max-width: 768px) */
-        @media (max-width: 768px) {
-
-            .search-form input[type="text"] {
-                width: 60px; /* Very small initial width */
-            }
-              /* Two cards per row*/
-            .card {
-                width: calc(50% - 20px);
-            }
+        .search-form input[type="text"] {
+            width: 60px;
         }
-    </style>
+            /* Two cards per row*/
+        .card {
+            width: calc(50% - 20px);
+        }
+    }
+</style>
 </head>
 <body>
     <div class="navbar">
@@ -470,4 +461,13 @@
             𝕚𝔹𝕆𝕏 𝕋𝕍
         </div>
         <form action="{{ url_for('index') }}" method="GET" class="search-form">
-            <input type="text" name="search" placeholder="Search for shows..." value="{{ search_query if
+            <input type="text" name="search" placeholder="Search for shows..." value="{{ search_query if search_query else '' }}">
+            <button type="submit"><i class="fas fa-search"></i></button>
+        </form>
+    </div>
+
+    <div class="container">
+        {% block content %}{% endblock %}
+    </div>
+</body>
+</html>
