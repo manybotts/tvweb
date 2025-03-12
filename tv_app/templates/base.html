@@ -30,7 +30,7 @@
         .logo-container {
             display: flex;
             align-items: center;
-            margin-right: auto;
+            margin-right: auto; /* Push to the left*/
         }
 
         .logo {
@@ -39,43 +39,42 @@
             margin-right: 5px;
             border-radius: 50%;
         }
-.nav-links {
+
+        .nav-links {
             display: flex;
             align-items: center;
-            margin-left: 10px; /* Add some space between logo and links*/
+             /* Add some space between logo and links. */
+        }
+        .navbar a:hover {
+            background-color: #0056b3;
         }
 
-.navbar-center {
-    font-weight: bold;
-    font-size: 1.2em;
-    white-space: nowrap;
-    position: absolute; /* Absolute positioning */
-    left: 50%;        /* Start at 50% of the parent */
-    transform: translateX(-50%); /* Adjust for centering */
-}
-
-.search-form {
-    margin-left: auto; /* Push search form to the right */
-    display: flex;
-    align-items: center;
-}
+        .navbar-center {
+          font-weight: bold;
+          font-size: 1.2em;
+          white-space: nowrap;
+          position: absolute; /* Absolute positioning */
+          left: 50%;        /* Start at 50% of the parent */
+          transform: translateX(-50%); /* Adjust for centering */
+        }
 
         .navbar a {
             color: white;
             text-decoration: none;
             padding: 5px 8px;
-            margin: 0 2px;  /* Keep consistent spacing */
+            margin: 0 2px;  /*  spacing */
             border-radius: 5px;
             transition: background-color 0.3s ease;
             font-size: 0.9em;
             white-space: nowrap;
         }
 
-        .navbar a:hover {
-            background-color: #0056b3;
+        .search-form {
+            margin-left: auto; /* Push search form to the right */
+            display: flex; /* Needed for alignment */
+            align-items: center;
         }
-
-       .search-form input[type="text"] {
+      .search-form input[type="text"] {
             padding: 5px;
             border: 1px solid #ddd;
             border-radius: 4px;
@@ -84,10 +83,9 @@
             transition: width 0.3s ease;
         }
 
-        .search-form:hover input[type="text"],
-        .search-form input[type="text"]:focus {
-            width: 150px; /* Expanded width */
-        }
+      .search-form:hover input[type="text"], .search-form input[type="text"]:focus {
+          width: 150px; /* Expanded width */
+      }
 
         .search-form button {
             padding: 5px 10px;
@@ -269,10 +267,10 @@
         background-color: #0056b3;
     }
 
-      ul{
-          list-style: none;
-          padding: 0;
-        }
+  ul{
+      list-style: none;
+      padding: 0;
+    }
 
      ul li {
             padding: 10px;
@@ -294,82 +292,107 @@
   }
 
      /* Slideshow container */
-.slideshow-container {
-  max-width: 1000px;
-  position: relative;
-  margin: auto;
-}
+     .slideshow-container {
+        position: relative;
+        width: 100%;       /* Full width */
+        max-width: none;  /* Remove any previous max-width */
+        margin: auto;
+        overflow: hidden; /* Hide overflowing content */
+    }
 
-/* Hide the images by default */
-.mySlides {
-  display: none;
-}
+    /* Hide the images by default */
+    .mySlides {
+        display: none;
+        position: relative; /* For positioning the overlay */
+    }
+     /* Add a pseudo-element for the blurred background */
+    .mySlides::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-size: cover;
+        background-position: center;
+        filter: blur(10px) brightness(0.6); /* Blur and darken */
+        z-index: -1; /* Place behind the main content */
+    }
 
-/* Next & previous buttons */
-.prev, .next {
-  cursor: pointer;
-  position: absolute;
-  top: 50%;
-  width: auto;
-  margin-top: -22px;
-  padding: 16px;
-  color: white;
-  font-weight: bold;
-  font-size: 18px;
-  transition: 0.6s ease;
-  border-radius: 0 3px 3px 0;
-  user-select: none;
-}
+    .mySlides img {
+        display: block;
+        margin: 0 auto;
+        max-width: 100%;
+        max-height: 400px;
+        object-fit: contain;
+    }
 
-/* Position the "next button" to the right */
-.next {
-  right: 0;
-  border-radius: 3px 0 0 3px;
-}
+    /* Next & previous buttons */
+    .prev, .next {
+        cursor: pointer;
+        position: absolute;
+        top: 50%;
+        width: auto;
+        margin-top: -22px;
+        padding: 16px;
+        color: white;
+        font-weight: bold;
+        font-size: 18px;
+        transition: 0.6s ease;
+        border-radius: 0 3px 3px 0;
+        user-select: none;
+    }
 
-/* On hover, add a black background color with a little bit see-through */
-.prev:hover, .next:hover {
-  background-color: rgba(0,0,0,0.8);
-}
+    /* Position the "next button" to the right */
+    .next {
+        right: 0;
+        border-radius: 3px 0 0 3px;
+    }
 
-/* Caption text */
-.text {
-  color: #f2f2f2;
-  font-size: 15px;
-  padding: 8px 12px;
-  position: absolute;
-  bottom: 8px;
-  width: 100%;
-  text-align: center;
-}
-    /* Add a background color to the active dot/circle */
-.active {
-  background-color: #717171;
-}
+    /* On hover, add a black background color with a little bit see-through */
+    .prev:hover, .next:hover {
+        background-color: rgba(0,0,0,0.8);
+    }
 
-/* Fading animation */
-.fade {
-  animation-name: fade;
-  animation-duration: 1.5s;
-}
+    /* Caption text (now with higher z-index) */
+    .text {
+        color: #f2f2f2;
+        font-size: 15px;
+        padding: 8px 12px;
+        position: absolute;
+        bottom: 8px;
+        width: 100%;
+        text-align: center;
+        z-index: 1; /* Ensure text is above the background */
+    }
 
-@keyframes fade {
-  from {opacity: .4}
-  to {opacity: 1}
-}
+        /* Add a background color to the active dot/circle */
+    .active {
+      background-color: #717171;
+    }
 
-    /* Style the dots/bullets/indicators */
-.dot {
-  cursor: pointer;
-  height: 15px;
-  width: 15px;
-  margin: 0 2px;
-  background-color: #bbb;
-  border-radius: 50%;
-  display: inline-block;
-  transition: background-color: 0.6s ease;
-}
+    /* Fading animation */
+    .fade {
+      animation-name: fade;
+      animation-duration: 1.5s;
+    }
 
+    @keyframes fade {
+      from {opacity: .4}
+      to {opacity: 1}
+    }
+
+        /* Style the dots/bullets/indicators */
+    .dot {
+      cursor: pointer;
+      height: 15px;
+      width: 15px;
+      margin: 0 2px;
+      background-color: #bbb;
+      border-radius: 50%;
+      display: inline-block;
+      transition: background-color: 0.6s ease;
+    }
     /* --- Media Queries --- */
 
       /* Mobile Styles (max-width: 768px) */
@@ -383,6 +406,7 @@
                 width: calc(50% - 20px);
             }
         }
+
 </style>
 </head>
 <body>
