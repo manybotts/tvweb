@@ -1,6 +1,6 @@
 # tasks.py
 from celery import Celery
-from celery.exceptions import MaxRetriesExceededError  # Import MaxRetriesExceededError
+from celery.exceptions import MaxRetriesExceededError
 import os
 import re
 import requests
@@ -57,18 +57,18 @@ def parse_telegram_post(post):
         logger.debug(f"Parsing post: {post.message_id}, Caption: {text!r}")  # Keep for debugging if needed
         lines = text.splitlines()
         show_name = None
-        season_episode = None
+        season_episode = None  # Renamed variable
         download_link = None
 
         if len(lines) >= 3:
             show_name = lines[0].strip()
             logger.info(f"Show Name: {show_name}")
             if lines[1].strip().startswith('#_'):
-                season_episode = None
+                season_episode = None  # Corrected variable name
                 link_line_index = 2
                 logger.info("Season/Episode: None (starts with #_)")
             else:
-                season_episode = lines[1].strip()
+                season_episode = lines[1].strip()  # Corrected variable name
                 link_line_index = 2
                 logger.info(f"Season/Episode: {season_episode}")
 
@@ -89,7 +89,7 @@ def parse_telegram_post(post):
         if show_name:
             return {
                 'show_name': show_name,
-                'season_episode': season_episode,  # Keep this name for consistency with parsing
+                'season_episode': season_episode,  # Use the renamed variable
                 'download_link': download_link,
                 'message_id': post.message_id,
             }
@@ -166,10 +166,10 @@ def update_tv_shows(self):
                             logger.info(f"Processing show: {parsed_data['show_name']}")
                             tmdb_data = fetch_tmdb_data(parsed_data['show_name'])
 
-                            # --- Prepare data for database ---
+                            # --- Corrected Field Name ---
                             show_data = {
                                 'show_name': parsed_data['show_name'],
-                                'episode_title': parsed_data['season_episode'],  # Correct field name
+                                'episode_title': parsed_data['season_episode'],  # Use 'episode_title'
                                 'download_link': parsed_data['download_link'],
                                 'message_id': parsed_data['message_id'],
                                 'overview': tmdb_data.get('overview') if tmdb_data else None,
@@ -187,7 +187,7 @@ def update_tv_shows(self):
                                 logger.info(f"Successfully updated: {parsed_data['show_name']}")
                             else:
                                 # Create new show
-                                new_show = TVShow(**show_data)
+                                new_show = TVShow(**show_data)  # Use ** to unpack the dictionary
                                 db.session.add(new_show)
                                 db.session.commit()  # Commit after each addition
                                 logger.info(f"Successfully inserted: {parsed_data['show_name']}")
@@ -203,4 +203,11 @@ def update_tv_shows(self):
         logger.error("Max retries exceeded for update_tv_shows task.")
     except Exception as e:
         logger.exception(f"An unexpected error occurred in update_tv_shows: {e}")
-        self.retry(exc=e, countdown=60)  # Retry after 60 seconds
+        self.retry(exc=e, countdown=60)
+
+
+# Simple test task
+@celery.task
+def test_task():
+  logger.info("The test Celery task has run!")
+  return "Test task complete"
