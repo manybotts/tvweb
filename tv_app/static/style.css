@@ -102,10 +102,11 @@ body {
 }
 
 .container {
-    max-width: 1200px;
-    margin: auto;
-    overflow: hidden;
-    padding: 20px;
+            max-width: 1200px;
+            margin: auto;
+            overflow: hidden;
+            padding: 20px;
+            padding-top: 70px;  /* Add this line */
 }
 
 h1 {
