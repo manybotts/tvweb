@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" integrity="sha512-9usAa10IRO0HhonpyAIVpjrylPvoDwiPUiKdWk5t3PyolY1cOd4DSE0Ga+ri4AuTroPR5aQvXU9xC6qOPnzFeg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
     <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
     <style>
-        /* Basic styling */
+       /* Basic styling */
         body {
             font-family: 'Open Sans', sans-serif;
             line-height: 1.6;
@@ -30,7 +30,7 @@
         .logo-container {
             display: flex;
             align-items: center;
-            margin-right: auto; /* Push to the left, creating space for centered title*/
+            margin-right: auto; /* Push to the left, creating space for centered title */
         }
 
         .logo {
@@ -40,29 +40,40 @@
             border-radius: 50%;
         }
 
-.nav-links {
+        .nav-links {
             display: flex;
             align-items: center;
-            margin-left: 10px; /* Add some space between logo and links. */
+             margin-left: 10px;
+        }
+
+        .navbar a {
+            color: white;
+            text-decoration: none;
+            padding: 5px 8px;
+            margin: 0 2px;  /* Much smaller margin - adjust as needed */
+            border-radius: 5px;
+            transition: background-color 0.3s ease;
+            font-size: 0.9em;
+            white-space: nowrap;
         }
         .navbar a:hover {
             background-color: #0056b3;
         }
 
-        .navbar-center {
+       .navbar-center {
             font-weight: bold;
             font-size: 1.2em;
             white-space: nowrap;
-            position: absolute; /* Absolute positioning */
+            position: absolute; /* Absolute positioning for centering */
             left: 50%;        /* Start at 50% of the parent */
             transform: translateX(-50%); /* Adjust for centering */
         }
 
         .search-form {
-            margin-left: auto; /* Push search form to the right */
-            display: flex;
-            align-items: center;
-            width: auto;
+          margin-left: auto; /* Push search form to the right */
+          display: flex;
+          align-items: center;
+          width: auto;
         }
 
       .search-form input[type="text"] {
@@ -281,98 +292,83 @@
       text-decoration: none;
       color: #007bff;
   }
-
-     /* Slideshow container */
-     .slideshow-container {
-
+        /* Slideshow container */
+    .slideshow-container {
         position: relative;
-        width: 100%;       /* Full width */
-        max-width: none;  /* Remove any previous max-width */
-        margin: auto;
-        overflow: hidden; /* Hide overflowing content */
-    }
-
-    /* Hide the images by default */
-    .mySlides {
-        display: none;
-        position: relative; /* For positioning the overlay */
-    }
-     /* Add a pseudo-element for the blurred background */
-    .mySlides::before {
-        content: "";
-        position: absolute;
-        top: 0;
-        left: 0;
         width: 100%;
-        height: 100%;
-        background-size: cover;
-        background-position: center;
-        filter: blur(10px) brightness(0.6); /* Blur and darken */
-        z-index: -1; /* Place behind the main content */
+        max-width: none; /* Remove any previous max-width */
+        margin: auto;
+        overflow: hidden;
     }
 
+.slideshow-inner {
+    background-size: 50% 100%, 50% 100%, cover;  /* Corrected sizes */
+    background-position: left, right, center;
+    background-repeat: no-repeat;
+    height: 500px; /* Set a fixed height - adjust as needed */
+    display: flex;
+    transition: background-image 0.5s ease-in-out;
+    position: relative; /* Needed for absolute positioning of children */
+
+}
+
+    .mySlides {
+        position: relative;
+        margin: auto; /* Center the slide within slideshow-inner */
+        display: none; /* Hide slides by default */
+    }
+    /* active slide */
+    .mySlides.active-slide{
+        display: block;
+    }
     .mySlides img {
         display: block;
-        margin: 0 auto;
-        max-width: 100%;
+        max-width: 500px;  /* Limit maximum image width */
         max-height: 400px;
         object-fit: contain;
+        margin: auto; /* Center the image horizontally and vertically */
+
     }
 
-    /* Next & previous buttons */
+
+    /* Next & previous buttons (style and position)*/
     .prev, .next {
-        cursor: pointer;
-        position: absolute;
-        top: 50%;
-        width: auto;
-        margin-top: -22px;
-        padding: 16px;
-        color: white;
-        font-weight: bold;
-        font-size: 18px;
-        transition: 0.6s ease;
-        border-radius: 0 3px 3px 0;
-        user-select: none;
-         z-index: 2;
+      cursor: pointer;
+      position: absolute;  /* Absolute positioning */
+      top: 50%;          /* Vertically center */
+      transform: translateY(-50%); /*  for perfect centering */
+      width: auto;
+      padding: 16px;
+      color: white;
+      font-weight: bold;
+      font-size: 18px;
+      transition: 0.6s ease;
+      border-radius: 0 3px 3px 0;
+      user-select: none;
+      z-index: 2;       /* Ensure buttons are above background */
     }
 
-    /* Position the "next button" to the right */
     .next {
-        right: 0;
+        right: 0; /* Position on the right side */
         border-radius: 3px 0 0 3px;
     }
 
-    /* On hover, add a black background color with a little bit see-through */
+    /* On hover, add a black background color */
     .prev:hover, .next:hover {
-        background-color: rgba(0,0,0,0.8);
+        background-color: rgba(0, 0, 0, 0.8);
     }
 
-    /* Caption text (now with higher z-index)*/
+
+    /* Caption text (style and position)*/
     .text {
-        color: #f2f2f2;
-        font-size: 15px;
-        padding: 8px 12px;
-        position: absolute;
-        bottom: 8px;
-        width: 100%;
-        text-align: center;
-        z-index: 2;
-    }
-
-        /* Add a background color to the active dot/circle */
-    .active {
-      background-color: #717171;
-    }
-
-    /* Fading animation */
-    .fade {
-      animation-name: fade;
-      animation-duration: 1.5s;
-    }
-
-    @keyframes fade {
-      from {opacity: .4}
-      to {opacity: 1}
+      color: #f2f2f2;
+      font-size: 15px;
+      padding: 8px 12px;
+      position: absolute; /* Absolute positioning */
+      bottom: 8px;      /* Position at the bottom */
+      width: 100%;       /* Full width */
+      text-align: center;
+      z-index: 2;
     }
 
         /* Style the dots/bullets/indicators */
@@ -385,6 +381,21 @@
       border-radius: 50%;
       display: inline-block;
       transition: background-color: 0.6s ease;
+    }
+
+.active, .dot:hover {
+  background-color: #717171;
+}
+
+    /* Fading animation */
+    .fade {
+      animation-name: fade;
+      animation-duration: 1.5s;
+    }
+
+    @keyframes fade {
+      from {opacity: .4}
+      to {opacity: 1}
     }
 
     /* --- Media Queries --- */
@@ -400,16 +411,7 @@
                 width: calc(50% - 20px);
             }
         }
-        .slideshow-inner{
-            background-size: 50%, 50%, cover; /*Half screen, Half screen, and cover*/
-            background-position: left, right, center;
-            background-repeat: no-repeat;
-            height: 500px; /* Set a fixed height - adjust as needed */
-            display: flex;
-            transition: background-image 0.5s ease-in-out;
-
-        }
-</style>
+    </style>
 </head>
 <body>
     <div class="navbar">
