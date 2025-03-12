@@ -10,15 +10,14 @@
         {% for show in trending_shows %}
             <div class="mySlides fade">
                 <a href="{{ url_for('show_details', message_id=show.message_id) }}">
-                  {% if show.poster_path %}
-                    <img src="{{ show.poster_path }}" alt="{{ show.show_name }}" style="width:100%; max-height: 300px; object-fit: contain;">
-                  {% else %}
-                    <div class="telegram-loader">
-                      <div class="plane"></div>
-                      <div class="circle"></div>
-                    </div>
-                  {% endif %}
-
+                    {% if show.poster_path %}
+                        <img src="{{ show.poster_path }}" alt="{{ show.show_name }}" style="width:100%; max-height: 400px; object-fit: contain;">
+                    {% else %}
+                        <div class="telegram-loader">
+                            <div class="plane"></div>
+                            <div class="circle"></div>
+                        </div>
+                    {% endif %}
                 </a>
                 <div class="text">{{ show.show_name }} - {{ show.episode_title }}</div>
             </div>
@@ -30,49 +29,12 @@
 
     <br>
 
-    <div style="text-align:center">
-        {% for show in trending_shows %}
-            <span class="dot" onclick="currentSlide({{ loop.index }})"></span>
-        {% endfor %}
+    <div style="text-align:center">  <!-Added this for dot indicators -->
+      {% for show in trending_shows %}
+        <span class="dot" onclick="currentSlide({{ loop.index }})"></span>
+      {% endfor %}
     </div>
 
-    <script>
-    let slideIndex = 1;
-    showSlides(slideIndex);
-
-    function plusSlides(n) {
-      showSlides(slideIndex += n);
-    }
-
-    function currentSlide(n) {
-      showSlides(slideIndex = n);
-    }
-
-    function showSlides(n) {
-      let i;
-      let slides = document.getElementsByClassName("mySlides");
-      let dots = document.getElementsByClassName("dot");
-      if (n > slides.length) {slideIndex = 1}
-      if (n < 1) {slideIndex = slides.length}
-      for (i = 0; i < slides.length; i++) {
-        slides[i].style.display = "none";
-      }
-      for (i = 0; i < dots.length; i++) {
-        dots[i].className = dots[i].className.replace(" active", "");
-      }
-      slides[slideIndex-1].style.display = "block";
-      dots[slideIndex-1].className += " active";
-    }
-
-    // Automatic slideshow
-    let slideInterval = setInterval(() => { plusSlides(1) }, 5000);  // Change image every 5 seconds
-
-    // Optional: Stop slideshow on hover
-    let slideshowContainer = document.querySelector('.slideshow-container');
-    slideshowContainer.addEventListener('mouseover', () => { clearInterval(slideInterval); });
-    slideshowContainer.addEventListener('mouseout', () => { slideInterval = setInterval(() => { plusSlides(1) }, 5000); });
-
-    </script>
     <h2>All Shows</h2>
     <div class="tv-shows">
       {% if tv_shows %}
@@ -130,4 +92,43 @@
             {% endif %}
         {% endif %}
     </div>
+    <script>
+    let slideIndex = 1;
+    showSlides(slideIndex);
+
+    function plusSlides(n) {
+      showSlides(slideIndex += n);
+    }
+  function currentSlide(n) {
+    showSlides(slideIndex = n);
+  }
+
+
+    function showSlides(n) {
+      let i;
+      let slides = document.getElementsByClassName("mySlides");
+      let dots = document.getElementsByClassName("dot");
+      if (n > slides.length) {slideIndex = 1}
+      if (n < 1) {slideIndex = slides.length}
+      for (i = 0; i < slides.length; i++) {
+        slides[i].style.display = "none";
+      }
+      for (i = 0; i < dots.length; i++) {
+      dots[i].className = dots[i].className.replace(" active", "");
+       }
+
+      slides[slideIndex-1].style.display = "block";
+       dots[slideIndex-1].className += " active";
+
+    }
+
+    // Automatic slideshow
+    let slideInterval = setInterval(() => { plusSlides(1) }, 5000);  // Change image every 5 seconds
+
+    // Optional: Stop slideshow on hover
+    let slideshowContainer = document.querySelector('.slideshow-container');
+    slideshowContainer.addEventListener('mouseover', () => { clearInterval(slideInterval); });
+    slideshowContainer.addEventListener('mouseout', () => { slideInterval = setInterval(() => { plusSlides(1) }, 5000); });
+
+    </script>
 {% endblock %}
