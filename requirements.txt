@@ -5,4 +5,5 @@ gunicorn==21.2.0
 python-dotenv==1.0.1
 celery==5.4.0
 redis==5.0.3
-psycopg2-binary==2.9.9  # Add this
+psycopg2-binary==2.9.9  # For PostgreSQL
+Flask-SQLAlchemy==3.1.1 # For SQLAlchemy
