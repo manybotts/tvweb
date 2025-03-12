@@ -3,7 +3,7 @@ import re
 from flask import Flask, render_template, redirect, url_for, request
 import logging
 from dotenv import load_dotenv
-from tasks import update_tv_shows  # Import Celery task
+from .tasks import update_tv_shows  # Import Celery task - RELATIVE IMPORT
 from models import db, TVShow
 
 load_dotenv()
