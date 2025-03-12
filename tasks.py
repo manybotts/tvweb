@@ -8,13 +8,14 @@ from telegram import Bot
 from telegram.error import TelegramError
 from telegram.ext import Application
 from urllib.parse import quote_plus
-# from pymongo import MongoClient, ASCENDING, DESCENDING # Removed pymongo
+# from pymongo import MongoClient, ASCENDING, DESCENDING  # Removed pymongo
 import logging
 from dotenv import load_dotenv
 from redis import Redis
 import asyncio  # Import asyncio
 from datetime import datetime, timezone  # Import datetime and timezone
-from app import db, TVShow, app  # Import from app.py
+from models import db, TVShow  # Import from models.py
+from app import app # Import for app context
 
 
 load_dotenv()
@@ -29,7 +30,7 @@ celery = Celery(__name__, broker=os.environ.get('REDIS_URL', 'redis://localhost:
 
 
 # --- Helper Functions ---
-# Removed the old get_db
+
 async def _fetch_telegram_updates(token, channel_id):
     """Asynchronously fetches updates using telegram.ext.Application."""
     try:
@@ -172,6 +173,7 @@ def update_tv_shows(self):
                                 'poster_path': tmdb_data.get('poster_path') if tmdb_data else None,
                                 #'created_at': datetime.now(timezone.utc)  # No longer needed here
                             }
+
                             # Use SQLAlchemy to interact with the database.
                             existing_show = TVShow.query.filter_by(message_id=show_data['message_id']).first()
 
@@ -192,7 +194,6 @@ def update_tv_shows(self):
             finally:
                 lock.release()
                 logger.info("Lock released.")
-
         else:
             logger.warning("Failed to acquire lock, task already running.")
 
