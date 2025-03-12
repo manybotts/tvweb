@@ -77,21 +77,26 @@ def get_all_show_names():
 @app.route('/')
 def index():
     """Homepage: displays TV shows with pagination and search."""
-    search_query = request.args.get('search', '')
-    page = request.args.get('page', 1, type=int)
-    per_page = 9
+    # search_query = request.args.get('search', '')  # Comment out
+    # page = request.args.get('page', 1, type=int)    # Comment out
+    # per_page = 9                                  # Comment out
 
     logger.info("About to enqueue update_tv_shows task")
     update_tv_shows.delay()
     logger.info("update_tv_shows task enqueued")
 
-    tv_shows, total_pages = get_all_tv_shows(page, per_page, search_query)
+    # tv_shows, total_pages = get_all_tv_shows(page, per_page, search_query) # Comment Out
 
-    # *** ADD THESE DEBUG LOGS ***
+    db = get_db()
+    tv_shows_cursor = db.tv_shows.find({}).sort('created_at', DESCENDING).limit(20) # Get top 20, sorted
+    tv_shows = list(tv_shows_cursor)
+    total_pages = 1 # Hardcoded
+
+    # *** DEBUG LOGS ***
     logger.info(f"Total pages: {total_pages}")
-    logger.info(f"TV Shows retrieved: {tv_shows}")  # Log the entire list
+    logger.info(f"TV Shows retrieved: {tv_shows}")
 
-    return render_template('index.html', tv_shows=tv_shows, page=page, total_pages=total_pages, search_query=search_query)
+    return render_template('index.html', tv_shows=tv_shows, page=1, total_pages=total_pages, search_query='') # Simplified
 
 @app.route('/show/<int:message_id>')
 def show_details(message_id):
