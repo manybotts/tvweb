@@ -30,11 +30,35 @@
 
     <div class="pagination">
         {% if page > 1 %}
+            <a href="{{ url_for('index', page=1, search=search_query) }}">First</a>
             <a href="{{ url_for('index', page=page-1, search=search_query) }}">Previous</a>
         {% endif %}
-        <span class="current-page">{{ page }}</span>
+
+        {% set window_size = 5 %}  {# Number of page numbers to show around current page #}
+        {% set start_page = [page - (window_size // 2), 1] | max %}
+        {% set end_page = [start_page + window_size - 1, total_pages] | min %}
+
+        {% if start_page > 1 %}
+            <span>...</span>
+        {% endif %}
+
+        {% for p in range(start_page, end_page + 1) %}
+            {% if p == page %}
+                <span class="current-page">{{ p }}</span>
+            {% else %}
+                <a href="{{ url_for('index', page=p, search=search_query) }}">{{ p }}</a>
+            {% endif %}
+        {% endfor %}
+
+        {% if end_page < total_pages %}
+            <span>...</span>
+        {% endif %}
+
         {% if page < total_pages %}
             <a href="{{ url_for('index', page=page+1, search=search_query) }}">Next</a>
+            {% if page != total_pages -1 and total_pages > window_size %}
+              <a href="{{ url_for('index', page=total_pages, search=search_query) }}">Last</a>
+            {% endif %}
         {% endif %}
     </div>
 {% endblock %}
