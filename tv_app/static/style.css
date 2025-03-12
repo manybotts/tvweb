@@ -407,8 +407,9 @@ ul li a {
     display: block;
     /* Remove extra space */
     margin: 0 auto;
-     /* Remove max-height */
-    height: auto;  /* Let the height adjust naturally */
+    height: auto;
+    max-height: 100%; /* Use max-height and height: auto */
+
 }
 
 /* --- Arrow Button Positioning --- */
@@ -494,7 +495,7 @@ ul li a {
             height: 250px; /* Reduced height for mobile */
         }
       .mySlides img{
-          height: 200px;
+        /*  height: 200px; Remove fixed heights */
       }
 
         /* Prev/Next Buttons - smaller on mobile */
@@ -529,7 +530,7 @@ ul li a {
         }
 
      .mySlides img{
-          height: 150px;
+        /* height: 150px;  Remove fixed heights*/
       }
       .prev, .next {
         padding: 8px;  /* Even smaller */
