@@ -24,13 +24,13 @@
             padding: 5px 10px;
             display: flex;
             align-items: center;
-            position: relative;
+            position: relative; /* For absolute positioning of the title */
         }
 
         .logo-container {
             display: flex;
             align-items: center;
-            margin-right: auto; /* Push to the left*/
+            margin-right: auto; /* Push to the left, creating space for centered title*/
         }
 
         .logo {
@@ -40,40 +40,31 @@
             border-radius: 50%;
         }
 
-        .nav-links {
+.nav-links {
             display: flex;
             align-items: center;
-             /* Add some space between logo and links. */
+            margin-left: 10px; /* Add some space between logo and links. */
         }
         .navbar a:hover {
             background-color: #0056b3;
         }
 
         .navbar-center {
-          font-weight: bold;
-          font-size: 1.2em;
-          white-space: nowrap;
-          position: absolute; /* Absolute positioning */
-          left: 50%;        /* Start at 50% of the parent */
-          transform: translateX(-50%); /* Adjust for centering */
-        }
-
-        .navbar a {
-            color: white;
-            text-decoration: none;
-            padding: 5px 8px;
-            margin: 0 2px;  /*  spacing */
-            border-radius: 5px;
-            transition: background-color 0.3s ease;
-            font-size: 0.9em;
+            font-weight: bold;
+            font-size: 1.2em;
             white-space: nowrap;
+            position: absolute; /* Absolute positioning */
+            left: 50%;        /* Start at 50% of the parent */
+            transform: translateX(-50%); /* Adjust for centering */
         }
 
         .search-form {
             margin-left: auto; /* Push search form to the right */
-            display: flex; /* Needed for alignment */
+            display: flex;
             align-items: center;
+            width: auto;
         }
+
       .search-form input[type="text"] {
             padding: 5px;
             border: 1px solid #ddd;
@@ -267,10 +258,10 @@
         background-color: #0056b3;
     }
 
-  ul{
-      list-style: none;
-      padding: 0;
-    }
+      ul{
+          list-style: none;
+          padding: 0;
+        }
 
      ul li {
             padding: 10px;
@@ -293,6 +284,7 @@
 
      /* Slideshow container */
      .slideshow-container {
+
         position: relative;
         width: 100%;       /* Full width */
         max-width: none;  /* Remove any previous max-width */
@@ -341,6 +333,7 @@
         transition: 0.6s ease;
         border-radius: 0 3px 3px 0;
         user-select: none;
+         z-index: 2;
     }
 
     /* Position the "next button" to the right */
@@ -354,7 +347,7 @@
         background-color: rgba(0,0,0,0.8);
     }
 
-    /* Caption text (now with higher z-index) */
+    /* Caption text (now with higher z-index)*/
     .text {
         color: #f2f2f2;
         font-size: 15px;
@@ -363,7 +356,7 @@
         bottom: 8px;
         width: 100%;
         text-align: center;
-        z-index: 1; /* Ensure text is above the background */
+        z-index: 2;
     }
 
         /* Add a background color to the active dot/circle */
@@ -393,6 +386,7 @@
       display: inline-block;
       transition: background-color: 0.6s ease;
     }
+
     /* --- Media Queries --- */
 
       /* Mobile Styles (max-width: 768px) */
@@ -406,7 +400,15 @@
                 width: calc(50% - 20px);
             }
         }
+        .slideshow-inner{
+            background-size: 50%, 50%, cover; /*Half screen, Half screen, and cover*/
+            background-position: left, right, center;
+            background-repeat: no-repeat;
+            height: 500px; /* Set a fixed height - adjust as needed */
+            display: flex;
+            transition: background-image 0.5s ease-in-out;
 
+        }
 </style>
 </head>
 <body>
