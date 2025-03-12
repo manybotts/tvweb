@@ -13,4 +13,4 @@ python-dotenv==1.0.1
 requests==2.31.0
 soupsieve==2.5  # This is a dependency of BeautifulSoup, pip freeze will add it.
 Werkzeug==3.0.1
-billiard==4.2.0.2 # This
+billiard==4.2.0
