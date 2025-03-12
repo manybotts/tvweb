@@ -1,11 +1,13 @@
 import os
 import re
-from flask import Flask, render_template, redirect, url_for, request
+from flask import Flask, render_template, redirect, url_for, request, g
+from pymongo import MongoClient, ASCENDING, DESCENDING #Remove this
 import logging
 from dotenv import load_dotenv
 from tasks import update_tv_shows, test_task
-from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import desc
+# from datetime import datetime, timezone # Removed. Now in models.py and tasks.py
+from models import db, TVShow  # Import from models.py
+
 
 load_dotenv()
 
@@ -17,31 +19,16 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your_secret_key')
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL')  # Use the DATABASE_URL
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False  # Suppress a warning
-db = SQLAlchemy(app)
-
-
-# --- Database Model (SQLAlchemy) ---
-class TVShow(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    show_name = db.Column(db.String(255), unique=True, nullable=False)
-    season_episode = db.Column(db.String(255))
-    download_link = db.Column(db.String(255))
-    message_id = db.Column(db.Integer, unique=True) # Keep message_id, useful for linking
-    overview = db.Column(db.Text)
-    vote_average = db.Column(db.Float)
-    poster_path = db.Column(db.String(255))
-    created_at = db.Column(db.DateTime, server_default=db.func.now()) # Use server default
-
-    def __repr__(self):
-        return f'<TVShow {self.show_name}>'
+db.init_app(app) # Initialize db with the app
 
 
 # --- Database Operations ---
-# Removed the old get_db and related functions.
+#Removed the old db operations
 
 with app.app_context():
     db.create_all()
     logger.info("SQLAlchemy and PostgreSQL Database connected")
+
 
 
 def get_all_tv_shows(page=1, per_page=9, search_query=None):
@@ -53,7 +40,7 @@ def get_all_tv_shows(page=1, per_page=9, search_query=None):
         query = query.filter(TVShow.show_name.ilike(f"%{search_query}%"))  # Case-insensitive search
 
     total_shows = query.count()
-    tv_shows = query.order_by(desc(TVShow.created_at)).offset(offset).limit(per_page).all()
+    tv_shows = query.order_by(TVShow.created_at.desc()).offset(offset).limit(per_page).all()
     total_pages = (total_shows + per_page - 1) // per_page
 
     return tv_shows, total_pages
@@ -76,7 +63,7 @@ def index():
     per_page = 9
 
     logger.info("About to enqueue update_tv_shows task")
-    update_tv_shows.delay()  # Correctly enqueue the task
+    update_tv_shows.delay()
     logger.info("update_tv_shows task enqueued")
 
     tv_shows, total_pages = get_all_tv_shows(page, per_page, search_query)
