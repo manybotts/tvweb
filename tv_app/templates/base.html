@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" integrity="sha512-9usAa10IRO0HhonpyAIVpjrylPvoDwiPUiKdWk5t3PyolY1cOd4DSE0Ga+ri4AuTroPR5aQvXU9xC6qOPnzFeg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
     <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
     <style>
-       /* Basic styling */
+        /* Basic styling */
         body {
             font-family: 'Open Sans', sans-serif;
             line-height: 1.6;
@@ -40,10 +40,22 @@
             border-radius: 50%;
         }
 
-        .nav-links {
+.nav-links {
             display: flex;
             align-items: center;
-             margin-left: 10px;
+            margin-left: 10px; /* Add some space between logo and links. */
+        }
+        .navbar a:hover {
+            background-color: #0056b3;
+        }
+
+       .navbar-center {
+            font-weight: bold;
+            font-size: 1.2em;
+            white-space: nowrap;
+            position: absolute; /* Absolute positioning */
+            left: 50%;        /* Start at 50% of the parent */
+            transform: translateX(-50%); /* Adjust for centering */
         }
 
         .navbar a {
@@ -56,24 +68,11 @@
             font-size: 0.9em;
             white-space: nowrap;
         }
-        .navbar a:hover {
-            background-color: #0056b3;
-        }
-
-       .navbar-center {
-            font-weight: bold;
-            font-size: 1.2em;
-            white-space: nowrap;
-            position: absolute; /* Absolute positioning for centering */
-            left: 50%;        /* Start at 50% of the parent */
-            transform: translateX(-50%); /* Adjust for centering */
-        }
 
         .search-form {
-          margin-left: auto; /* Push search form to the right */
-          display: flex;
-          align-items: center;
-          width: auto;
+            margin-left: auto; /* Push search form to the right */
+            display: flex; /* Needed for alignment within flex container */
+            align-items: center;
         }
 
       .search-form input[type="text"] {
@@ -292,17 +291,17 @@
       text-decoration: none;
       color: #007bff;
   }
-        /* Slideshow container */
+     /* Slideshow container */
     .slideshow-container {
         position: relative;
-        width: 100%;
-        max-width: none; /* Remove any previous max-width */
+        width: 100%;       /* Full width */
+        max-width: none;  /* Remove any previous max-width */
         margin: auto;
-        overflow: hidden;
+        overflow: hidden; /* Hide overflowing content */
     }
 
-.slideshow-inner {
-    background-size: 50% 100%, 50% 100%, cover;  /* Corrected sizes */
+.slideshow-inner{
+    background-size: 50% 100%, 50% 100%, cover;  /*Corrected sizes*/
     background-position: left, right, center;
     background-repeat: no-repeat;
     height: 500px; /* Set a fixed height - adjust as needed */
@@ -317,10 +316,11 @@
         margin: auto; /* Center the slide within slideshow-inner */
         display: none; /* Hide slides by default */
     }
-    /* active slide */
-    .mySlides.active-slide{
-        display: block;
-    }
+
+      /* active slide */
+.mySlides.active-slide{
+    display: block;
+}
     .mySlides img {
         display: block;
         max-width: 500px;  /* Limit maximum image width */
@@ -353,52 +353,51 @@
         border-radius: 3px 0 0 3px;
     }
 
-    /* On hover, add a black background color */
+    /* On hover, add a black background color with a little bit see-through */
     .prev:hover, .next:hover {
-        background-color: rgba(0, 0, 0, 0.8);
+        background-color: rgba(0,0,0,0.8);
     }
 
+/* Caption text - higher z-index */
+.text {
+    color: #f2f2f2;
+    font-size: 15px;
+    padding: 8px 12px;
+    position: absolute;
+    bottom: 8px;
+    width: 100%;
+    text-align: center;
+     z-index: 2; /* Above the background */
+}
 
-    /* Caption text (style and position)*/
-    .text {
-      color: #f2f2f2;
-      font-size: 15px;
-      padding: 8px 12px;
-      position: absolute; /* Absolute positioning */
-      bottom: 8px;      /* Position at the bottom */
-      width: 100%;       /* Full width */
-      text-align: center;
-      z-index: 2;
-    }
-
-        /* Style the dots/bullets/indicators */
-    .dot {
-      cursor: pointer;
-      height: 15px;
-      width: 15px;
-      margin: 0 2px;
-      background-color: #bbb;
-      border-radius: 50%;
-      display: inline-block;
-      transition: background-color: 0.6s ease;
-    }
-
-.active, .dot:hover {
+ /* Add a background color to the active dot/circle */
+.active {
   background-color: #717171;
 }
 
-    /* Fading animation */
-    .fade {
-      animation-name: fade;
-      animation-duration: 1.5s;
-    }
+/* Fading animation */
+.fade {
+  animation-name: fade;
+  animation-duration: 1.5s;
+}
 
-    @keyframes fade {
-      from {opacity: .4}
-      to {opacity: 1}
-    }
+@keyframes fade {
+  from {opacity: .4}
+  to {opacity: 1}
+}
 
-    /* --- Media Queries --- */
+    /* Style the dots/bullets/indicators */
+.dot {
+  cursor: pointer;
+  height: 15px;
+  width: 15px;
+  margin: 0 2px;
+  background-color: #bbb;
+  border-radius: 50%;
+  display: inline-block;
+  transition: background-color: 0.6s ease;
+}
+     /* --- Media Queries --- */
 
       /* Mobile Styles (max-width: 768px) */
         @media (max-width: 768px) {
@@ -411,7 +410,7 @@
                 width: calc(50% - 20px);
             }
         }
-    </style>
+</style>
 </head>
 <body>
     <div class="navbar">
