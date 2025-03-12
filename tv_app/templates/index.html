@@ -12,12 +12,13 @@
             <div class="mySlides {% if loop.index0 == 0 %}active-slide{% endif %}" data-index="{{ loop.index0 }}">
                 <a href="{{ url_for('show_details', message_id=show.message_id) }}">
                     {% if show.poster_path %}
+                         <div class="background-image" style="background-image: url('{{ show.poster_path }}');"></div>
                         <img src="{{ show.poster_path }}" alt="{{ show.show_name }}" >
                     {% else %}
-                        <div class="telegram-loader">
-                            <div class="plane"></div>
-                            <div class="circle"></div>
-                        </div>
+                    <div class="telegram-loader">
+                        <div class="plane"></div>
+                        <div class="circle"></div>
+                    </div>
                     {% endif %}
                 </a>
                 <div class="text">{{ show.show_name }} - {{ show.episode_title }}</div>
