@@ -1,18 +1,18 @@
 # tasks.py
+from celery import Celery, shared_task
+from celery.exceptions import MaxRetriesExceededError
 import os
 import re
 import requests
-import logging
-import asyncio
-from dotenv import load_dotenv
-
-from celery import Celery, shared_task
-from celery.exceptions import MaxRetriesExceededError
-from telegram.ext import Application
+from telegram import Bot
 from telegram.error import TelegramError
+from telegram.ext import Application
 from urllib.parse import quote_plus
-from pymongo import MongoClient, ASCENDING
+from pymongo import MongoClient, ASCENDING, DESCENDING
+import logging
+from dotenv import load_dotenv
 from redis import Redis
+import asyncio  # Import asyncio
 
 load_dotenv()
 
@@ -20,9 +20,9 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-# Celery configuration
-celery = Celery(__name__, broker=os.environ.get('REDIS_URL', 'redis://localhost:6379/0'),
-                backend=os.environ.get('REDIS_URL', 'redis://localhost:6379/0'))
+# Celery configuration (using Redis as the broker and result backend)
+celery = Celery(__name__, broker=os.environ.get('REDIS_URL', 'redis://localhost:6379/0'), backend=os.environ.get('REDIS_URL', 'redis://localhost:6379/0'))
+# Use REDIS_URL environment variable - Railway provides this
 
 # Database connection
 def get_db():
@@ -115,8 +115,9 @@ def fetch_tmdb_data(show_name, language='en-US'):
     """Fetches TV show data from TMDb."""
     try:
         logger.info(f"Fetching TMDb data for: {show_name}")
+        # Use Authorization header (Best Practice)
         headers = {
-            "Authorization": f"Bearer {os.environ.get('TMDB_BEARER_TOKEN')}",
+            "Authorization": f"Bearer {os.environ.get('TMDB_BEARER_TOKEN')}",  # Use Bearer token
             "Content-Type": "application/json"
         }
         search_url = f"https://api.themoviedb.org/3/search/tv?query={quote_plus(show_name)}&language={language}"
@@ -158,6 +159,7 @@ def update_tv_shows(self):
         if lock.acquire(blocking=False):
             logger.info("Lock acquired, starting update_tv_shows task.")
             try:
+                # Run the async fetch_telegram_posts using asyncio.run()
                 posts = asyncio.run(fetch_telegram_posts())
                 if not posts:
                     logger.info("No new posts found.")
@@ -166,8 +168,8 @@ def update_tv_shows(self):
                 db = get_db()
                 if "show_name_1" not in db.tv_shows.index_information():
                     db.tv_shows.create_index([("show_name", ASCENDING)], unique=True)
-
-                db.tv_shows.create_index([("message_id", ASCENDING)])
+                #Add created at index
+                db.tv_shows.create_index([("created_at", ASCENDING)])
 
                 for post in posts:
                     parsed_data = parse_telegram_post(post)
@@ -182,6 +184,7 @@ def update_tv_shows(self):
                             'overview': tmdb_data.get('overview') if tmdb_data else None,
                             'vote_average': tmdb_data.get('vote_average') if tmdb_data else None,
                             'poster_path': tmdb_data.get('poster_path') if tmdb_data else None,
+                            'created_at': datetime.now(timezone.utc) # Add a timestamp
                         }
 
                         try:
@@ -193,6 +196,7 @@ def update_tv_shows(self):
                             logger.info(f"Successfully updated/inserted: {parsed_data['show_name']}")
                         except Exception as e:
                             logger.error(f"Error updating database for {parsed_data['show_name']}: {e}")
+                            # No raise here, continue
 
             finally:
                 lock.release()
