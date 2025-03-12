@@ -7,15 +7,7 @@
 
     <h2>Trending Shows</h2>
     <div class="slideshow-container">
-        <div class="slideshow-inner" style="
-            {% if trending_shows %}
-                background-image:
-                linear-gradient(to right, rgba(0,0,0,0.8) 20%, rgba(0,0,0,0.2) 40%, rgba(0,0,0,0.2) 60%, rgba(0,0,0,0.8) 80%),
-                url('{{ trending_shows[ (slide_index - 1) % trending_shows|length ].poster_path }}'),
-                url('{{ trending_shows[ (slide_index + 1) % trending_shows|length ].poster_path }}'),
-                url('{{ trending_shows[slide_index].poster_path }}');
-            {% endif %}">
-
+        <div class="slideshow-inner" id="slideshowInner">
         {% for show in trending_shows %}
             <div class="mySlides {% if loop.index0 == 0 %}active-slide{% endif %}" data-index="{{ loop.index0 }}">
                 <a href="{{ url_for('show_details', message_id=show.message_id) }}">
@@ -34,7 +26,7 @@
 
         <a class="prev" onclick="plusSlides(-1)">&#10094;</a>
         <a class="next" onclick="plusSlides(1)">&#10095;</a>
-     </div>
+        </div>
     </div>
 
     <br>
@@ -118,7 +110,6 @@
 
         showSlides(slideIndex);
     }
-
       function currentSlide(n) {
       showSlides(slideIndex = n-1);
       }
@@ -145,7 +136,6 @@
         // Set background images.
         setSlideBackgrounds();
     }
-
 
     function setSlideBackgrounds() {
       const slides = document.getElementsByClassName("mySlides");
