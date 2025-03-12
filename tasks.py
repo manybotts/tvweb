@@ -13,6 +13,7 @@ import logging
 from dotenv import load_dotenv
 from redis import Redis
 import asyncio  # Import asyncio
+from datetime import datetime, timezone # Import
 
 load_dotenv()
 
@@ -196,7 +197,7 @@ def update_tv_shows(self):
                             logger.info(f"Successfully updated/inserted: {parsed_data['show_name']}")
                         except Exception as e:
                             logger.error(f"Error updating database for {parsed_data['show_name']}: {e}")
-                            # No raise here, continue
+                            # No raise here, continue with other posts
 
             finally:
                 lock.release()
