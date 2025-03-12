@@ -399,8 +399,7 @@ ul li a {
 }
 
 .mySlides img {
-    max-width: 100%;  /* KEY CHANGE: Allow image to scale */
-    max-height: 400px; /*  Or remove max-height */
+    max-width: 100%;
     object-fit: contain;
     /* Maintain aspect ratio */
     display: block;
@@ -484,8 +483,7 @@ ul li a {
 
 @media (max-width: 768px){
         .slideshow-inner {
-            height: auto; /* Let height adjust to content */
-            /* Remove padding-top, use max-height on image */
+            height: 250px; /* Reduced height for mobile */
         }
 
         .mySlides img {
@@ -518,7 +516,7 @@ ul li a {
 
 @media (max-width: 480px) {
     .slideshow-inner {
-            height: auto;
+            height: 200px; /* Even smaller height */
         }
      .mySlides img {
        max-height: none;
@@ -539,4 +537,9 @@ ul li a {
         width: calc(50% - 10px); /* Ensure two cards per row */
     }
 
+}
+
+/* General Slideshow Height Adjustment */
+.slideshow-inner {
+    height: 350px;  /* Default height for larger screens */
 }
