@@ -21,10 +21,11 @@
         .navbar {
             background-color: #007bff;
             color: white;
-            padding: 5px 10px; /* Compact padding */
+            padding: 5px 10px;
             display: flex;
             justify-content: space-between; /* Space between items */
             align-items: center;          /* Vertical centering */
+            flex-wrap: nowrap; /* Prevent wrapping - KEY FOR HORIZONTAL LAYOUT */
         }
 
         .logo-container {
@@ -33,7 +34,7 @@
         }
 
         .logo {
-            width: 30px; /* Smaller logo */
+            width: 30px;
             height: auto;
             margin-right: 5px;
             border-radius: 50%;
@@ -42,17 +43,17 @@
         .nav-links {
             display: flex; /* Horizontal links */
             align-items: center;
-            margin-right: 15px; /* Added space */
+            margin-right: 15px;
         }
 
         .navbar a {
             color: white;
             text-decoration: none;
-            padding: 5px 8px;   /* Very compact padding */
-            margin: 0;          /* Removed extra margin */
+            padding: 5px 8px;
+            margin: 0 0 0 15px;  /* Left margin for spacing */
             border-radius: 5px;
             transition: background-color 0.3s ease;
-            font-size: 0.9em;   /* Smaller font size */
+            font-size: 0.9em;
             white-space: nowrap;
         }
 
@@ -61,48 +62,35 @@
         }
 
         .navbar-center {
-          font-weight: bold;
-          font-size: 1.2em;    /* Smaller title */
-          white-space: nowrap;  /* Prevent wrapping */
-        }
-        /* Mobile first - so styles here apply to ALL screen sizes UNLESS overridden by a media query */
-        .navbar-center {
-            order: -1;       /* Title first on mobile */
-            width: 100%;     /* Full width on mobile */
-            text-align: center;
-            margin-bottom: 5px; /* Space below title */
-        }
-        .nav-links{
-            margin-right: auto;
+            font-weight: bold;
+            font-size: 1.2em;
+            white-space: nowrap;
+            /* No positioning needed */
         }
 
-        .logo-and-links {
-            display: flex;
-            align-items: center; /* Vertical centering */
-            flex-direction: row;
-        }
 
         .search-form {
             display: flex;
             align-items: center;
-            width: auto;  /* Let it take the needed space. */
+            width: auto;
         }
 
         .search-form input[type="text"] {
-            padding: 5px;   /* Smaller padding */
+            padding: 5px;
             border: 1px solid #ddd;
             border-radius: 4px;
             margin-right: 5px;
-            width: 80px;      /*  Initial width for search box */
-            transition: width 0.3s ease; /*Smooth transition*/
+            width: 80px; /* Initial width */
+            transition: width 0.3s ease;
         }
-      /* Larger on hover/focus */
-      .search-form:hover input[type="text"], .search-form input[type="text"]:focus {
-          width: 150px; /* Expanded width on hover/focus */
-      }
+
+        .search-form:hover input[type="text"],
+        .search-form input[type="text"]:focus {
+            width: 150px; /* Expanded width */
+        }
 
         .search-form button {
-            padding: 5px 10px; /* Smaller padding */
+            padding: 5px 10px;
             background-color: #fff;
             color: #007bff;
             border: 1px solid #007bff;
@@ -281,16 +269,16 @@
         background-color: #0056b3;
     }
 
-  ul{
-      list-style: none;
-      padding: 0;
-    }
+      ul{
+          list-style: none;
+          padding: 0;
+        }
 
-    ul li {
-        padding: 10px;
-        border-bottom: 1px solid #ddd;
-        transition: background-color: 0.2s ease;
-    }
+     ul li {
+            padding: 10px;
+            border-bottom: 1px solid #ddd;
+            transition: background-color: 0.2s ease;
+        }
       ul li:last-child {
         border-bottom: none;
     }
@@ -305,42 +293,23 @@
       color: #007bff;
   }
 
-    /* --- Media Queries --- */
-
       /* Mobile Styles (max-width: 768px) */
         @media (max-width: 768px) {
-
-            .navbar-center {
-               order: -1; /* Center text at the top on mobile */
-               margin-bottom: 5px; /* Add space below title */
-               width: 100%;
-            }
 
             .nav-links {
                 margin-left: 0; /* Remove the left margin */
                 justify-content: center; /* Center links */
            }
-            .search-form {
-                width: 100%; /* Full width on mobile */
-                justify-content: center;
 
-            }
             .search-form input[type="text"] {
                 width: 60px; /* Very small initial width */
             }
-
               /* Two cards per row*/
             .card {
                 width: calc(50% - 20px);
             }
         }
-         /* Very Small Screens (max-width: 480px) */
-        @media (max-width: 480px) {
 
-            .card {
-                width: calc(100% - 20px); /* One card per row */
-            }
-        }
 </style>
 </head>
 <body>
