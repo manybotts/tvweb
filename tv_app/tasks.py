@@ -1,19 +1,18 @@
-# tv_app/tasks.py
+# tasks.py
+from celery import Celery
+from celery.exceptions import MaxRetriesExceededError  # Import MaxRetriesExceededError
 import os
 import re
-import logging
-from celery import Celery
-from dotenv import load_dotenv
-import asyncio
+import requests
+from telegram import Bot
 from telegram.error import TelegramError
 from telegram.ext import Application
 from urllib.parse import quote_plus
-import requests
-from redis import Redis  # Import Redis
-
-# --- Corrected Imports: Relative, and within app context ---
-# We *only* import db and TVShow *inside* the with app.app_context() block.
-#  NO top-level database imports.
+import logging
+from dotenv import load_dotenv
+from redis import Redis
+import asyncio
+from datetime import datetime, timezone
 
 load_dotenv()
 
@@ -21,11 +20,12 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-# Celery configuration (using Redis as the broker).
-#  Make SURE your REDIS_URL is correctly set on Railway.
-celery = Celery(__name__, broker=os.environ.get('REDIS_URL', 'redis://localhost:6379/0'))
+# Celery configuration (using Redis as the broker and result backend)
+celery = Celery(__name__, broker=os.environ.get('REDIS_URL', 'redis://localhost:6379/0'), backend=os.environ.get('REDIS_URL', 'redis://localhost:6379/0'))
+# Use REDIS_URL environment variable - Railway provides this
 
-# --- Helper Functions (No Changes Needed Here) ---
+
+# --- Helper Functions ---
 
 async def _fetch_telegram_updates(token, channel_id):
     """Asynchronously fetches updates using telegram.ext.Application."""
@@ -89,7 +89,7 @@ def parse_telegram_post(post):
         if show_name:
             return {
                 'show_name': show_name,
-                'season_episode': season_episode,
+                'season_episode': season_episode,  # Keep this name for consistency with parsing
                 'download_link': download_link,
                 'message_id': post.message_id,
             }
@@ -140,42 +140,41 @@ def fetch_tmdb_data(show_name, language='en-US'):
         logger.exception(f"An unexpected error occurred: {e}")
         return None
 
-
 @celery.task(bind=True, retry_backoff=True)
 def update_tv_shows(self):
     """Updates the database with new TV show info from Telegram."""
     try:
-        # --- Redis Lock for Concurrency Control ---
         redis_client = Redis.from_url(os.environ.get('REDIS_URL'), decode_responses=True)
-        lock = redis_client.lock("update_tv_shows_lock", timeout=60, blocking_timeout=5)  # Shorter timeouts
+        lock = redis_client.lock("update_tv_shows_lock", timeout=60, blocking_timeout=5)
 
-        if lock.acquire(blocking=False):  # Non-blocking acquisition
+        if lock.acquire(blocking=False):
             logger.info("Lock acquired, starting update_tv_shows task.")
             try:
-                posts = asyncio.run(fetch_telegram_posts())  # Get new posts
+                posts = asyncio.run(fetch_telegram_posts())
                 if not posts:
                     logger.info("No new posts found.")
-                    return  # Exit if no posts
+                    return
 
                 # --- KEY CHANGE: Import and use app context ---
                 from tv_app.app import app  # Import app from the package
                 with app.app_context():
-                    from tv_app.models import db, TVShow  # Import INSIDE context
+                    from tv_app.models import db, TVShow  # Import inside context
 
                     for post in posts:
                         parsed_data = parse_telegram_post(post)
                         if parsed_data:
                             logger.info(f"Processing show: {parsed_data['show_name']}")
                             tmdb_data = fetch_tmdb_data(parsed_data['show_name'])
+
+                            # --- Prepare data for database ---
                             show_data = {
                                 'show_name': parsed_data['show_name'],
-                                'season_episode': parsed_data['season_episode'],
+                                'episode_title': parsed_data['season_episode'],  # Correct field name
                                 'download_link': parsed_data['download_link'],
                                 'message_id': parsed_data['message_id'],
                                 'overview': tmdb_data.get('overview') if tmdb_data else None,
                                 'vote_average': tmdb_data.get('vote_average') if tmdb_data else None,
                                 'poster_path': tmdb_data.get('poster_path') if tmdb_data else None,
-                                # 'created_at': datetime.now(timezone.utc)  # No longer needed here
                             }
 
                             # Use SQLAlchemy to interact with the database.
@@ -190,12 +189,9 @@ def update_tv_shows(self):
                                 # Create new show
                                 new_show = TVShow(**show_data)
                                 db.session.add(new_show)
-                                db.session.commit() # Commit after each addition
+                                db.session.commit()  # Commit after each addition
                                 logger.info(f"Successfully inserted: {parsed_data['show_name']}")
-
-            except Exception as e:
-                logger.exception(f"An error occurred during processing: {e}")
-                self.retry(exc=e, countdown=60)  # Retry after 60 seconds
+                    db.session.remove()
 
             finally:
                 lock.release()
@@ -203,7 +199,8 @@ def update_tv_shows(self):
         else:
             logger.info("Could not acquire lock, task is likely already running.")
 
-    except MaxRetriesExceededError:
+    except MaxRetriesExceededError:  # Correctly handle MaxRetriesExceededError
         logger.error("Max retries exceeded for update_tv_shows task.")
     except Exception as e:
-        logger.exception(f"An unexpected error occurred: {e}")
+        logger.exception(f"An unexpected error occurred in update_tv_shows: {e}")
+        self.retry(exc=e, countdown=60)  # Retry after 60 seconds
