@@ -1,12 +1,14 @@
 import os
+import re  # Import the regular expression module
 from flask import Flask, render_template, redirect, url_for, request
 import logging
 from dotenv import load_dotenv
-from tasks import update_tv_shows
+from tasks import update_tv_shows  # Import Celery task
 from models import db, TVShow
 
 load_dotenv()
 
+# Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
@@ -14,18 +16,42 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your_secret_key')
 
 # --- CORRECT DATABASE CONFIGURATION (Simplified) ---
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL')
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL')  # Use Railway's provided URL
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False  # Suppress a warning
 
-print("DATABASE_URL:", os.environ.get('DATABASE_URL'))  # DIAGNOSTIC PRINT
+db.init_app(app)  # Initialize db with the app
 
-db.init_app(app)
-
+# Create tables within the application context
 with app.app_context():
     db.create_all()
     logger.info("SQLAlchemy and PostgreSQL Database connected")
 
-# ... (Rest of your app.py - routes, functions, etc. - NO CHANGES HERE) ...
+# --- Database Operations ---
+
+def get_all_tv_shows(page=1, per_page=9, search_query=None):
+    """Retrieves TV shows with pagination and search."""
+    offset = (page - 1) * per_page
+    query = TVShow.query
+
+    if search_query:
+        query = query.filter(TVShow.show_name.ilike(f"%{search_query}%"))  # Case-insensitive search
+
+    total_shows = query.count()
+    tv_shows = query.order_by(TVShow.created_at.desc()).offset(offset).limit(per_page).all()
+    total_pages = (total_shows + per_page - 1) // per_page
+
+    return tv_shows, total_pages
+
+def get_tv_show_by_message_id(message_id):
+    """Retrieves a single TV show by its message_id."""
+    return TVShow.query.filter_by(message_id=message_id).first()
+
+def get_all_show_names():
+    """Retrieves a list of all unique show names."""
+    return [show.show_name for show in TVShow.query.distinct(TVShow.show_name).order_by(TVShow.show_name).all()]
+
+# --- Routes ---
+
 @app.route('/')
 def index():
     """Homepage: displays TV shows with pagination and search."""
@@ -40,6 +66,7 @@ def index():
     tv_shows, total_pages = get_all_tv_shows(page, per_page, search_query)
 
     return render_template('index.html', tv_shows=tv_shows, page=page, total_pages=total_pages, search_query=search_query)
+
 
 @app.route('/show/<int:message_id>')
 def show_details(message_id):
@@ -62,27 +89,6 @@ def list_shows():
     """Displays a list of all available TV show names."""
     show_names = get_all_show_names()
     return render_template('shows.html', show_names=show_names)
-def get_all_tv_shows(page=1, per_page=9, search_query=None):
-    """Retrieves TV shows with pagination and search."""
-    offset = (page - 1) * per_page
-    query = TVShow.query
-
-    if search_query:
-        query = query.filter(TVShow.show_name.ilike(f"%{search_query}%"))  # Case-insensitive search
-
-    total_shows = query.count()
-    tv_shows = query.order_by(TVShow.created_at.desc()).offset(offset).limit(per_page).all()
-    total_pages = (total_shows + per_page - 1) // per_page
-
-    return tv_shows, total_pages
-
-def get_tv_show_by_message_id(message_id):
-    """Retrieves a single TV show by its message_id."""
-    return TVShow.query.filter_by(message_id=message_id).first()
-
-def get_all_show_names():
-    """Retrieves a list of all unique show names."""
-    return [show.show_name for show in TVShow.query.distinct(TVShow.show_name).all()]
 
 if __name__ == "__main__":
     app.run(debug=False, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
