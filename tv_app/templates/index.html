@@ -5,7 +5,7 @@
 {% block content %}
     {# Removed the <h1> with the blinking dot #}
 
-    <h2>Trending Shows</h2>
+    <h2>Most Watched Today</h2> {# Changed heading text #}
     <div class="slideshow-container">
         <div class="slideshow-inner" id="slideshowInner">
         {% for show in trending_shows %}
@@ -37,7 +37,7 @@
 
 
 
-    <h2><span class="blinking-dot"></span>Newly Added</h2>  {# Added blinking dot here #}
+    <h2><span class="blinking-dot"></span>Newly Added</h2> {# Added blinking dot here and changed heading #}
     <div class="tv-shows">
       {% if tv_shows %}
         {% for show in tv_shows %}
@@ -99,8 +99,7 @@
     showSlides(slideIndex);
 
     function plusSlides(n) {
-        // Get all slides.  Important to do this *inside* the function,
-        // as the number of slides might change (e.g., if more shows are added).
+        // Get all slides.
         const slides = document.getElementsByClassName("mySlides");
         slideIndex += n;
 
