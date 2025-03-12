@@ -1,17 +1,24 @@
-{% extends "base.html" %}
+{% extends 'base.html' %}
+
+{% block title %}{{ show.show_name }}{% endblock %}
 
 {% block content %}
     <h1>{{ show.show_name }}</h1>
-    {% if show.poster_path %}
-    <img src="{{ show.poster_path }}" alt="{{ show.show_name }}">
-    {% endif %}
+    <p>{{ show.episode_title }}</p>
 
-    <p><strong>Season/Episode:</strong> {{ show.season_episode }}</p> <p><strong>Overview:</strong> {{ show.overview }}</p>
-    <p><strong>Rating:</strong> {{ show.vote_average }}</p>
-
-    {% if show.download_link %}
-    <a href="{{ url_for('redirect_to_download', message_id=show.message_id) }}" class="download-button">Download</a>
+   {% if show.poster_path %}
+    <img src="{{ show.poster_path }}" alt="{{ show.show_name }}" style="max-width:300px;" loading="lazy">
     {% else %}
-    <p>Download link not available.</p>
+       <p>Image Not Found</p>
     {% endif %}
+
+    {% if show.overview %}
+        <p><strong>Overview:</strong> {{ show.overview }}</p>
+    {% endif %}
+
+    {% if show.vote_average %}
+        <p><strong>Rating:</strong> {{ show.vote_average }}/10</p>
+    {% endif %}
+
+    <a href="{{ url_for('redirect_to_download', message_id=show.message_id) }}" class="download-button">Download</a>
 {% endblock %}
