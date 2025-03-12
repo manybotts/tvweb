@@ -3,7 +3,7 @@ import os
 import re
 import requests
 import logging
-import asyncio  # Import asyncio
+import asyncio
 from dotenv import load_dotenv
 
 from celery import Celery, shared_task
@@ -65,7 +65,7 @@ def parse_telegram_post(post):
     """Parses a Telegram post (caption) to extract show info."""
     try:
         text = post.caption
-        logger.info(f"Parsing post: {post.message_id}, Caption: {text!r}")
+        logger.debug(f"Parsing post: {post.message_id}, Caption: {text!r}")  # Keep for debugging if needed
         lines = text.splitlines()
         show_name = None
         season_episode = None
@@ -86,11 +86,10 @@ def parse_telegram_post(post):
             for i in range(link_line_index, len(lines)):
                 line_lower = lines[i].lower()
                 if "click here" in line_lower:
-                    logger.info(f"Found potential link line: {lines[i]}")
-                    # Correctly check for caption_entities existence
+                    logger.debug(f"Found potential link line: {lines[i]}") # Keep for debugging
                     if post.caption_entities:
                         for entity in post.caption_entities:
-                            logger.info(f"  Entity: type={entity.type}, offset={entity.offset}, length={entity.length}, url={entity.url}")
+                            logger.debug(f"  Entity: type={entity.type}, offset={entity.offset}, length={entity.length}, url={entity.url}")  #Keep for debugging
                             if entity.type == 'text_link' and (entity.offset >= sum(len(l) + 1 for l in lines[:i]) and entity.offset < sum(len(l) + 1 for l in lines[:i+1])):
                                 download_link = entity.url
                                 logger.info(f"Download Link Found: {download_link}")
@@ -116,9 +115,8 @@ def fetch_tmdb_data(show_name, language='en-US'):
     """Fetches TV show data from TMDb."""
     try:
         logger.info(f"Fetching TMDb data for: {show_name}")
-        # Use Authorization header (Best Practice)
         headers = {
-            "Authorization": f"Bearer {os.environ.get('TMDB_BEARER_TOKEN')}",  # Use Bearer token
+            "Authorization": f"Bearer {os.environ.get('TMDB_BEARER_TOKEN')}",
             "Content-Type": "application/json"
         }
         search_url = f"https://api.themoviedb.org/3/search/tv?query={quote_plus(show_name)}&language={language}"
@@ -160,14 +158,12 @@ def update_tv_shows(self):
         if lock.acquire(blocking=False):
             logger.info("Lock acquired, starting update_tv_shows task.")
             try:
-                # Run the async fetch_telegram_posts using asyncio.run()
                 posts = asyncio.run(fetch_telegram_posts())
                 if not posts:
                     logger.info("No new posts found.")
                     return
 
                 db = get_db()
-                # Prevent unnecessary index creation.
                 if "show_name_1" not in db.tv_shows.index_information():
                     db.tv_shows.create_index([("show_name", ASCENDING)], unique=True)
 
@@ -187,7 +183,6 @@ def update_tv_shows(self):
                             'vote_average': tmdb_data.get('vote_average') if tmdb_data else None,
                             'poster_path': tmdb_data.get('poster_path') if tmdb_data else None,
                         }
-                        logger.debug(f"Show data to be saved: {show_data}")
 
                         try:
                             db.tv_shows.update_one(
@@ -198,19 +193,18 @@ def update_tv_shows(self):
                             logger.info(f"Successfully updated/inserted: {parsed_data['show_name']}")
                         except Exception as e:
                             logger.error(f"Error updating database for {parsed_data['show_name']}: {e}")
-                            # No raise here, continue with other posts
 
             finally:
-                lock.release()  # Correct lock release
+                lock.release()
                 logger.info("Lock released.")
         else:
             logger.warning("Could not acquire lock. Another update_tv_shows task is likely running.")
 
     except MaxRetriesExceededError:
-        logger.error("Max retries exceeded for update_tv_shows task. No further retries.")  # Corrected
+        logger.error("Max retries exceeded for update_tv_shows task. No further retries.")
     except Exception as exc:
         logger.exception(f"Task failed: {exc}")
-        raise self.retry(exc=exc, countdown=60)  # Re-raise for Celery retry
+        raise self.retry(exc=exc, countdown=60)
 
 # Simple test task (Keep this for easy testing)
 @celery.task
