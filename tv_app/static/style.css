@@ -512,7 +512,7 @@ ul li a {
 
         /* Two cards per row*/
         .card {
-            width: calc(50% - 20px);  /* Two per row */
+            width: calc(50% - 10px);  /* Two per row */
         }
 }
 
@@ -536,7 +536,7 @@ ul li a {
         width: 8px;
     }
     .card {
-        width: 100%;  /* One per row */
+        width: calc(50% - 10px); /* Ensure two cards per row */
     }
 
 }
