@@ -407,7 +407,8 @@ ul li a {
     display: block;
     /* Remove extra space */
     margin: 0 auto;
-    /* Center horizontally and vertically */
+     /* Remove max-height */
+    height: auto;  /* Let the height adjust naturally */
 }
 
 /* --- Arrow Button Positioning --- */
@@ -451,22 +452,22 @@ ul li a {
 
 /* Caption text - Enhanced Styling */
 .text {
-  color: #fff;
-  font-size: 1.2em;
-  font-weight: bold;
-  padding: 8px 12px;
-  position: absolute;
-  bottom: 20px;        /* Position near the bottom */
-  left: 50%;
-  transform: translateX(-50%); /* Center horizontally */
-  width: auto;
-  text-align: center;
-  z-index: 3;
-  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7);
-  background-color: rgba(0, 0, 0, 0.3);
-  border-radius: 5px;
-}
+    color: #fff;
+    font-size: 1.2em;
+    font-weight: bold;
+    padding: 8px 12px;
+    position: absolute;
+    bottom: 8px;         /* Position at the very bottom */
+    left: 50%;
+    transform: translateX(-50%); /* Center horizontally */
+    width: auto;        /* Let width be determined by content */
+    text-align: center;
+    z-index: 3;          /* Above the image */
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7);
+    background-color: rgba(0, 0, 0, 0.3);
+    border-radius: 5px;
 
+}
 /* Style the dots/bullets/indicators */
 .dot {
     cursor: pointer;
@@ -492,11 +493,11 @@ ul li a {
         .slideshow-inner {
             height: 250px; /* Reduced height for mobile */
         }
+      .mySlides img{
+          height: 200px;
+      }
 
-        .mySlides img {
-          max-height: none;
-        }
-          /* Prev/Next Buttons - smaller on mobile */
+        /* Prev/Next Buttons - smaller on mobile */
         .prev, .next {
             padding: 10px;
             font-size: 14px;
@@ -504,7 +505,7 @@ ul li a {
          /* Caption - smaller font on mobile */
         .text {
             font-size: 1em; /*Adjust as necessary*/
-            bottom: 10px; /* Adjust bottom position */
+            bottom: 8px;
         }
 
         /* Dots - smaller on mobile */
@@ -526,17 +527,17 @@ ul li a {
     .slideshow-inner {
             height: 200px; /* Even smaller height */
         }
-     .mySlides img {
-       max-height: none;
 
-    }
+     .mySlides img{
+          height: 150px;
+      }
       .prev, .next {
         padding: 8px;  /* Even smaller */
         font-size: 12px;
     }
       .text {
         font-size: 0.9em; /* Adjust as needed */
-        bottom: 5px;   /* Adjust bottom position */
+        bottom: 5px;
     }
      .dot {
         height: 8px;
