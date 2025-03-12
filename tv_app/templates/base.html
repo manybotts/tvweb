@@ -291,74 +291,110 @@
       text-decoration: none;
       color: #007bff;
   }
-     /* Slideshow container */
-    .slideshow-container {
-        position: relative;
-        width: 100%;       /* Full width */
-        max-width: none;  /* Remove any previous max-width */
-        margin: auto;
-        overflow: hidden; /* Hide overflowing content */
-    }
+  /* --- Slideshow CSS --- */
 
-.slideshow-inner{
-    background-size: 50% 100%, 50% 100%, cover;  /*Corrected sizes*/
-    background-position: left, right, center;
-    background-repeat: no-repeat;
-    height: 500px; /* Set a fixed height - adjust as needed */
+.slideshow-container {
+    position: relative;
+    width: 100%;
+    max-width: none;
+    margin: auto;
+    overflow: hidden;
+}
+
+.slideshow-inner {
+    height: 500px; /* Adjust as needed */
     display: flex;
-    transition: background-image 0.5s ease-in-out;
-    position: relative; /* Needed for absolute positioning of children */
-
+    align-items: center;  /* Vertically center the slides */
+    justify-content: center; /* Horizontally center */
+    position: relative;
+    /* Combine background images and gradient */
+     background-image: linear-gradient(to right, rgba(0,0,0,0.8) 20%, rgba(0,0,0,0.2) 40%, rgba(0,0,0,0.2) 60%, rgba(0,0,0,0.8) 80%);
+    background-size: cover; /* Ensure gradient covers the whole area */
+    background-repeat: no-repeat;
+    overflow: hidden;  /* Hide any overflowing blurred images*/
 }
 
-    .mySlides {
-        position: relative;
-        margin: auto; /* Center the slide within slideshow-inner */
-        display: none; /* Hide slides by default */
-    }
+/*  blurred background images */
+.slideshow-inner::before,
+.slideshow-inner::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 50%;  /* Each takes up half the width */
+    background-size: cover; /* Cover their respective areas */
+    background-repeat: no-repeat;
+    backdrop-filter: blur(15px) brightness(0.5); /* Blur and darken */
+    z-index: 1; /* Behind the main slide, but above the gradient */
+    transition: transform 0.5s ease, opacity 0.5s ease; /* Smooth transitions */
+    opacity: 0;       /* Initially hidden */
+    transform: translateX(-100%); /* Initially off-screen to the LEFT */
+}
 
-      /* active slide */
+/* Style for the next slide's background */
+.slideshow-inner::after {
+    right: 0; /* Position the 'after' pseudo-element on the right */
+  transform: translateX(100%); /* Initially off-screen to the RIGHT */
+}
+
+/* Active states for prev/next backgrounds */
+.slideshow-inner.prev-active::before {
+    transform: translateX(0); /* Bring into view from the left */
+    opacity: 1;
+}
+
+.slideshow-inner.next-active::after {
+    transform: translateX(0); /* Bring into view from the right*/
+    opacity: 1;
+}
+
+
+.mySlides {
+    position: relative; /* For positioning the text */
+    display: none;  /* Hidden by default */
+    z-index: 2; /* Above the background images */
+    max-width: 100%;
+}
+
 .mySlides.active-slide{
-    display: block;
+  display: flex;
 }
-    .mySlides img {
-        display: block;
-        max-width: 500px;  /* Limit maximum image width */
-        max-height: 400px;
-        object-fit: contain;
-        margin: auto; /* Center the image horizontally and vertically */
 
-    }
+.mySlides img {
+    max-width: 500px;  /* Adjust as needed */
+    max-height: 400px; /* Adjust as needed */
+    object-fit: contain;  /* Maintain aspect ratio */
+    display: block;
+     margin: 0 auto;
+}
 
+/* Next & previous buttons */
+.prev, .next {
+    cursor: pointer;
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: auto;
+    padding: 16px;
+    color: white;
+    font-weight: bold;
+    font-size: 18px;
+    transition: 0.6s ease;
+    border-radius: 0 3px 3px 0;
+    user-select: none;
+    z-index: 3; /* Above the slides */
+}
 
-    /* Next & previous buttons (style and position)*/
-    .prev, .next {
-      cursor: pointer;
-      position: absolute;  /* Absolute positioning */
-      top: 50%;          /* Vertically center */
-      transform: translateY(-50%); /*  for perfect centering */
-      width: auto;
-      padding: 16px;
-      color: white;
-      font-weight: bold;
-      font-size: 18px;
-      transition: 0.6s ease;
-      border-radius: 0 3px 3px 0;
-      user-select: none;
-      z-index: 2;       /* Ensure buttons are above background */
-    }
+.next {
+    right: 0;
+    border-radius: 3px 0 0 3px;
+}
 
-    .next {
-        right: 0; /* Position on the right side */
-        border-radius: 3px 0 0 3px;
-    }
+.prev:hover, .next:hover {
+    background-color: rgba(0, 0, 0, 0.8);
+}
 
-    /* On hover, add a black background color with a little bit see-through */
-    .prev:hover, .next:hover {
-        background-color: rgba(0,0,0,0.8);
-    }
-
-/* Caption text - higher z-index */
+/* Caption text */
 .text {
     color: #f2f2f2;
     font-size: 15px;
@@ -367,36 +403,43 @@
     bottom: 8px;
     width: 100%;
     text-align: center;
-     z-index: 2; /* Above the background */
+    z-index: 3; /* Above the background */
 }
-
- /* Add a background color to the active dot/circle */
-.active {
-  background-color: #717171;
-}
-
-/* Fading animation */
-.fade {
-  animation-name: fade;
-  animation-duration: 1.5s;
-}
-
-@keyframes fade {
-  from {opacity: .4}
-  to {opacity: 1}
-}
-
     /* Style the dots/bullets/indicators */
-.dot {
-  cursor: pointer;
-  height: 15px;
-  width: 15px;
-  margin: 0 2px;
-  background-color: #bbb;
-  border-radius: 50%;
-  display: inline-block;
-  transition: background-color: 0.6s ease;
-}
+    .dot {
+      cursor: pointer;
+      height: 15px;
+      width: 15px;
+      margin: 0 2px;
+      background-color: #bbb;
+      border-radius: 50%;
+      display: inline-block;
+      transition: background-color: 0.6s ease;
+    }
+
+     /* Place the dots container *below* the slideshow */
+    .dot-container {
+        text-align: center;
+        margin-top: 20px; /* Add some space between slideshow and dots */
+        position: relative; /* Ensure it's not affected by slideshow positioning */
+        z-index:4;
+    }
+
+    /* Add a background color to the active dot/circle */
+    .active, .dot:hover {
+      background-color: #717171;
+    }
+
+    /* Fading animation - Not used*/
+    .fade {
+      animation-name: fade;
+      animation-duration: 1.5s;
+    }
+
+    @keyframes fade {
+      from {opacity: .4}
+      to {opacity: 1}
+    }
      /* --- Media Queries --- */
 
       /* Mobile Styles (max-width: 768px) */
@@ -410,7 +453,7 @@
                 width: calc(50% - 20px);
             }
         }
-</style>
+    </style>
 </head>
 <body>
     <div class="navbar">
@@ -427,13 +470,4 @@
             𝕚𝔹𝕆𝕏 𝕋𝕍
         </div>
         <form action="{{ url_for('index') }}" method="GET" class="search-form">
-            <input type="text" name="search" placeholder="Search for shows..." value="{{ search_query if search_query else '' }}">
-            <button type="submit"><i class="fas fa-search"></i></button>
-        </form>
-    </div>
-
-    <div class="container">
-        {% block content %}{% endblock %}
-    </div>
-</body>
-</html>
+            <input type="text" name="search" placeholder="Search for shows..." value="{{ search_query if
