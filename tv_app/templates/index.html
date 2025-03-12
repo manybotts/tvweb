@@ -7,12 +7,20 @@
 
     <h2>Trending Shows</h2>
     <div class="slideshow-container">
+        <div class="slideshow-inner" style="
+            {% if trending_shows %}
+                background-image:
+                linear-gradient(to right, rgba(0,0,0,0.8) 20%, rgba(0,0,0,0.2) 40%, rgba(0,0,0,0.2) 60%, rgba(0,0,0,0.8) 80%),
+                url('{{ trending_shows[ (slide_index - 1) % trending_shows|length ].poster_path }}'),
+                url('{{ trending_shows[ (slide_index + 1) % trending_shows|length ].poster_path }}'),
+                url('{{ trending_shows[slide_index].poster_path }}');
+            {% endif %}">
+
         {% for show in trending_shows %}
-            <div class="mySlides fade">
+            <div class="mySlides {% if loop.index0 == 0 %}active-slide{% endif %}" data-index="{{ loop.index0 }}">
                 <a href="{{ url_for('show_details', message_id=show.message_id) }}">
                     {% if show.poster_path %}
-                         <div class="background-image" style="background-image: url('{{ show.poster_path }}');"></div>
-                        <img src="{{ show.poster_path }}" alt="{{ show.show_name }}" style="width:100%; max-height: 400px; object-fit: contain;">
+                        <img src="{{ show.poster_path }}" alt="{{ show.show_name }}" >
                     {% else %}
                         <div class="telegram-loader">
                             <div class="plane"></div>
@@ -26,11 +34,12 @@
 
         <a class="prev" onclick="plusSlides(-1)">&#10094;</a>
         <a class="next" onclick="plusSlides(1)">&#10095;</a>
+     </div>
     </div>
 
     <br>
 
-   <div style="text-align:center">
+    <div style="text-align:center">
         {% for show in trending_shows %}
           <span class="dot" onclick="currentSlide({{ loop.index }})"></span>
         {% endfor %}
@@ -93,37 +102,73 @@
             {% endif %}
         {% endif %}
     </div>
-  <script>
-    let slideIndex = 1;
+    <script>
+    let slideIndex = 0; // Start at 0 for easier indexing
     showSlides(slideIndex);
 
     function plusSlides(n) {
-      showSlides(slideIndex += n);
+        // Get all slides.  Important to do this *inside* the function,
+        // as the number of slides might change (e.g., if more shows are added).
+        const slides = document.getElementsByClassName("mySlides");
+        slideIndex += n;
+
+        // Wrap around
+        if (slideIndex >= slides.length) { slideIndex = 0; }
+        if (slideIndex < 0) { slideIndex = slides.length - 1; }
+
+        showSlides(slideIndex);
     }
-  function currentSlide(n) {
-    showSlides(slideIndex = n);
-  }
 
-
-    function showSlides(n) {
-      let i;
-      let slides = document.getElementsByClassName("mySlides");
-      let dots = document.getElementsByClassName("dot");
-      if (n > slides.length) {slideIndex = 1}
-      if (n < 1) {slideIndex = slides.length}
-      for (i = 0; i < slides.length; i++) {
-        slides[i].style.display = "none";
+      function currentSlide(n) {
+      showSlides(slideIndex = n-1);
       }
-      for (i = 0; i < dots.length; i++) {
-      dots[i].className = dots[i].className.replace(" active", "");
-       }
 
-      slides[slideIndex-1].style.display = "block";
-       dots[slideIndex-1].className += " active";
 
+   function showSlides(n) {
+        const slides = document.getElementsByClassName("mySlides");
+        const dots = document.getElementsByClassName("dot");
+        // Hide all slides and remove active class from all dots
+        for (let i = 0; i < slides.length; i++) {
+            slides[i].style.display = "none";
+           if(dots.length)
+              dots[i].className = dots[i].className.replace(" active", "");
+        }
+
+        // Show the current slide and activate corresponding dot.
+        if(slides.length){
+            slides[n].style.display = "block";
+        }
+        if(dots.length){
+          dots[n].className += " active";
+        }
+        // Set background images
+        setSlideBackgrounds();
     }
 
-    // Automatic slideshow
+
+    function setSlideBackgrounds() {
+      const slides = document.getElementsByClassName("mySlides");
+      const slideshowInner = document.querySelector('.slideshow-inner');
+
+      if (slides.length > 0) {
+        const prevIndex = (slideIndex - 1 + slides.length) % slides.length;
+        const nextIndex = (slideIndex + 1) % slides.length;
+        // Get image URLs using the data attributes, with null checks
+        const currentImg = slides[slideIndex].querySelector('img')?.src || '';
+        const prevImg = slides[prevIndex].querySelector('img')?.src || '';
+        const nextImg = slides[nextIndex].querySelector('img')?.src || '';
+
+        slideshowInner.style.backgroundImage = `
+                linear-gradient(to right, rgba(0,0,0,0.8) 20%, rgba(0,0,0,0.2) 40%, rgba(0,0,0,0.2) 60%, rgba(0,0,0,0.8) 80%),
+                url('${prevImg}'),
+                url('${nextImg}'),
+                url('${currentImg}')
+            `;
+      }
+    }
+
+
+    // Automatic slideshow (Optional)
     let slideInterval = setInterval(() => { plusSlides(1) }, 5000);  // Change image every 5 seconds
 
     // Optional: Stop slideshow on hover
