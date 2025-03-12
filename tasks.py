@@ -8,12 +8,14 @@ from telegram import Bot
 from telegram.error import TelegramError
 from telegram.ext import Application
 from urllib.parse import quote_plus
-from pymongo import MongoClient, ASCENDING, DESCENDING
+# from pymongo import MongoClient, ASCENDING, DESCENDING # Removed pymongo
 import logging
 from dotenv import load_dotenv
 from redis import Redis
 import asyncio  # Import asyncio
-from datetime import datetime, timezone # Import
+from datetime import datetime, timezone  # Import datetime and timezone
+from app import db, TVShow, app  # Import from app.py
+
 
 load_dotenv()
 
@@ -25,26 +27,15 @@ logger = logging.getLogger(__name__)
 celery = Celery(__name__, broker=os.environ.get('REDIS_URL', 'redis://localhost:6379/0'), backend=os.environ.get('REDIS_URL', 'redis://localhost:6379/0'))
 # Use REDIS_URL environment variable - Railway provides this
 
-# Database connection
-def get_db():
-    client = MongoClient(os.environ.get('MONGO_URI'))
-    db = client[os.environ.get('DATABASE_NAME', 'tv_shows')]
-    try:
-        db.command('ping')
-        logger.info("Successfully connected to MongoDB from Celery!")
-    except Exception as e:
-        logger.error(f"Error connecting to MongoDB from Celery: {e}")
-        raise
-    return db
 
 # --- Helper Functions ---
-
+# Removed the old get_db
 async def _fetch_telegram_updates(token, channel_id):
     """Asynchronously fetches updates using telegram.ext.Application."""
     try:
-        app = Application.builder().token(token).build()
-        updates = await app.bot.get_updates(allowed_updates=['channel_post'], timeout=60)
-        await app.shutdown()  # Shutdown the application after use
+        appli = Application.builder().token(token).build()
+        updates = await appli.bot.get_updates(allowed_updates=['channel_post'], timeout=60)
+        await appli.shutdown()  # Shutdown the application after use
         posts = []
         for update in updates:
             if update.channel_post and update.channel_post.sender_chat and str(update.channel_post.sender_chat.id) == channel_id:
@@ -160,59 +151,59 @@ def update_tv_shows(self):
         if lock.acquire(blocking=False):
             logger.info("Lock acquired, starting update_tv_shows task.")
             try:
-                # Run the async fetch_telegram_posts using asyncio.run()
                 posts = asyncio.run(fetch_telegram_posts())
                 if not posts:
                     logger.info("No new posts found.")
                     return
 
-                db = get_db()
-                if "show_name_1" not in db.tv_shows.index_information():
-                    db.tv_shows.create_index([("show_name", ASCENDING)], unique=True)
-                #Add created at index
-                db.tv_shows.create_index([("created_at", ASCENDING)])
+                with app.app_context(): #VERY IMPORTANT
+                    for post in posts:
+                        parsed_data = parse_telegram_post(post)
+                        if parsed_data:
+                            logger.info(f"Processing show: {parsed_data['show_name']}")
+                            tmdb_data = fetch_tmdb_data(parsed_data['show_name'])
+                            show_data = {
+                                'show_name': parsed_data['show_name'],
+                                'season_episode': parsed_data['season_episode'],
+                                'download_link': parsed_data['download_link'],
+                                'message_id': parsed_data['message_id'],
+                                'overview': tmdb_data.get('overview') if tmdb_data else None,
+                                'vote_average': tmdb_data.get('vote_average') if tmdb_data else None,
+                                'poster_path': tmdb_data.get('poster_path') if tmdb_data else None,
+                                #'created_at': datetime.now(timezone.utc)  # No longer needed here
+                            }
+                            # Use SQLAlchemy to interact with the database.
+                            existing_show = TVShow.query.filter_by(message_id=show_data['message_id']).first()
 
-                for post in posts:
-                    parsed_data = parse_telegram_post(post)
-                    if parsed_data:
-                        logger.info(f"Processing show: {parsed_data['show_name']}")
-                        tmdb_data = fetch_tmdb_data(parsed_data['show_name'])
-                        show_data = {
-                            'show_name': parsed_data['show_name'],
-                            'season_episode': parsed_data['season_episode'],
-                            'download_link': parsed_data['download_link'],
-                            'message_id': parsed_data['message_id'],
-                            'overview': tmdb_data.get('overview') if tmdb_data else None,
-                            'vote_average': tmdb_data.get('vote_average') if tmdb_data else None,
-                            'poster_path': tmdb_data.get('poster_path') if tmdb_data else None,
-                            'created_at': datetime.now(timezone.utc) # Add a timestamp
-                        }
-
-                        try:
-                            db.tv_shows.update_one(
-                                {'show_name': parsed_data['show_name']},
-                                {'$set': show_data},
-                                upsert=True
-                            )
-                            logger.info(f"Successfully updated/inserted: {parsed_data['show_name']}")
-                        except Exception as e:
-                            logger.error(f"Error updating database for {parsed_data['show_name']}: {e}")
-                            # No raise here, continue with other posts
+                            if existing_show:
+                                # Update existing show
+                                for key, value in show_data.items():
+                                    setattr(existing_show, key, value)
+                                 #No need to add created_at
+                                db.session.commit()
+                                logger.info(f"Successfully updated: {show_data['show_name']}")
+                            else:
+                                # Add the new show
+                                new_show = TVShow(**show_data)
+                                db.session.add(new_show)
+                                db.session.commit()
+                                logger.info(f"Successfully inserted: {show_data['show_name']}")
 
             finally:
                 lock.release()
                 logger.info("Lock released.")
+
         else:
-            logger.warning("Could not acquire lock. Another update_tv_shows task is likely running.")
+            logger.warning("Failed to acquire lock, task already running.")
 
-    except MaxRetriesExceededError:
-        logger.error("Max retries exceeded for update_tv_shows task. No further retries.")
-    except Exception as exc:
-        logger.exception(f"Task failed: {exc}")
-        raise self.retry(exc=exc, countdown=60)
+    except Exception as e:
+        logger.exception(f"Error in update_tv_shows task: {e}")
+        try:
+            self.retry(exc=e, max_retries=5)  # Retry with backoff
+        except MaxRetriesExceededError:
+            logger.error("Max retries exceeded for update_tv_shows task.")
 
-# Simple test task (Keep this for easy testing)
 @celery.task
 def test_task():
-    logger.info("This is a test task!")
-    return "Test task completed"
+  logger.info("The test Celery task has run!")
+  return "Test task complete"
