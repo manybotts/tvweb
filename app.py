@@ -86,6 +86,11 @@ def index():
     logger.info("update_tv_shows task enqueued")
 
     tv_shows, total_pages = get_all_tv_shows(page, per_page, search_query)
+
+    # *** ADD THESE DEBUG LOGS ***
+    logger.info(f"Total pages: {total_pages}")
+    logger.info(f"TV Shows retrieved: {tv_shows}")  # Log the entire list
+
     return render_template('index.html', tv_shows=tv_shows, page=page, total_pages=total_pages, search_query=search_query)
 
 @app.route('/show/<int:message_id>')
