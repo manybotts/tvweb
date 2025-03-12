@@ -1,0 +1,498 @@
+/* --- tv_app/static/style.css --- */
+
+/* Basic styling */
+body {
+    font-family: 'Open Sans', sans-serif;
+    line-height: 1.6;
+    margin: 0;
+    padding: 0;
+    background-color: #f4f4f4;
+    color: #333;
+}
+
+/* --- Navbar --- */
+.navbar {
+    background-color: #007bff;
+    color: white;
+    padding: 5px 10px;
+    display: flex;
+    align-items: center;
+    position: relative;
+}
+
+.logo-container {
+    display: flex;
+    align-items: center;
+    margin-right: auto; /* Push to the left*/
+}
+
+.logo {
+    width: 30px;
+    height: auto;
+    margin-right: 5px;
+    border-radius: 50%;
+}
+
+.nav-links {
+    display: flex;
+    align-items: center;
+    margin-left: 10px;
+}
+
+.navbar a:hover {
+    background-color: #0056b3;
+}
+
+.navbar-center {
+    font-weight: bold;
+    font-size: 1.2em;
+    white-space: nowrap;
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+.navbar a {
+    color: white;
+    text-decoration: none;
+    padding: 5px 8px;
+    margin: 0 2px;
+    border-radius: 5px;
+    transition: background-color 0.3s ease;
+    font-size: 0.9em;
+    white-space: nowrap;
+}
+
+.search-form {
+    margin-left: auto; /* Push search form to the right */
+    display: flex;
+    align-items: center;
+}
+
+.search-form input[type="text"] {
+    padding: 5px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    margin-right: 5px;
+    width: 80px;
+    transition: width 0.3s ease;
+}
+
+.search-form:hover input[type="text"],
+.search-form input[type="text"]:focus {
+    width: 150px;
+}
+
+.search-form button {
+    padding: 5px 10px;
+    background-color: #fff;
+    color: #007bff;
+    border: 1px solid #007bff;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.3s ease, color 0.3s ease;
+    white-space: nowrap;
+}
+
+.search-form button:hover {
+    background-color: #007bff;
+    color: white;
+}
+
+/* --- End Navbar --- */
+
+.container {
+    max-width: 1200px;
+    margin: auto;
+    overflow: hidden;
+    padding: 20px;
+}
+
+h1 {
+    text-align: center;
+    margin-bottom: 30px;
+    color: #007bff;
+    font-family: sans-serif;
+    font-size: 1.5em;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.blinking-dot {
+    width: 10px;
+    height: 10px;
+    background-color: green;
+    border-radius: 50%;
+    margin-right: 8px;
+    animation: blink 1s steps(5, start) infinite;
+}
+
+@keyframes blink {
+    to {
+        visibility: hidden;
+    }
+}
+
+/* --- Card styles --- */
+.tv-shows {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    gap: 10px;
+}
+
+.card {
+    border: 1px solid #ddd;
+    padding: 10px;
+    margin: 0;
+    width: calc(25% - 10px); /* Four/row desktop */
+    text-align: center;
+    background-color: #fff;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    transition: transform 0.2s ease;
+    box-sizing: border-box;
+    flex-grow: 0;
+    flex-shrink: 0;
+}
+
+.card:hover {
+    transform: translateY(-5px);
+}
+
+.card img {
+    max-width: 100%;
+    height: auto;
+    border-bottom: 1px solid #eee;
+    margin-bottom: 5px;
+}
+
+.card a {
+    text-decoration: none;
+    color: inherit;
+}
+
+.card h2 {
+    font-size: 1em;
+    margin-bottom: 2px;
+    color: #007bff;
+}
+
+.card p {
+    font-size: 0.8em;
+    color: #666;
+}
+
+.telegram-loader {
+    width: 40px;
+    height: 40px;
+    margin: 10px auto;
+    position: relative;
+}
+
+.telegram-loader .plane {
+    width: 0;
+    height: 0;
+    border-top: 20px solid #007bff;
+    border-left: 12px solid transparent;
+    border-right: 12px solid transparent;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform-origin: 50% 0%;
+    animation: fly 1.5s linear infinite;
+}
+
+.telegram-loader .circle {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: 2px solid rgba(0, 123, 255, 0.3);
+    position: absolute;
+    top: 0;
+    left: 0;
+    animation: rotate 2s linear infinite;
+}
+
+@keyframes fly {
+    0% {
+        transform: translate(-50%, -50%) rotate(0deg);
+    }
+
+    50% {
+        transform: translate(-50%, -100%) rotate(45deg);
+    }
+
+    100% {
+        transform: translate(-50%, -50%) rotate(90deg);
+    }
+}
+
+@keyframes rotate {
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+.pagination {
+    text-align: center;
+    margin-top: 20px;
+    clear: both;
+}
+
+.pagination a {
+    padding: 5px 10px;
+    text-decoration: none;
+    color: #007bff;
+    border: 1px solid #ddd;
+    margin: 0 2px;
+    border-radius: 5px;
+}
+
+.pagination a:hover {
+    background-color: #007bff;
+    color: white;
+}
+
+.pagination .current-page {
+    padding: 5px 10px;
+    margin: 0 2px;
+    border-radius: 5px;
+    background-color: #007bff;
+    color: white;
+    border: 1px solid #007bff;
+}
+
+.download-button {
+    display: inline-block;
+    padding: 8px 15px;
+    font-size: 1em;
+    background-color: #007bff;
+    color: white;
+    text-decoration: none;
+    border-radius: 5px;
+    transition: background-color: 0.3s ease;
+}
+
+.download-button:hover {
+    background-color: #0056b3;
+}
+
+ul {
+    list-style: none;
+    padding: 0;
+}
+
+ul li {
+    padding: 10px;
+    border-bottom: 1px solid #ddd;
+    transition: background-color: 0.2s ease;
+}
+
+ul li:last-child {
+    border-bottom: none;
+}
+
+ul li:hover {
+    background-color: #f0f8ff;
+}
+
+ul li a {
+    display: block;
+    width: 100%;
+    text-decoration: none;
+    color: #007bff;
+}
+
+/* --- Slideshow CSS --- */
+
+.slideshow-container {
+    position: relative;
+    width: 100%;
+    max-width: none;
+    margin: auto;
+    overflow: hidden;
+}
+
+.slideshow-inner {
+    height: 500px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+    background-image: linear-gradient(to right, rgba(0, 0, 0, 0.8) 20%, rgba(0, 0, 0, 0.2) 40%, rgba(0, 0, 0, 0.2) 60%, rgba(0, 0, 0, 0.8) 80%);
+    background-size: cover;
+    background-repeat: no-repeat;
+
+}
+
+/* Previous and next slide backgrounds (blurred) */
+.slideshow-inner::before,
+.slideshow-inner::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 50%;
+    /* Each takes up half */
+    height: 100%;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    backdrop-filter: blur(15px) brightness(0.5);
+    z-index: 1;
+    /* Behind the main slide content, but above gradient */
+    transition: transform 0.5s ease, opacity 0.5s ease;
+    opacity: 0;
+    /* Initially hidden */
+    /* Initial background images using CSS variables */
+    background-image: var(--prev-bg, none);
+
+}
+
+/* Next slide is initially off-screen to the RIGHT */
+.slideshow-inner::after {
+    right: 0;
+    /* Position 'after' on the right */
+    transform: translateX(100%);
+    /* Initially off screen*/
+    background-image: var(--next-bg, none);
+    /* Use the CSS variable */
+}
+
+/* Previous slide is initially off-screen to the LEFT */
+.slideshow-inner::before {
+    transform: translateX(-100%);
+    /* Initially off-screen*/
+}
+
+/* Active states for prev/next backgrounds */
+.slideshow-inner.prev-active::before {
+    transform: translateX(0);
+    /* Bring into view */
+    opacity: 1;
+}
+
+.slideshow-inner.next-active::after {
+    transform: translateX(0);
+    /* Bring into view */
+    opacity: 1;
+}
+
+.mySlides {
+    position: relative;
+    /* For positioning the text */
+    display: none;
+    /* Hidden by default */
+    z-index: 2;
+    /* Above the background images */
+    max-width: 100%;
+    /* Allow shrinking */
+}
+
+.mySlides.active-slide {
+    display: block;
+}
+
+.mySlides img {
+    max-width: 500px;
+    /* Limit maximum image width */
+    max-height: 400px;
+    object-fit: contain;
+    /* Maintain aspect ratio */
+    display: block;
+    /* Remove extra space */
+    margin: 0 auto;
+    /* Center horizontally and vertically */
+}
+
+/* Next & previous buttons (style and position)*/
+.prev,
+.next {
+    cursor: pointer;
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: auto;
+    padding: 16px;
+    color: white;
+    font-weight: bold;
+    font-size: 18px;
+    transition: 0.6s ease;
+    border-radius: 0 3px 3px 0;
+    user-select: none;
+    z-index: 3;
+    /* Ensure buttons are above background */
+}
+
+.next {
+    right: 0;
+    border-radius: 3px 0 0 3px;
+}
+
+.prev:hover,
+.next:hover {
+    background-color: rgba(0, 0, 0, 0.8);
+}
+
+/* Caption text */
+.text {
+    color: #f2f2f2;
+    font-size: 15px;
+    padding: 8px 12px;
+    position: absolute;
+    bottom: 8px;
+    width: 100%;
+    text-align: center;
+    z-index: 3;
+    /* Above the background */
+}
+
+/* Style the dots/bullets/indicators */
+.dot {
+    cursor: pointer;
+    height: 15px;
+    width: 15px;
+    margin: 0 2px;
+    background-color: #bbb;
+    border-radius: 50%;
+    display: inline-block;
+    transition: background-color: 0.6s ease;
+}
+
+/* Place the dots container *below* the slideshow */
+.dot-container {
+    text-align: center;
+    margin-top: 20px;
+    /* Add some space */
+    position: relative;
+    /* Not affected by slideshow positioning */
+    z-index: 4;
+}
+
+/* active dot/circle */
+.active,
+.dot:hover {
+    background-color: #717171;
+}
+
+/* --- Media Queries --- */
+
+/* Mobile Styles (max-width: 768px) */
+@media (max-width: 768px) {
+
+    .search-form input[type="text"] {
+        width: 60px;
+        /* Very small initial width */
+    }
+
+    /* Two cards per row*/
+    .card {
+        width: calc(50% - 20px);
+    }
+}
