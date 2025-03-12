@@ -1,6 +1,5 @@
 /* --- tv_app/static/style.css --- */
 
-/* Basic styling */
 body {
     font-family: 'Open Sans', sans-serif;
     line-height: 1.6;
@@ -23,7 +22,7 @@ body {
 .logo-container {
     display: flex;
     align-items: center;
-    margin-right: auto; /* Push to the left*/
+    margin-right: auto;
 }
 
 .logo {
@@ -64,7 +63,7 @@ body {
 }
 
 .search-form {
-    margin-left: auto; /* Push search form to the right */
+    margin-left: auto;
     display: flex;
     align-items: center;
 }
@@ -146,7 +145,7 @@ h1 {
     border: 1px solid #ddd;
     padding: 10px;
     margin: 0;
-    width: calc(25% - 10px); /* Four/row desktop */
+    width: calc(25% - 10px);
     text-align: center;
     background-color: #fff;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
@@ -330,7 +329,6 @@ ul li a {
 
 }
 
-/* Previous and next slide backgrounds (blurred) */
 .slideshow-inner::before,
 .slideshow-inner::after {
     content: '';
@@ -338,62 +336,45 @@ ul li a {
     top: 0;
     left: 0;
     width: 50%;
-    /* Each takes up half */
     height: 100%;
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
     backdrop-filter: blur(15px) brightness(0.5);
     z-index: 1;
-    /* Behind the main slide content, but above gradient */
     transition: transform 0.5s ease, opacity: 0.5s ease;
     opacity: 0;
-    /* Initially hidden */
-    /* Initial background images using CSS variables */
     background-image: var(--prev-bg, none);
 
 }
 
-/* Next slide is initially off-screen to the RIGHT */
 .slideshow-inner::after {
     right: 0;
-    /* Position 'after' on the right */
     transform: translateX(100%);
-    /* Initially off screen*/
     background-image: var(--next-bg, none);
-    /* Use the CSS variable */
 }
 
-/* Previous slide is initially off-screen to the LEFT */
 .slideshow-inner::before {
     transform: translateX(-100%);
-    /* Initially off-screen*/
 }
 
-/* Active states for prev/next backgrounds */
 .slideshow-inner.prev-active::before {
     transform: translateX(0);
-    /* Bring into view */
     opacity: 1;
 }
 
 .slideshow-inner.next-active::after {
     transform: translateX(0);
-    /* Bring into view */
     opacity: 1;
 }
 
 .mySlides {
     position: relative;
-    /* For positioning the text */
     display: none;
-    /* Hidden by default */
     z-index: 2;
-    /* Above the background images */
     max-width: 100%;
-    /* Allow shrinking */
-     width: 100%; /* Ensure it takes full width */
-    text-align: center;  /* Center content within .mySlides */
+     width: 100%;
+    text-align: center;
 }
 
 .mySlides.active-slide {
@@ -403,22 +384,19 @@ ul li a {
 .mySlides img {
     max-width: 100%;
     object-fit: contain;
-    /* Maintain aspect ratio */
     display: block;
-    /* Remove extra space */
     margin: 0 auto;
     height: auto;
-    max-height: 100%; /* Use max-height and height: auto */
+    max-height: 100%;
 
 }
 
-/* --- Arrow Button Positioning --- */
 .prev,
 .next {
     cursor: pointer;
     position: absolute;
     top: 50%;
-    transform: translateY(-50%); /* Center vertically */
+    transform: translateY(-50%);
     width: auto;
     padding: 16px;
     color: white;
@@ -427,16 +405,16 @@ ul li a {
     transition: 0.6s ease;
     border-radius: 0 3px 3px 0;
     user-select: none;
-    z-index: 3; /* Above background */
+    z-index: 3;
 }
 
 .next {
-    right: 0; /* Position on the right */
+    right: 0;
     border-radius: 3px 0 0 3px;
 }
 
 .prev {
-    left: 0; /* Position on the left */
+    left: 0;
 }
 
 .prev:hover,
@@ -444,32 +422,29 @@ ul li a {
     background-color: rgba(0, 0, 0, 0.8);
 }
 
-/* --- Dot Positioning --- */
 .dot-container {
-  text-align: center; /* Center the dots */
-  margin-top: 10px;    /* Space below the slideshow */
-  position: static;    /* Correctly position relative to flow */
+  text-align: center;
+  margin-top: 10px;
+  position: static;
 }
 
-/* Caption text - Enhanced Styling */
 .text {
-    color: #fff;
-    font-size: 1.2em;
-    font-weight: bold;
-    padding: 8px 12px;
-    position: absolute;
-    bottom: 8px;         /* Position at the very bottom */
-    left: 50%;
-    transform: translateX(-50%); /* Center horizontally */
-    width: auto;        /* Let width be determined by content */
-    text-align: center;
-    z-index: 3;          /* Above the image */
-    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7);
-    background-color: rgba(0, 0, 0, 0.3);
-    border-radius: 5px;
-
+  color: #fff;
+  font-size: 1.2em;
+  font-weight: bold;
+  padding: 8px 12px;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: auto;
+  text-align: center;
+  z-index: 3;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7);
+  background-color: rgba(0, 0, 0, 0.3);
+  border-radius: 5px;
 }
-/* Style the dots/bullets/indicators */
+
 .dot {
     cursor: pointer;
     height: 15px;
@@ -481,76 +456,73 @@ ul li a {
     transition: background-color: 0.6s ease;
 }
 
-/* active dot/circle */
 .active,
 .dot:hover {
     background-color: #717171;
 }
 
 /* --- Media Queries --- */
-/* Slideshow container - make it responsive */
 
 @media (max-width: 768px){
         .slideshow-inner {
-            height: 250px; /* Reduced height for mobile */
+            height: 250px;
         }
       .mySlides img{
-        /*  height: 200px; Remove fixed heights */
       }
 
-        /* Prev/Next Buttons - smaller on mobile */
         .prev, .next {
             padding: 10px;
             font-size: 14px;
         }
-         /* Caption - smaller font on mobile */
         .text {
-            font-size: 1em; /*Adjust as necessary*/
-            bottom: 8px;
+            font-size: 1em;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            bottom: auto;
+
         }
 
-        /* Dots - smaller on mobile */
         .dot {
             height: 10px;
             width: 10px;
         }
             .search-form input[type="text"] {
-            width: 60px; /* Very small initial width */
+            width: 60px;
         }
 
-        /* Two cards per row*/
         .card {
-            width: calc(50% - 10px);  /* Two per row */
+            width: calc(50% - 10px);
         }
 }
 
 @media (max-width: 480px) {
     .slideshow-inner {
-            height: 200px; /* Even smaller height */
+            height: 200px;
         }
 
      .mySlides img{
-        /* height: 150px;  Remove fixed heights*/
       }
       .prev, .next {
-        padding: 8px;  /* Even smaller */
+        padding: 8px;
         font-size: 12px;
     }
       .text {
-        font-size: 0.9em; /* Adjust as needed */
-        bottom: 5px;
-    }
+        font-size: 0.9em;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        bottom: auto;
+      }
+
      .dot {
         height: 8px;
         width: 8px;
     }
     .card {
-        width: calc(50% - 10px); /* Ensure two cards per row */
+        width: calc(50% - 10px);
     }
 
 }
 
-/* General Slideshow Height Adjustment */
 .slideshow-inner {
-    height: 350px;  /* Default height for larger screens */
+    height: 350px;
 }
