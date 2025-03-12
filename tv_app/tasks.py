@@ -11,8 +11,9 @@ from urllib.parse import quote_plus
 import logging
 from dotenv import load_dotenv
 from redis import Redis
-# import asyncio # Removed
+import asyncio
 from datetime import datetime, timezone
+from ratelimit import limits, sleep_and_retry, RateLimitException #Import rate limiting
 
 load_dotenv()
 
@@ -24,21 +25,21 @@ logger = logging.getLogger(__name__)
 celery = Celery(__name__, broker=os.environ.get('REDIS_URL', 'redis://localhost:6379/0'), backend=os.environ.get('REDIS_URL', 'redis://localhost:6379/0'))
 # Use REDIS_URL environment variable - Railway provides this
 
+# --- TMDB Rate Limiting ---
+CALLS = 30   # Max calls per period
+PERIOD = 9  # Period in seconds
 
 # --- Helper Functions ---
 
-def fetch_telegram_posts(token, channel_id): # No 'async def'
-    """Fetches all unacknowledged posts from the configured Telegram channel."""
+async def _fetch_telegram_updates(token, channel_id):
+    """Asynchronously fetches updates using telegram.ext.Application, handling offsets correctly."""
     try:
-        # Use Application for synchronous calls
-        application = Application.builder().token(token).build()
-        logger.info(f"Fetching updates from Telegram channel: {os.environ.get('TELEGRAM_CHANNEL_ID')}")
-
+        appli = Application.builder().token(token).build()
         posts = []
-        update_offset = None  # Initialize the offset
+        update_offset = None  # Initialize offset
 
-        while True:  # Loop to retrieve all updates
-            updates = application.bot.get_updates(allowed_updates=['channel_post'], timeout=60, offset=update_offset)
+        while True:  # Loop to fetch all updates
+            updates = await appli.bot.get_updates(allowed_updates=['channel_post'], timeout=60, offset=update_offset)
             logger.info(f"Received {len(updates)} updates from Telegram")
 
             if not updates:  # No more updates
@@ -50,18 +51,25 @@ def fetch_telegram_posts(token, channel_id): # No 'async def'
                         posts.append(update.channel_post)
                         logger.info(f"Added post to processing list: {update.channel_post.message_id}")  # Log added posts
 
-                # Update the offset to the *next* update ID
-                update_offset = update.update_id + 1
-        application.run_sync(application.shutdown()) #Close application
-        logger.info(f"Total posts to process: {len(posts)}") #Log total posts
+                # Update offset for next batch
+                update_offset = update.update_id + 1  # Correct offset handling
+        await appli.shutdown()
         return posts
 
     except TelegramError as e:
         logger.error(f"Telegram error: {e}")
         return []
     except Exception as e:
-        logger.exception(f"An unexpected error occurred in fetch_telegram_posts: {e}")
+        logger.exception(f"Telegram API error in _fetch_telegram_updates: {e}")
         return []
+
+async def fetch_telegram_posts():
+    """Fetches all unacknowledged posts from the configured Telegram channel."""
+    logger.info(f"Fetching updates from Telegram channel: {os.environ.get('TELEGRAM_CHANNEL_ID')}")
+    posts = await _fetch_telegram_updates(os.environ.get('TELEGRAM_BOT_TOKEN'), os.environ.get('TELEGRAM_CHANNEL_ID'))
+    logger.info(f"Total posts to process: {len(posts)}")
+    return posts
+
 def parse_telegram_post(post):
     """Parses a Telegram post (caption) to extract show info."""
     try:
@@ -112,8 +120,11 @@ def parse_telegram_post(post):
         logger.exception(f"Error during parsing: {e}")
         return None
 
+# --- Rate Limited TMDB Fetch ---
+@sleep_and_retry
+@limits(calls=CALLS, period=PERIOD)
 def fetch_tmdb_data(show_name, language='en-US'):
-    """Fetches TV show data from TMDb."""
+    """Fetches TV show data from TMDb, with rate limiting."""
     try:
         logger.info(f"Fetching TMDb data for: {show_name}")
         # Use Authorization header (Best Practice)
@@ -148,8 +159,11 @@ def fetch_tmdb_data(show_name, language='en-US'):
     except requests.exceptions.RequestException as e:
         logger.error(f"Error fetching data from TMDb: {e}")
         return None
+    except RateLimitException as e:  # Catch the specific RateLimitException
+        logger.warning(f"TMDb rate limit hit: {e}")
+        raise  # Re-raise to trigger Celery's retry mechanism
     except Exception as e:
-        logger.exception(f"An unexpected error occurred: {e}")
+        logger.exception(f"An unexpected error occurred fetching TMDb data: {e}")
         return None
 
 @celery.task(bind=True, retry_backoff=True)
@@ -157,17 +171,17 @@ def update_tv_shows(self):
     """Updates the database with new TV show info from Telegram."""
     try:
         redis_client = Redis.from_url(os.environ.get('REDIS_URL'), decode_responses=True)
-        lock = redis_client.lock("update_tv_shows_lock", timeout=120, blocking_timeout=5) # Increased timeout
+        lock = redis_client.lock("update_tv_shows_lock", timeout=60, blocking_timeout=5)
 
         if lock.acquire(blocking=False):
             logger.info("Lock acquired, starting update_tv_shows task.")
             try:
-                posts = fetch_telegram_posts() # Removed asyncio.run
+                posts = asyncio.run(fetch_telegram_posts())
                 if not posts:
                     logger.info("No new posts found.")
                     return
 
-                # ---  Import and use app context ---
+                # --- KEY CHANGE: Import and use app context ---
                 from tv_app.app import app  # Import app from the package
                 with app.app_context():
                     from tv_app.models import db, TVShow  # Import inside context
@@ -203,7 +217,7 @@ def update_tv_shows(self):
                                 db.session.add(new_show)
                                 db.session.commit()  # Commit after each addition
                                 logger.info(f"Successfully inserted: {parsed_data['show_name']}")
-                    db.session.remove() # Close the session.
+                    db.session.remove()
 
             finally:
                 lock.release()
@@ -211,11 +225,11 @@ def update_tv_shows(self):
         else:
             logger.info("Could not acquire lock, task is likely already running.")
 
-    except MaxRetriesExceededError:
+    except MaxRetriesExceededError:  # Correctly handle MaxRetriesExceededError
         logger.error("Max retries exceeded for update_tv_shows task.")
     except Exception as e:
         logger.exception(f"An unexpected error occurred in update_tv_shows: {e}")
-        self.retry(exc=e, countdown=60)
+        self.retry(exc=e, countdown=60)  # Retry after 60 seconds
 
 # Simple test task
 @celery.task
