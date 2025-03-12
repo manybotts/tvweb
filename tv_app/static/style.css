@@ -58,7 +58,7 @@ body {
     padding: 5px 8px;
     margin: 0 2px;
     border-radius: 5px;
-    transition: background-color 0.3s ease;
+    transition: background-color: 0.3s ease;
     font-size: 0.9em;
     white-space: nowrap;
 }
@@ -75,7 +75,7 @@ body {
     border-radius: 4px;
     margin-right: 5px;
     width: 80px;
-    transition: width 0.3s ease;
+    transition: width: 0.3s ease;
 }
 
 .search-form:hover input[type="text"],
@@ -90,7 +90,7 @@ body {
     border: 1px solid #007bff;
     border-radius: 4px;
     cursor: pointer;
-    transition: background-color 0.3s ease, color 0.3s ease;
+    transition: background-color: 0.3s ease, color: 0.3s ease;
     white-space: nowrap;
 }
 
@@ -347,7 +347,7 @@ ul li a {
     backdrop-filter: blur(15px) brightness(0.5);
     z-index: 1;
     /* Behind the main slide content, but above gradient */
-    transition: transform 0.5s ease, opacity 0.5s ease;
+    transition: transform 0.5s ease, opacity: 0.5s ease;
     opacity: 0;
     /* Initially hidden */
     /* Initial background images using CSS variables */
@@ -411,13 +411,13 @@ ul li a {
     /* Center horizontally and vertically */
 }
 
-/* Next & previous buttons (style and position)*/
+/* --- Arrow Button Positioning --- */
 .prev,
 .next {
     cursor: pointer;
     position: absolute;
     top: 50%;
-    transform: translateY(-50%);
+    transform: translateY(-50%); /* Center vertically */
     width: auto;
     padding: 16px;
     color: white;
@@ -426,18 +426,28 @@ ul li a {
     transition: 0.6s ease;
     border-radius: 0 3px 3px 0;
     user-select: none;
-    z-index: 3;
-    /* Ensure buttons are above background */
+    z-index: 3; /* Above background */
 }
 
 .next {
-    right: 0;
+    right: 0; /* Position on the right */
     border-radius: 3px 0 0 3px;
+}
+
+.prev {
+    left: 0; /* Position on the left */
 }
 
 .prev:hover,
 .next:hover {
     background-color: rgba(0, 0, 0, 0.8);
+}
+
+/* --- Dot Positioning --- */
+.dot-container {
+  text-align: center; /* Center the dots */
+  margin-top: 10px;    /* Space below the slideshow */
+  position: static;    /* Correctly position relative to flow */
 }
 
 /* Caption text */
@@ -465,16 +475,6 @@ ul li a {
     transition: background-color: 0.6s ease;
 }
 
-/* Place the dots container *below* the slideshow */
-.dot-container {
-    text-align: center;
-    margin-top: 20px;
-    /* Add some space */
-    position: relative;
-    /* Not affected by slideshow positioning */
-    z-index: 4;
-}
-
 /* active dot/circle */
 .active,
 .dot:hover {
@@ -495,4 +495,55 @@ ul li a {
     .card {
         width: calc(50% - 20px);
     }
+     /* Slideshow container - make it responsive */
+    .slideshow-inner {
+        height: auto; /* Let height adjust to content */
+        padding-top: 56.25%; /* 16:9 aspect ratio */
+    }
+    .mySlides img {
+        max-height: none; /* Allow images to scale */
+    }
+      /* Prev/Next Buttons - smaller on mobile */
+    .prev, .next {
+        padding: 10px;
+        font-size: 14px;
+    }
+    /* Caption - smaller font on mobile */
+    .text {
+        font-size: 12px;
+    }
+
+    /* Dots - smaller on mobile */
+    .dot {
+        height: 10px;
+        width: 10px;
+    }
 }
+/* smaller screen*/
+ @media (max-width: 480px) {
+  /* Slideshow container */
+     .slideshow-inner {
+        height: auto;
+        padding-top: 56.25%;
+
+    }
+     .mySlides img {
+       max-height: none;
+
+    }
+    /* Prev/Next Buttons - make them smaller on mobile */
+    .prev, .next {
+        padding: 10px; /* Smaller padding */
+        font-size: 14px; /* Smaller font size */
+    }
+    /*Caption*/
+    .text{
+      font-size: 12px;
+    }
+
+    /* Dots - make them smaller */
+  .dot{
+    height: 10px;
+    width: 10px;
+  }
+ }
