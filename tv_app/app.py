@@ -57,7 +57,7 @@ def index():
     """Homepage: displays TV shows with pagination and search, plus trending shows."""
     search_query = request.args.get('search', '')
     page = request.args.get('page', 1, type=int)
-    per_page = 9
+    per_page = 10
 
     logger.info("About to enqueue update_tv_shows task")
     update_tv_shows.delay()  # Enqueue the Celery task
