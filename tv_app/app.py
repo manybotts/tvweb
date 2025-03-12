@@ -3,13 +3,11 @@ import re
 from flask import Flask, render_template, redirect, url_for, request
 import logging
 from dotenv import load_dotenv
-# Corrected imports
-from .tasks import update_tv_shows  # Relative import!
-from .models import db, TVShow      # Relative import!
+from tasks import update_tv_shows  # Import Celery task
+from models import db, TVShow
 
 load_dotenv()
 
-# (rest of app.py is the SAME as before, except for the imports)
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -22,11 +20,6 @@ app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL')  # Use Ra
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False  # Suppress a warning
 
 db.init_app(app)  # Initialize db with the app
-
-# Create tables within the application context
-with app.app_context():
-    db.create_all()
-    logger.info("SQLAlchemy and PostgreSQL Database connected")
 
 # --- Database Operations ---
 
