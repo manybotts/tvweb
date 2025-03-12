@@ -1,13 +1,15 @@
 import os
-import re  # Import the regular expression module
+import re
 from flask import Flask, render_template, redirect, url_for, request
 import logging
 from dotenv import load_dotenv
-from tasks import update_tv_shows  # Import Celery task
-from models import db, TVShow
+# Corrected imports
+from .tasks import update_tv_shows  # Relative import!
+from .models import db, TVShow      # Relative import!
 
 load_dotenv()
 
+# (rest of app.py is the SAME as before, except for the imports)
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -65,6 +67,9 @@ def index():
 
     tv_shows, total_pages = get_all_tv_shows(page, per_page, search_query)
 
+    logger.info(f"Total pages: {total_pages}")
+    logger.info(f"TV Shows retrieved: {tv_shows}")
+
     return render_template('index.html', tv_shows=tv_shows, page=page, total_pages=total_pages, search_query=search_query)
 
 
@@ -91,4 +96,4 @@ def list_shows():
     return render_template('shows.html', show_names=show_names)
 
 if __name__ == "__main__":
-    app.run(debug=False, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+    app.run(debug=False, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))  # Turn off debug for production!
