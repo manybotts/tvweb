@@ -319,7 +319,6 @@ ul li a {
 }
 
 .slideshow-inner {
-    height: 500px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -400,9 +399,8 @@ ul li a {
 }
 
 .mySlides img {
-    max-width: 500px;
-    /* Limit maximum image width */
-    max-height: 400px;
+    max-width: 100%;  /* KEY CHANGE: Allow image to scale */
+    max-height: 400px; /*  Or remove max-height */
     object-fit: contain;
     /* Maintain aspect ratio */
     display: block;
@@ -482,68 +480,63 @@ ul li a {
 }
 
 /* --- Media Queries --- */
+/* Slideshow container - make it responsive */
 
-/* Mobile Styles (max-width: 768px) */
-@media (max-width: 768px) {
+@media (max-width: 768px){
+        .slideshow-inner {
+            height: auto; /* Let height adjust to content */
+            /* Remove padding-top, use max-height on image */
+        }
 
-    .search-form input[type="text"] {
-        width: 60px;
-        /* Very small initial width */
-    }
+        .mySlides img {
+          max-height: none;
+        }
+          /* Prev/Next Buttons - smaller on mobile */
+        .prev, .next {
+            padding: 10px;
+            font-size: 14px;
+        }
+         /* Caption - smaller font on mobile */
+        .text {
+            font-size: 12px;
+        }
 
-    /* Two cards per row*/
-    .card {
-        width: calc(50% - 20px);
-    }
-     /* Slideshow container - make it responsive */
-    .slideshow-inner {
-        height: auto; /* Let height adjust to content */
-        padding-top: 56.25%; /* 16:9 aspect ratio */
-    }
-    .mySlides img {
-        max-height: none; /* Allow images to scale */
-    }
-      /* Prev/Next Buttons - smaller on mobile */
-    .prev, .next {
-        padding: 10px;
-        font-size: 14px;
-    }
-    /* Caption - smaller font on mobile */
-    .text {
-        font-size: 12px;
-    }
+        /* Dots - smaller on mobile */
+        .dot {
+            height: 10px;
+            width: 10px;
+        }
+            .search-form input[type="text"] {
+            width: 60px; /* Very small initial width */
+        }
 
-    /* Dots - smaller on mobile */
-    .dot {
-        height: 10px;
-        width: 10px;
-    }
+        /* Two cards per row*/
+        .card {
+            width: calc(50% - 20px);  /* Two per row */
+        }
 }
-/* smaller screen*/
- @media (max-width: 480px) {
-  /* Slideshow container */
-     .slideshow-inner {
-        height: auto;
-        padding-top: 56.25%;
 
-    }
+@media (max-width: 480px) {
+    .slideshow-inner {
+            height: auto;
+        }
      .mySlides img {
        max-height: none;
 
     }
-    /* Prev/Next Buttons - make them smaller on mobile */
-    .prev, .next {
-        padding: 10px; /* Smaller padding */
-        font-size: 14px; /* Smaller font size */
+      .prev, .next {
+        padding: 8px;  /* Even smaller */
+        font-size: 12px;
     }
-    /*Caption*/
-    .text{
-      font-size: 12px;
+      .text {
+        font-size: 10px; /* Even smaller */
+    }
+     .dot {
+        height: 8px;
+        width: 8px;
+    }
+    .card {
+        width: 100%;  /* One per row */
     }
 
-    /* Dots - make them smaller */
-  .dot{
-    height: 10px;
-    width: 10px;
-  }
- }
+}
