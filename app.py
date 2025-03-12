@@ -1,12 +1,12 @@
 import os
 import re
 from flask import Flask, render_template, redirect, url_for, request, g
-# from pymongo import MongoClient, ASCENDING, DESCENDING  # REMOVE THIS LINE
+# from pymongo import MongoClient, ASCENDING, DESCENDING  # REMOVE
 import logging
 from dotenv import load_dotenv
-from tasks import update_tv_shows, test_task  # Import the Celery task
-# from datetime import datetime, timezone  # Moved to models.py
-from models import db, TVShow  # Import from models.py
+from tasks import update_tv_shows, test_task
+# from datetime import datetime, timezone  # Moved to models
+from models import db, TVShow
 
 load_dotenv()
 
@@ -15,19 +15,19 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(level
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your_secret_key')
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL')  # Use the DATABASE_URL
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your_secret_key')  # Good practice for secrets
+# Correct PostgreSQL connection string:
+app.config['SQLALCHEMY_DATABASE_URI'] = f"postgresql://{os.environ.get('DB_USER')}:{os.environ.get('DB_PASSWORD')}@{os.environ.get('DB_HOST')}:{os.environ.get('DB_PORT')}/{os.environ.get('DB_NAME')}"
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False  # Suppress a warning
+
 db.init_app(app)  # Initialize db with the app
-
-
-# --- Database Operations ---
-# Removed the old get_db and related functions.
 
 with app.app_context():
     db.create_all()
     logger.info("SQLAlchemy and PostgreSQL Database connected")
 
+
+# --- Database Operations ---
 
 def get_all_tv_shows(page=1, per_page=9, search_query=None):
     """Retrieves TV shows with pagination and search."""
@@ -61,13 +61,13 @@ def index():
     per_page = 9
 
     logger.info("About to enqueue update_tv_shows task")
-    update_tv_shows.delay()  # Correctly enqueue the task
+    update_tv_shows.delay()  # Enqueue the Celery task
     logger.info("update_tv_shows task enqueued")
 
     tv_shows, total_pages = get_all_tv_shows(page, per_page, search_query)
 
-    logger.info(f"Total pages: {total_pages}")  # Keep this for debugging
-    logger.info(f"TV Shows retrieved: {tv_shows}") # Keep this for debugging
+    logger.info(f"Total pages: {total_pages}")
+    logger.info(f"TV Shows retrieved: {tv_shows}")
 
     return render_template('index.html', tv_shows=tv_shows, page=page, total_pages=total_pages, search_query=search_query)
 
@@ -84,8 +84,8 @@ def show_details(message_id):
 def redirect_to_download(message_id):
     """Redirects to the download link for a TV show."""
     show = get_tv_show_by_message_id(message_id)
-    if show and show.get('download_link'):
-        return redirect(show['download_link'])
+    if show and show.download_link:
+        return redirect(show.download_link)
     return "Show or link not found", 404
 
 @app.route('/shows')
@@ -95,4 +95,4 @@ def list_shows():
     return render_template('shows.html', show_names=show_names)
 
 if __name__ == "__main__":
-    app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+    app.run(debug=False, host='0.0.0.0', port=int(os.environ.get('PORT', 5000))) # Turn off debug for production
