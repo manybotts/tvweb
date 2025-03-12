@@ -451,20 +451,20 @@ ul li a {
 
 /* Caption text - Enhanced Styling */
 .text {
-  color: #fff;       /* White text */
-  font-size: 1.2em;    /* Larger font size */
-  font-weight: bold;  /* Bold text */
+  color: #fff;
+  font-size: 1.2em;
+  font-weight: bold;
   padding: 8px 12px;
   position: absolute;
-  top: 50%;         /* Position in the vertical center */
-  left: 50%;        /* Position in the horizontal center */
-  transform: translate(-50%, -50%); /* Perfect centering */
-  width: auto;     /* Auto width based on content */
+  bottom: 20px;        /* Position near the bottom */
+  left: 50%;
+  transform: translateX(-50%); /* Center horizontally */
+  width: auto;
   text-align: center;
-  z-index: 3;       /* Above the background */
-  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7); /* Text shadow */
-  background-color: rgba(0, 0, 0, 0.3); /* Semi-transparent background */
-  border-radius: 5px; /* Rounded corners */
+  z-index: 3;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7);
+  background-color: rgba(0, 0, 0, 0.3);
+  border-radius: 5px;
 }
 
 /* Style the dots/bullets/indicators */
@@ -504,6 +504,7 @@ ul li a {
          /* Caption - smaller font on mobile */
         .text {
             font-size: 1em; /*Adjust as necessary*/
+            bottom: 10px; /* Adjust bottom position */
         }
 
         /* Dots - smaller on mobile */
@@ -535,6 +536,7 @@ ul li a {
     }
       .text {
         font-size: 0.9em; /* Adjust as needed */
+        bottom: 5px;   /* Adjust bottom position */
     }
      .dot {
         height: 8px;
@@ -549,4 +551,4 @@ ul li a {
 /* General Slideshow Height Adjustment */
 .slideshow-inner {
     height: 350px;  /* Default height for larger screens */
-            }
+}
