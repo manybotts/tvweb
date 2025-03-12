@@ -6,6 +6,7 @@ import logging
 from dotenv import load_dotenv
 # IMPORTANT: Import the *task* from tasks.py, not the whole module
 from tasks import update_tv_shows, test_task
+from datetime import datetime, timezone #For sorting
 
 load_dotenv()
 
@@ -52,7 +53,7 @@ def get_all_tv_shows(page=1, per_page=9, search_query=None):
         query['show_name'] = {'$regex': regex_query}
 
     total_shows = db.tv_shows.count_documents(query)
-    tv_shows_cursor = db.tv_shows.find(query).sort('message_id', DESCENDING).skip(offset).limit(per_page)
+    tv_shows_cursor = db.tv_shows.find(query).sort('created_at', DESCENDING).skip(offset).limit(per_page) # Sort the shows with created_at
     tv_shows = list(tv_shows_cursor)
     total_pages = (total_shows + per_page - 1) // per_page
 
@@ -80,12 +81,6 @@ def index():
     page = request.args.get('page', 1, type=int)
     per_page = 9
 
-    # TEMPORARY: Use the test_task for now
-    # logger.info("About to enqueue test_task")
-    # test_task.delay()  # Call the test task
-    # logger.info("test_task enqueued")
-
-    # Original task enqueueing (commented out for now)
     logger.info("About to enqueue update_tv_shows task")
     update_tv_shows.delay()
     logger.info("update_tv_shows task enqueued")
