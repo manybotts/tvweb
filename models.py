@@ -1,18 +1,17 @@
-# models.py
 from flask_sqlalchemy import SQLAlchemy
+from datetime import datetime, timezone
 
-db = SQLAlchemy()  # Create the db object *here*
+db = SQLAlchemy()  # Create the db object here
 
 class TVShow(db.Model):
+    __tablename__ = 'tv_shows'
+
     id = db.Column(db.Integer, primary_key=True)
-    show_name = db.Column(db.String(255), unique=True, nullable=False)
-    season_episode = db.Column(db.String(255))
-    download_link = db.Column(db.String(255))
-    message_id = db.Column(db.Integer, unique=True)
-    overview = db.Column(db.Text)
-    vote_average = db.Column(db.Float)
-    poster_path = db.Column(db.String(255))
-    created_at = db.Column(db.DateTime, server_default=db.func.now())
+    message_id = db.Column(db.Integer, unique=True, nullable=False)
+    show_name = db.Column(db.String, nullable=False)
+    episode_title = db.Column(db.String, nullable=False)
+    download_link = db.Column(db.String, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.now(timezone.utc))
 
     def __repr__(self):
-        return f'<TVShow {self.show_name}>'
+        return f'<TVShow {self.show_name} - {self.episode_title}>'
