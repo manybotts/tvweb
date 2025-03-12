@@ -57,18 +57,18 @@ def parse_telegram_post(post):
         logger.debug(f"Parsing post: {post.message_id}, Caption: {text!r}")  # Keep for debugging if needed
         lines = text.splitlines()
         show_name = None
-        season_episode = None  # Renamed variable
+        season_episode = None
         download_link = None
 
         if len(lines) >= 3:
             show_name = lines[0].strip()
             logger.info(f"Show Name: {show_name}")
             if lines[1].strip().startswith('#_'):
-                season_episode = None  # Corrected variable name
+                season_episode = None
                 link_line_index = 2
                 logger.info("Season/Episode: None (starts with #_)")
             else:
-                season_episode = lines[1].strip()  # Corrected variable name
+                season_episode = lines[1].strip()
                 link_line_index = 2
                 logger.info(f"Season/Episode: {season_episode}")
 
@@ -169,7 +169,7 @@ def update_tv_shows(self):
                             # --- Corrected Field Name ---
                             show_data = {
                                 'show_name': parsed_data['show_name'],
-                                'episode_title': parsed_data['season_episode'],  # Use 'episode_title'
+                                'season_episode': parsed_data['season_episode'],  # Use 'episode_title'
                                 'download_link': parsed_data['download_link'],
                                 'message_id': parsed_data['message_id'],
                                 'overview': tmdb_data.get('overview') if tmdb_data else None,
@@ -203,8 +203,7 @@ def update_tv_shows(self):
         logger.error("Max retries exceeded for update_tv_shows task.")
     except Exception as e:
         logger.exception(f"An unexpected error occurred in update_tv_shows: {e}")
-        self.retry(exc=e, countdown=60)
-
+        self.retry(exc=e, countdown=60)  # Retry after 60 seconds
 
 # Simple test task
 @celery.task
