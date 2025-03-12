@@ -1,12 +1,11 @@
 import os
 import re
-from flask import Flask, render_template, redirect, url_for, g, request
-from pymongo import MongoClient, ASCENDING, DESCENDING
+from flask import Flask, render_template, redirect, url_for, request
 import logging
 from dotenv import load_dotenv
-# IMPORTANT: Import the *task* from tasks.py, not the whole module
 from tasks import update_tv_shows, test_task
-from datetime import datetime, timezone #For sorting
+from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import desc
 
 load_dotenv()
 
@@ -16,87 +15,77 @@ logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your_secret_key')
-app.config['MONGO_URI'] = os.environ.get('MONGO_URI')
-app.config['DATABASE_NAME'] = os.environ.get('MONGO_DATABASE_NAME', 'tv_shows')
-# Removed Telegram and TMDB configs from here - now in tasks.py
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL')  # Use the DATABASE_URL
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False  # Suppress a warning
+db = SQLAlchemy(app)
 
-# --- Database Setup (MongoDB) ---
-def get_db():
-    db = getattr(g, '_database', None)
-    if db is None:
-        client = MongoClient(app.config['MONGO_URI'])
-        db = g._database = client[app.config['DATABASE_NAME']]
-        try:
-            db.command('ping')
-            logger.info("Successfully connected to MongoDB!")
-        except Exception as e:
-            logger.error(f"Error connecting to MongoDB: {e}")
-            raise
-    return db
 
-@app.teardown_appcontext
-def close_connection(exception):
-    db = getattr(g, '_database', None)
-    if db is not None:
-        db.client.close()
+# --- Database Model (SQLAlchemy) ---
+class TVShow(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    show_name = db.Column(db.String(255), unique=True, nullable=False)
+    season_episode = db.Column(db.String(255))
+    download_link = db.Column(db.String(255))
+    message_id = db.Column(db.Integer, unique=True) # Keep message_id, useful for linking
+    overview = db.Column(db.Text)
+    vote_average = db.Column(db.Float)
+    poster_path = db.Column(db.String(255))
+    created_at = db.Column(db.DateTime, server_default=db.func.now()) # Use server default
 
-# --- Database Operations (MongoDB) --- (Keep these for Flask)---
+    def __repr__(self):
+        return f'<TVShow {self.show_name}>'
+
+
+# --- Database Operations ---
+# Removed the old get_db and related functions.
+
+with app.app_context():
+    db.create_all()
+    logger.info("SQLAlchemy and PostgreSQL Database connected")
+
 
 def get_all_tv_shows(page=1, per_page=9, search_query=None):
     """Retrieves TV shows with pagination and search."""
-    db = get_db()
     offset = (page - 1) * per_page
-    query = {}
+    query = TVShow.query
 
     if search_query:
-        regex_query = re.compile(f".*{re.escape(search_query)}.*", re.IGNORECASE)
-        query['show_name'] = {'$regex': regex_query}
+        query = query.filter(TVShow.show_name.ilike(f"%{search_query}%"))  # Case-insensitive search
 
-    total_shows = db.tv_shows.count_documents(query)
-    tv_shows_cursor = db.tv_shows.find(query).sort('created_at', DESCENDING).skip(offset).limit(per_page) # Sort the shows with created_at
-    tv_shows = list(tv_shows_cursor)
+    total_shows = query.count()
+    tv_shows = query.order_by(desc(TVShow.created_at)).offset(offset).limit(per_page).all()
     total_pages = (total_shows + per_page - 1) // per_page
 
     return tv_shows, total_pages
 
 def get_tv_show_by_message_id(message_id):
     """Retrieves a single TV show by its message_id."""
-    db = get_db()
-    show = db.tv_shows.find_one({'message_id': message_id})
-    return show
+    return TVShow.query.filter_by(message_id=message_id).first()
 
 def get_all_show_names():
     """Retrieves a list of all unique show names."""
-    db = get_db()
-    show_names_cursor = db.tv_shows.distinct('show_name')
-    show_names = list(show_names_cursor)
-    return show_names
+    return [show.show_name for show in TVShow.query.distinct(TVShow.show_name).all()]
 
 # --- Routes ---
 
 @app.route('/')
 def index():
     """Homepage: displays TV shows with pagination and search."""
-    # search_query = request.args.get('search', '')  # Comment out
-    # page = request.args.get('page', 1, type=int)    # Comment out
-    # per_page = 9                                  # Comment out
+    search_query = request.args.get('search', '')
+    page = request.args.get('page', 1, type=int)
+    per_page = 9
 
     logger.info("About to enqueue update_tv_shows task")
-    update_tv_shows.delay()
+    update_tv_shows.delay()  # Correctly enqueue the task
     logger.info("update_tv_shows task enqueued")
 
-    # tv_shows, total_pages = get_all_tv_shows(page, per_page, search_query) # Comment Out
+    tv_shows, total_pages = get_all_tv_shows(page, per_page, search_query)
 
-    db = get_db()
-    tv_shows_cursor = db.tv_shows.find({}).sort('created_at', DESCENDING).limit(20) # Get top 20, sorted
-    tv_shows = list(tv_shows_cursor)
-    total_pages = 1 # Hardcoded
+    logger.info(f"Total pages: {total_pages}")  # Keep this for debugging
+    logger.info(f"TV Shows retrieved: {tv_shows}") # Keep this for debugging
 
-    # *** DEBUG LOGS ***
-    logger.info(f"Total pages: {total_pages}")
-    logger.info(f"TV Shows retrieved: {tv_shows}")
+    return render_template('index.html', tv_shows=tv_shows, page=page, total_pages=total_pages, search_query=search_query)
 
-    return render_template('index.html', tv_shows=tv_shows, page=1, total_pages=total_pages, search_query='') # Simplified
 
 @app.route('/show/<int:message_id>')
 def show_details(message_id):
