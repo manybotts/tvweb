@@ -13,9 +13,7 @@ from dotenv import load_dotenv
 from redis import Redis
 import asyncio
 from datetime import datetime, timezone
-from models import db, TVShow  # Import from models.py
-from app import app # Import for app context
-
+# Removed: from app import db, TVShow, app  # No more direct import at module level
 
 load_dotenv()
 
@@ -25,8 +23,6 @@ logger = logging.getLogger(__name__)
 
 # Celery configuration (using Redis as the broker and result backend)
 celery = Celery(__name__, broker=os.environ.get('REDIS_URL', 'redis://localhost:6379/0'), backend=os.environ.get('REDIS_URL', 'redis://localhost:6379/0'))
-# Use REDIS_URL environment variable - Railway provides this
-
 
 # --- Helper Functions ---
 
@@ -157,48 +153,57 @@ def update_tv_shows(self):
                 if not posts:
                     logger.info("No new posts found.")
                     return
-
+                # Dynamically import within the task and app context
+                from app import app
                 with app.app_context():
-                    # Create tables if they don't exist
-                    db.create_all()
+                    from models import db, TVShow
                     for post in posts:
-                        show_info = parse_telegram_post(post)
-                        if show_info:
-                            existing_show = TVShow.query.filter_by(message_id=show_info['message_id']).first()
-                            if not existing_show:
-                                tmdb_info = fetch_tmdb_data(show_info['show_name'])
-                                new_show = TVShow(
-                                    message_id=show_info['message_id'],
-                                    show_name=show_info['show_name'],
-                                    season_episode=show_info['season_episode'],
-                                    download_link=show_info['download_link'],
-                                    overview=tmdb_info.get('overview') if tmdb_info else None,
-                                    vote_average=tmdb_info.get('vote_average') if tmdb_info else None,
-                                    poster_path=tmdb_info.get('poster_path') if tmdb_info else None,
-                                    created_at=datetime.utcnow()
-                                )
+                        parsed_data = parse_telegram_post(post)
+                        if parsed_data:
+                            logger.info(f"Processing show: {parsed_data['show_name']}")
+                            tmdb_data = fetch_tmdb_data(parsed_data['show_name'])
+                            show_data = {
+                                'show_name': parsed_data['show_name'],
+                                'season_episode': parsed_data['season_episode'],
+                                'download_link': parsed_data['download_link'],
+                                'message_id': parsed_data['message_id'],
+                                'overview': tmdb_data.get('overview') if tmdb_data else None,
+                                'vote_average': tmdb_data.get('vote_average') if tmdb_data else None,
+                                'poster_path': tmdb_data.get('poster_path') if tmdb_data else None,
+                                #'created_at': datetime.now(timezone.utc)  # No longer needed here
+                            }
+
+                            # Use SQLAlchemy to interact with the database.
+                            existing_show = TVShow.query.filter_by(message_id=show_data['message_id']).first()
+
+                            if existing_show:
+                                # Update existing show
+                                for key, value in show_data.items():
+                                    setattr(existing_show, key, value)
+                                db.session.commit()
+                                logger.info(f"Successfully updated: {show_data['show_name']}")
+                            else:
+                                # Add the new show
+                                new_show = TVShow(**show_data)
                                 db.session.add(new_show)
                                 db.session.commit()
-                                logger.info(f"Added new show: {new_show.show_name}")
-                            else:
-                                logger.info(f"Show with message_id {show_info['message_id']} already exists.")
-                    db.session.remove()  # Use remove() instead of close()
-            except Exception as e:
-                logger.exception(f"Error updating database: {e}")
-                raise  # Re-raise to allow Celery to retry
+                                logger.info(f"Successfully inserted: {show_data['show_name']}")
+                    db.session.remove()
+
             finally:
                 lock.release()
                 logger.info("Lock released.")
         else:
-            logger.info("Could not acquire lock, update_tv_shows task already running.")
+            logger.warning("Failed to acquire lock, task already running.")
 
-    except MaxRetriesExceededError:
-        logger.error("Max retries exceeded for update_tv_shows task.")
     except Exception as e:
-        logger.exception(f"An unexpected error occurred in update_tv_shows: {e}")
-        self.retry(exc=e, countdown=60)  # Retry after 60 seconds
+        logger.exception(f"Error in update_tv_shows task: {e}")
+        try:
+            self.retry(exc=e, max_retries=5)  # Retry with backoff
+        except MaxRetriesExceededError:
+            logger.error("Max retries exceeded for update_tv_shows task.")
 
-print("THIS IS THE CORRECTED TASKS.PY WITH REDIS_URL")
-celery = Celery(__name__, broker=os.environ.get('REDIS_URL', 'redis://localhost:6379/0'), backend=os.environ.get('REDIS_URL', 'redis://localhost:6379/0'))
-print(f"DEBUG: Celery Broker URL: {celery.conf.broker_url}")
-print(f"DEBUG: Celery Backend URL: {celery.conf.result_backend}")
+@celery.task
+def test_task():
+  logger.info("The test Celery task has run!")
+  return "Test task complete"
