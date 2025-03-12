@@ -18,7 +18,7 @@ load_dotenv()
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)  # Corrected: Use __name__
 
 # Celery configuration (using Redis as the broker and result backend)
 celery = Celery(__name__, broker=os.environ.get('REDIS_URL', 'redis://localhost:6379/0'), backend=os.environ.get('REDIS_URL', 'redis://localhost:6379/0'))
@@ -155,7 +155,7 @@ def update_tv_shows(self):
                     logger.info("No new posts found.")
                     return
 
-                # --- KEY CHANGE: Import and use app context ---
+                # --- Corrected Imports (and ONLY import changes) ---
                 from tv_app.app import app  # Import app from the package
                 with app.app_context():
                     from tv_app.models import db, TVShow  # Import inside context
@@ -166,10 +166,10 @@ def update_tv_shows(self):
                             logger.info(f"Processing show: {parsed_data['show_name']}")
                             tmdb_data = fetch_tmdb_data(parsed_data['show_name'])
 
-                            # --- Corrected Field Name ---
+                            # --- Keep episode_title! ---
                             show_data = {
                                 'show_name': parsed_data['show_name'],
-                                'season_episode': parsed_data['season_episode'],  # Use 'episode_title'
+                                'episode_title': parsed_data['season_episode'],
                                 'download_link': parsed_data['download_link'],
                                 'message_id': parsed_data['message_id'],
                                 'overview': tmdb_data.get('overview') if tmdb_data else None,
@@ -187,11 +187,11 @@ def update_tv_shows(self):
                                 logger.info(f"Successfully updated: {parsed_data['show_name']}")
                             else:
                                 # Create new show
-                                new_show = TVShow(**show_data)  # Use ** to unpack the dictionary
+                                new_show = TVShow(**show_data)  # Use ** to unpack - Correct.
                                 db.session.add(new_show)
                                 db.session.commit()  # Commit after each addition
                                 logger.info(f"Successfully inserted: {parsed_data['show_name']}")
-                    db.session.remove()
+                    db.session.remove() #Added db.session.remove()
 
             finally:
                 lock.release()
