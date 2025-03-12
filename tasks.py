@@ -4,16 +4,14 @@ from celery.exceptions import MaxRetriesExceededError
 import os
 import re
 import requests
-from telegram import Bot
+from telegram import Bot  # Use the basic Bot class
 from telegram.error import TelegramError
-from telegram.ext import Application
 from urllib.parse import quote_plus
 from pymongo import MongoClient, ASCENDING, DESCENDING
 import logging
 from dotenv import load_dotenv
 from redis import Redis
-import asyncio  # Import asyncio
-
+# No asyncio needed here
 
 load_dotenv()
 
@@ -39,43 +37,29 @@ def get_db():
 
 # --- Helper Functions ---
 
-def fetch_telegram_posts():
-    """Fetches all unacknowledged posts from the configured Telegram channel."""
+def _fetch_telegram_updates(token, channel_id):
+    """Synchronously fetches updates.  PRIVATE helper."""
     try:
-        # Use Application for synchronous calls
-        application = Application.builder().token(os.environ.get('TELEGRAM_BOT_TOKEN')).build()
-        logger.info(f"Fetching updates from Telegram channel: {os.environ.get('TELEGRAM_CHANNEL_ID')}")
-
+        bot = Bot(token=token) # Use basic Bot, not Application
+        updates = bot.get_updates(allowed_updates=['channel_post'], timeout=60)
         posts = []
         update_offset = None
-
-        while True:
-            # No async/await.  Call get_updates directly.
-            updates = application.bot.get_updates(allowed_updates=['channel_post'], timeout=60, offset=update_offset)
-            logger.info(f"Received {len(updates)} updates from Telegram")
-
-            if not updates:
-                break
-
-            for update in updates:
-                if update.channel_post and update.channel_post.sender_chat and str(update.channel_post.sender_chat.id) == os.environ.get('TELEGRAM_CHANNEL_ID'):
-                    if update.channel_post.caption:
-                        posts.append(update.channel_post)
-                        logger.info(f"Added post to processing list: {update.channel_post.message_id}")
-
-                update_offset = update.update_id + 1
-        # Shutdown application *synchronously* using asyncio.run()
-        asyncio.run(application.shutdown()) #Corrected
-        logger.info(f"Total posts to process: {len(posts)}")
+        for update in updates:
+            if update.channel_post and update.channel_post.sender_chat and str(update.channel_post.sender_chat.id) == channel_id:
+                if update.channel_post.caption:
+                    posts.append(update.channel_post)
+            update_offset = update.update_id + 1
         return posts
-
     except TelegramError as e:
-        logger.error(f"Error fetching updates from Telegram: {e}")
-        return []
-    except Exception as e:
-        logger.exception(f"An unexpected error occurred in fetch_telegram_posts: {e}")
+        logger.error(f"Telegram error: {e}")
         return []
 
+def fetch_telegram_posts():
+    """Fetches all unacknowledged posts."""
+    logger.info(f"Fetching updates from Telegram channel: {os.environ.get('TELEGRAM_CHANNEL_ID')}")
+    posts = _fetch_telegram_updates(os.environ.get('TELEGRAM_BOT_TOKEN'), os.environ.get('TELEGRAM_CHANNEL_ID'))
+    logger.info(f"Total posts to process: {len(posts)}")
+    return posts
 def parse_telegram_post(post):
     """Parses a Telegram post (caption) to extract show info."""
     try:
@@ -174,7 +158,7 @@ def update_tv_shows(self):
         if lock.acquire(blocking=False):
             logger.info("Lock acquired, starting update_tv_shows task.")
             try:
-                posts = fetch_telegram_posts() # No async now
+                posts = fetch_telegram_posts()
                 if not posts:
                     logger.info("No new posts found.")
                     return
