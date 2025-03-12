@@ -1,11 +1,9 @@
 import os
 import re
-from flask import Flask, render_template, redirect, url_for, request, g
-# from pymongo import MongoClient, ASCENDING, DESCENDING  # REMOVE
+from flask import Flask, render_template, redirect, url_for, request
 import logging
 from dotenv import load_dotenv
-from tasks import update_tv_shows, test_task
-# from datetime import datetime, timezone  # Moved to models
+from tasks import update_tv_shows  # Import Celery task
 from models import db, TVShow
 
 load_dotenv()
@@ -15,17 +13,20 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(level
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your_secret_key')  # Good practice for secrets
-# Correct PostgreSQL connection string:
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your_secret_key')
+
+# --- CORRECT DATABASE CONFIGURATION ---
+# Construct the PostgreSQL connection string using individual environment variables.
+# These variables are automatically provided by Railway when you link the PostgreSQL service.
 app.config['SQLALCHEMY_DATABASE_URI'] = f"postgresql://{os.environ.get('DB_USER')}:{os.environ.get('DB_PASSWORD')}@{os.environ.get('DB_HOST')}:{os.environ.get('DB_PORT')}/{os.environ.get('DB_NAME')}"
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False  # Suppress a warning
 
 db.init_app(app)  # Initialize db with the app
 
+# Create tables within the application context
 with app.app_context():
     db.create_all()
     logger.info("SQLAlchemy and PostgreSQL Database connected")
-
 
 # --- Database Operations ---
 
@@ -66,11 +67,7 @@ def index():
 
     tv_shows, total_pages = get_all_tv_shows(page, per_page, search_query)
 
-    logger.info(f"Total pages: {total_pages}")
-    logger.info(f"TV Shows retrieved: {tv_shows}")
-
     return render_template('index.html', tv_shows=tv_shows, page=page, total_pages=total_pages, search_query=search_query)
-
 
 @app.route('/show/<int:message_id>')
 def show_details(message_id):
@@ -95,4 +92,4 @@ def list_shows():
     return render_template('shows.html', show_names=show_names)
 
 if __name__ == "__main__":
-    app.run(debug=False, host='0.0.0.0', port=int(os.environ.get('PORT', 5000))) # Turn off debug for production
+    app.run(debug=False, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))  # Turn off debug for production!
