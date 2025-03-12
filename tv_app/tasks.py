@@ -4,7 +4,6 @@ from celery.exceptions import MaxRetriesExceededError
 import os
 import re
 import requests
-from telegram import Bot
 from telegram.error import TelegramError
 from telegram.ext import Application
 from urllib.parse import quote_plus
@@ -16,6 +15,7 @@ from datetime import datetime, timezone
 from ratelimit import limits, sleep_and_retry, RateLimitException
 import difflib  # Import difflib
 import json
+from pyrogram import Client, filters, errors
 
 load_dotenv()
 
@@ -33,51 +33,50 @@ CALLS = 30   # Max calls per period
 PERIOD = 9  # Period in seconds
 
 # --- Batch Size ---
-TELEGRAM_BATCH_SIZE = 50  # Fetch updates in batches of 50
+#TELEGRAM_BATCH_SIZE = 50  # Fetch updates in batches of 50 # No longer needed with pyrogram
 DATABASE_BATCH_SIZE = 10 # Commit to the database in batches of 10
 
 # --- Redis Client ---
 redis_client = Redis.from_url(os.environ.get('REDIS_URL'), decode_responses=True) #For Caching
 
+# --- Pyrogram Client Setup ---
+# Use the *bot token* as the "api_id".  This is allowed by Pyrogram.
+# Use a unique session name.
+pyrogram_client = Client(
+    "tv_show_bot",  # A session name (can be anything)
+     api_id=int(os.environ.get("API_ID")), # Use bot token, do not subcribe to any channel
+    api_hash=os.environ.get("API_HASH"),  #  dummy value
+    bot_token=os.environ.get("TELEGRAM_BOT_TOKEN") #  bot token
+)
 
 # --- Helper Functions ---
-
-async def _fetch_telegram_updates(token, channel_id, limit=TELEGRAM_BATCH_SIZE):
-    """Asynchronously fetches updates using telegram.ext.Application, handling offsets."""
-    try:
-        appli = Application.builder().token(token).build()
-        posts = []
-        update_offset = None  # Initialize offset
-
-        while True:  # Loop to fetch all updates
-            updates = await appli.bot.get_updates(allowed_updates=['channel_post'], timeout=60, offset=update_offset)
-            logger.info(f"Received {len(updates)} updates from Telegram")
-
-            if not updates:  # No more updates
-                break
-
-            for update in updates:
-                if update.channel_post and update.channel_post.sender_chat and str(update.channel_post.sender_chat.id) == channel_id:
-                    if update.channel_post.caption:
-                        posts.append(update.channel_post)
-                        logger.info(f"Added post to processing list: {update.channel_post.message_id}")  # Log added posts
-
-                # Update offset for next batch
-                update_offset = update.update_id + 1  # Correct offset handling
-        await appli.shutdown()
-        return posts
-
-    except TelegramError as e:
-        logger.error(f"Telegram error: {e}")
-        return []
-    except Exception as e:
-        logger.exception(f"Telegram API error in _fetch_telegram_updates: {e}")
-        return []
-
 async def fetch_telegram_posts():
-    """Fetches all unacknowledged posts from the configured Telegram channel."""
+    """Fetches new posts from the configured Telegram channel using Pyrogram."""
     logger.info(f"Fetching updates from Telegram channel: {os.environ.get('TELEGRAM_CHANNEL_ID')}")
-    posts = await _fetch_telegram_updates(os.environ.get('TELEGRAM_BOT_TOKEN'), os.environ.get('TELEGRAM_CHANNEL_ID'))
+    posts = []
+    channel_id = os.environ.get('TELEGRAM_CHANNEL_ID')
+    if not channel_id:
+        logger.error("TELEGRAM_CHANNEL_ID environment variable not set.")
+        return posts
+    try:
+      channel_id = int(channel_id)
+    except ValueError:
+      logger.error("Channel id should be an integer")
+      return []
+
+    try:
+        async with pyrogram_client:  # Use "async with" for proper client lifecycle
+            async for message in pyrogram_client.get_chat_history(channel_id): #Use pyrogram to get messages
+                if message.caption:  # Check if the message has a caption
+                    posts.append(message)
+
+    except errors.FloodWait as e:
+        logger.warning(f"FloodWait error from Telegram: {e}. Waiting for {e.value} seconds.")
+        await asyncio.sleep(e.value)  # Wait for the specified time
+        # Optionally re-raise to trigger Celery retry:  raise
+    except Exception as e:
+        logger.exception(f"Error fetching messages with Pyrogram: {e}")
+
     logger.info(f"Total posts to process: {len(posts)}")
     return posts
 
@@ -85,7 +84,7 @@ def parse_telegram_post(post):
     """Parses a Telegram post caption to extract show info, handling variations."""
     try:
         text = post.caption
-        logger.debug(f"Parsing post: {post.message_id}, Caption: {text!r}")
+        logger.debug(f"Parsing post: {post.id}, Caption: {text!r}")  # Keep for debugging
         lines = text.splitlines()
         show_name = None
         season_episode = None
@@ -106,10 +105,10 @@ def parse_telegram_post(post):
             for i in range(link_line_index, len(lines)):
                 line_lower = lines[i].lower()
                 if "click here" in line_lower:
-                    logger.debug(f"Found potential link line: {lines[i]}")
+                    logger.debug(f"Found potential link line: {lines[i]}") # Keep for debugging
                     if post.caption_entities:
                         for entity in post.caption_entities:
-                            logger.debug(f"  Entity: type={entity.type}, offset={entity.offset}, length={entity.length}, url={entity.url}")  # Added URL logging
+                            logger.debug(f"  Entity: type={entity.type}, offset={entity.offset}, length={entity.length}, url={entity.url}")  #Keep for debugging
                             if entity.type == 'text_link' and (entity.offset >= sum(len(l) + 1 for l in lines[:i]) and entity.offset < sum(len(l) + 1 for l in lines[:i+1])):
                                 download_link = entity.url
                                 logger.info(f"Download Link Found: {download_link}")
@@ -117,17 +116,15 @@ def parse_telegram_post(post):
                         if download_link:
                             break
 
-        # --- Preprocess Show Name ---
         if show_name:
-            show_name = preprocess_show_name(show_name)  # Clean the show name
             return {
                 'show_name': show_name,
                 'season_episode': season_episode,
                 'download_link': download_link,
-                'message_id': post.message_id,
+                'message_id': post.id,  # Use post.id
             }
         else:
-            logger.warning(f"No show name found in post: {post.message_id}")
+            logger.warning(f"No show name found in post: {post.id}") #use post.id
             return None
 
     except Exception as e:
@@ -143,13 +140,11 @@ def preprocess_show_name(name):
     name = re.sub(r"\s*\d{4}$", "", name)       # YYYY at the end
     # Replace "&" with "and" and vice-versa
     name = name.replace("&", "and").replace("  ", " ")
-    # Remove any brackets
+     # Remove any brackets
     name = re.sub(r'[\(\[].*?[\)\]]', '', name)
-     # Remove common short forms (case-insensitive)
-    name = re.sub(r"(?i)\s*\b(hd|4k|2k|fhd|s\d+|e\d+)\b", "", name)
+    name = re.sub(r"(?i)\s*\b(hd|4k|2k|fhd|s\d+|e\d+)\b", "", name) #Removes any short form word.
+
     return name.strip()
-
-
 def get_close_matches_with_threshold(query, possibilities, n=3, cutoff=0.6):
     """
     Find close matches to a query string within a list of possibilities,
@@ -190,7 +185,7 @@ def fetch_tmdb_data(show_name, language='en-US'):
         if search_data['results']:
              # --- Fuzzy Matching ---
             tmdb_titles = [result['name'] for result in search_data['results']]
-            best_match = get_close_matches_with_threshold(show_name, tmdb_titles, n=1, cutoff=0.6)
+            best_match = get_close_matches_with_threshold(show_name, tmdb_titles, n=1, cutoff=0.6)  # Get best match
 
             if best_match:
                 best_match_index = tmdb_titles.index(best_match[0])
@@ -255,28 +250,28 @@ def fetch_tmdb_data(show_name, language='en-US'):
 
     except requests.exceptions.RequestException as e:
         logger.error(f"Error fetching data from TMDb: {e}")
-        return None
+        return None  # Don't retry on request exceptions (like 404)
     except RateLimitException as e:
         logger.warning(f"TMDb rate limit hit: {e}")
-        raise
+        raise  # Re-raise to trigger Celery's retry mechanism
     except Exception as e:
-        logger.exception(f"Unexpected error fetching TMDb data: {e}")
+        logger.exception(f"An unexpected error occurred fetching TMDb data: {e}")
         return None
-
 @celery.task(bind=True, retry_backoff=True)
 def update_tv_shows(self):
     """Updates the database with new TV show info from Telegram."""
     try:
         redis_client = Redis.from_url(os.environ.get('REDIS_URL'), decode_responses=True)
-        lock = redis_client.lock("update_tv_shows_lock", timeout=120, blocking_timeout=5) # Increased timeout
+        lock = redis_client.lock("update_tv_shows_lock", timeout=120, blocking_timeout=5)
 
         if lock.acquire(blocking=False):
             logger.info("Lock acquired, starting update_tv_shows task.")
             try:
-                posts = asyncio.run(fetch_telegram_posts())
+                posts = asyncio.run(fetch_telegram_posts())  # Use asyncio.run
                 if not posts:
                     logger.info("No new posts found.")
                     return
+
 
                 from tv_app.app import app
                 with app.app_context():
@@ -309,7 +304,7 @@ def update_tv_shows(self):
                                 db.session.add(new_show)
                                 db.session.commit()
                                 logger.info(f"Successfully inserted: {parsed_data['show_name']}")
-                    db.session.remove()
+                    db.session.remove() #Close the connection
 
             finally:
                 lock.release()
