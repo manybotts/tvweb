@@ -5,7 +5,7 @@ import os
 import re
 import requests
 from telegram import Bot
-from telegram.error import TelegramError
+from telegram.error import TelegramError, RetryAfter  # Import RetryAfter
 from telegram.ext import Application
 from urllib.parse import quote_plus
 import logging
@@ -13,7 +13,7 @@ from dotenv import load_dotenv
 from redis import Redis
 import asyncio
 from datetime import datetime, timezone
-from ratelimit import limits, sleep_and_retry  # Import ratelimit
+from ratelimit import limits, sleep_and_retry, RateLimitException
 
 load_dotenv()
 
@@ -25,25 +25,40 @@ logger = logging.getLogger(__name__)
 celery = Celery(__name__, broker=os.environ.get('REDIS_URL', 'redis://localhost:6379/0'), backend=os.environ.get('REDIS_URL', 'redis://localhost:6379/0'))
 
 # --- TMDB Rate Limiting ---
-CALLS = 30  # Max calls
-PERIOD = 9  # per 9 seconds
+CALLS = 30   # Max calls per period
+PERIOD = 9  # Period in seconds
 
 # --- Helper Functions ---
 
 async def _fetch_telegram_updates(token, channel_id):
-    """Asynchronously fetches updates using telegram.ext.Application."""
+    """Asynchronously fetches updates using telegram.ext.Application, handling offsets."""
     try:
         appli = Application.builder().token(token).build()
-        updates = await appli.bot.get_updates(allowed_updates=['channel_post'], timeout=60)
-        await appli.shutdown()  # Shutdown the application after use
         posts = []
-        for update in updates:
-            if update.channel_post and update.channel_post.sender_chat and str(update.channel_post.sender_chat.id) == channel_id:
-                if update.channel_post.caption:
-                    posts.append(update.channel_post)
+        update_offset = None  # Initialize offset
+
+        while True:  # Loop to fetch all updates
+            updates = await appli.bot.get_updates(allowed_updates=['channel_post'], timeout=60, offset=update_offset)
+            logger.info(f"Received {len(updates)} updates from Telegram")
+
+            if not updates:  # No more updates
+                break
+
+            for update in updates:
+                if update.channel_post and update.channel_post.sender_chat and str(update.channel_post.sender_chat.id) == channel_id:
+                    if update.channel_post.caption:
+                        posts.append(update.channel_post)
+                        logger.debug(f"Added post to processing list: {update.channel_post.message_id}")
+
+                # Update offset for next batch
+                update_offset = update.update_id + 1
+        await appli.shutdown() #Close application
         return posts
     except TelegramError as e:
         logger.error(f"Telegram error: {e}")
+        return []
+    except Exception as e:
+        logger.exception(f"Telegram API error in _fetch_telegram_updates: {e}")
         return []
 
 async def fetch_telegram_posts():
@@ -57,7 +72,7 @@ def parse_telegram_post(post):
     """Parses a Telegram post (caption) to extract show info."""
     try:
         text = post.caption
-        logger.debug(f"Parsing post: {post.message_id}, Caption: {text!r}")  # Keep for debugging
+        logger.debug(f"Parsing post: {post.message_id}, Caption: {text!r}")
         lines = text.splitlines()
         show_name = None
         season_episode = None
@@ -116,7 +131,7 @@ def fetch_tmdb_data(show_name, language='en-US'):
         }
         search_url = f"https://api.themoviedb.org/3/search/tv?query={quote_plus(show_name)}&language={language}"
         search_response = requests.get(search_url, headers=headers, timeout=10)
-        search_response.raise_for_status()
+        search_response.raise_for_status()  # Raise HTTPError for bad responses
         search_data = search_response.json()
 
         if search_data['results']:
@@ -137,11 +152,13 @@ def fetch_tmdb_data(show_name, language='en-US'):
 
     except requests.exceptions.RequestException as e:
         logger.error(f"Error fetching data from TMDb: {e}")
-        return None  # Don't retry on request exceptions (like 404)
+        return None
+    except RateLimitException as e:  # Catch the specific RateLimitException
+        logger.warning(f"TMDb rate limit hit: {e}")
+        raise  # Re-raise to trigger Celery's retry mechanism
     except Exception as e:
         logger.exception(f"An unexpected error occurred fetching TMDb data: {e}")
-        return None  # Don't retry on unexpected errors.
-
+        return None
 
 @celery.task(bind=True, retry_backoff=True)
 def update_tv_shows(self):
@@ -158,7 +175,7 @@ def update_tv_shows(self):
                     logger.info("No new posts found.")
                     return
 
-                # --- Corrected Imports (and ONLY import changes) ---
+                # --- KEY CHANGE: Import and use app context ---
                 from tv_app.app import app  # Import app from the package
                 with app.app_context():
                     from tv_app.models import db, TVShow  # Import inside context
@@ -169,7 +186,6 @@ def update_tv_shows(self):
                             logger.info(f"Processing show: {parsed_data['show_name']}")
                             tmdb_data = fetch_tmdb_data(parsed_data['show_name']) # Rate limited!
 
-                            # --- Keep episode_title! ---
                             show_data = {
                                 'show_name': parsed_data['show_name'],
                                 'episode_title': parsed_data['season_episode'],
@@ -180,19 +196,16 @@ def update_tv_shows(self):
                                 'poster_path': tmdb_data.get('poster_path') if tmdb_data else None,
                             }
 
-                            # Use SQLAlchemy to interact with the database.
                             existing_show = TVShow.query.filter_by(message_id=parsed_data['message_id']).first()
                             if existing_show:
-                                # Update existing show
                                 for key, value in show_data.items():
                                     setattr(existing_show, key, value)
-                                db.session.commit()  # Commit after each update
+                                db.session.commit()
                                 logger.info(f"Successfully updated: {parsed_data['show_name']}")
                             else:
-                                # Create new show
-                                new_show = TVShow(**show_data)  # Use ** to unpack the dictionary
+                                new_show = TVShow(**show_data)
                                 db.session.add(new_show)
-                                db.session.commit()  # Commit after each addition
+                                db.session.commit()
                                 logger.info(f"Successfully inserted: {parsed_data['show_name']}")
                     db.session.remove()
 
@@ -206,9 +219,8 @@ def update_tv_shows(self):
         logger.error("Max retries exceeded for update_tv_shows task.")
     except Exception as e:
         logger.exception(f"An unexpected error occurred in update_tv_shows: {e}")
-        self.retry(exc=e, countdown=60)  # Retry after 60 seconds
+        self.retry(exc=e, countdown=60)
 
-# Simple test task
 @celery.task
 def test_task():
   logger.info("The test Celery task has run!")
