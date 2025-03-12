@@ -315,6 +315,8 @@ ul li a {
     max-width: none;
     margin: auto;
     overflow: hidden;
+    border-radius: 10px; /* Rounded corners for the container */
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* Subtle shadow */
 }
 
 .slideshow-inner {
@@ -326,6 +328,8 @@ ul li a {
     background-image: linear-gradient(to right, rgba(0, 0, 0, 0.8) 20%, rgba(0, 0, 0, 0.2) 40%, rgba(0, 0, 0, 0.2) 60%, rgba(0, 0, 0, 0.8) 80%);
     background-size: cover;
     background-repeat: no-repeat;
+      border-radius: 10px; /* Apply to inner for consistent effect */
+
 
 }
 
@@ -345,6 +349,7 @@ ul li a {
     transition: transform 0.5s ease, opacity: 0.5s ease;
     opacity: 0;
     background-image: var(--prev-bg, none);
+      border-radius: 10px; /* Apply to pseudo-elements */
 
 }
 
@@ -352,10 +357,12 @@ ul li a {
     right: 0;
     transform: translateX(100%);
     background-image: var(--next-bg, none);
+      border-radius: 10px; /* Apply to pseudo-elements */
 }
 
 .slideshow-inner::before {
     transform: translateX(-100%);
+      border-radius: 10px; /* Apply to pseudo-elements */
 }
 
 .slideshow-inner.prev-active::before {
@@ -388,6 +395,7 @@ ul li a {
     margin: 0 auto;
     height: auto;
     max-height: 100%;
+    border-radius: 8px; /* Slightly smaller radius for images */
 
 }
 
@@ -467,8 +475,6 @@ ul li a {
         .slideshow-inner {
             height: 250px;
         }
-      .mySlides img{
-      }
 
         .prev, .next {
             padding: 10px;
@@ -500,8 +506,6 @@ ul li a {
             height: 200px;
         }
 
-     .mySlides img{
-      }
       .prev, .next {
         padding: 8px;
         font-size: 12px;
