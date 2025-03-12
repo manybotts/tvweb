@@ -30,7 +30,7 @@
         .logo-container {
             display: flex;
             align-items: center;
-            margin-right: auto; /* Push to the left */
+            margin-right: auto; /* Push to the left, creating space for centered title */
         }
 
         .logo {
@@ -43,7 +43,7 @@
 .nav-links {
             display: flex;
             align-items: center;
-            margin-left: 10px;
+            margin-left: 10px; /* Add some space between logo and links. */
         }
         .navbar a:hover {
             background-color: #0056b3;
@@ -53,16 +53,16 @@
             font-weight: bold;
             font-size: 1.2em;
             white-space: nowrap;
-            position: absolute;
-            left: 50%;
-            transform: translateX(-50%);
+            position: absolute; /* Absolute positioning */
+            left: 50%;        /* Start at 50% of the parent */
+            transform: translateX(-50%); /* Adjust for centering */
         }
 
         .navbar a {
             color: white;
             text-decoration: none;
             padding: 5px 8px;
-            margin: 0 2px;
+            margin: 0 2px;  /* Much smaller margin - adjust as needed */
             border-radius: 5px;
             transition: background-color 0.3s ease;
             font-size: 0.9em;
@@ -71,7 +71,7 @@
 
         .search-form {
             margin-left: auto; /* Push search form to the right */
-            display: flex;
+            display: flex; /* Needed for alignment within flex container */
             align-items: center;
         }
 
@@ -115,19 +115,19 @@
             text-align: center;
             margin-bottom: 30px;
             color: #007bff;
-          font-family: sans-serif;
-          font-size: 1.5em;
-          display: flex;
-          align-items: center;
-          justify-content: center;
+          font-family: sans-serif; /* More professional font */
+          font-size: 1.5em;       /* Smaller font size */
+          display: flex;          /* Use flexbox for centering with the dot */
+          align-items: center;    /* Vertically center */
+          justify-content: center; /* Horizontally center */
         }
 
         .blinking-dot {
           width: 10px;
           height: 10px;
           background-color: green;
-          border-radius: 50%;
-          margin-right: 8px;
+          border-radius: 50%; /* Make it round */
+          margin-right: 8px; /* Space between dot and text */
           animation: blink 1s steps(5, start) infinite;
         }
 
@@ -229,7 +229,7 @@
     .pagination {
         text-align: center;
         margin-top: 20px;
-         clear: both;
+         clear: both; /* Add clear: both; */
     }
 
     .pagination a {
@@ -291,70 +291,76 @@
       text-decoration: none;
       color: #007bff;
   }
- /* --- Slideshow CSS --- */
-
- .slideshow-container {
-    position: relative;
-    width: 100%;
-    max-width: none;
-    margin: auto;
-    overflow: hidden;
-}
+     /* Slideshow container */
+    .slideshow-container {
+        position: relative;
+        width: 100%;
+        max-width: none;  /* Remove any previous max-width */
+        margin: auto;
+        overflow: hidden; /* Hide overflowing content */
+    }
 
 .slideshow-inner {
-    height: 500px; /* Set a fixed height */
+    height: 500px; /* Set a fixed height - adjust as needed */
     display: flex;
-    align-items: center;
-    justify-content: center;
-    position: relative;
-    overflow: hidden;
+    align-items: center;  /* Vertically center the slide content */
+    justify-content: center; /* Horizontally center the slide content*/
+    position: relative; /* For absolute positioning of children AND pseudo-elements */
+    overflow: hidden; /* Hide any overflow from blurred images */
     /*  gradient, applied to the main container */
     background-image: linear-gradient(to right, rgba(0,0,0,0.8) 20%, rgba(0,0,0,0.2) 40%, rgba(0,0,0,0.2) 60%, rgba(0,0,0,0.8) 80%);
+    background-size: cover; /* Ensure gradient covers the whole area */
+    background-repeat: no-repeat;
+
 }
 
 /* Previous and next slide backgrounds (blurred) */
-.slideshow-inner::before,
-.slideshow-inner::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 50%;  /* Each pseudo-element takes up half the width */
-    height: 100%;
-    background-size: cover;
-    background-position: center;
-    background-repeat: no-repeat;
-    backdrop-filter: blur(15px) brightness(0.5); /* Blur and darken */
-    z-index: 1;        /* Behind the main slide content, but above the gradient */
-    transition: transform 0.5s ease, opacity 0.5s ease; /* Smooth transitions */
-    opacity: 0;       /* Initially hidden */
-}
+    .slideshow-inner::before,
+    .slideshow-inner::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 50%;  /* Each pseudo-element takes up half the width */
+        height: 100%;
+        background-size: cover; /* Cover the entire area, cropping if needed */
+        background-position: center;
+        background-repeat: no-repeat;
+        backdrop-filter: blur(15px) brightness(0.5); /* Blur and darken */
+        z-index: 1;        /* Behind the main slide content, but above the gradient */
+        transition: transform 0.5s ease, opacity 0.5s ease; /* Smooth transitions */
+        opacity: 0;       /* Initially hidden */
+         /* Initial background images using CSS variables */
+        background-image: var(--prev-bg, none);
 
-/* Previous slide is initially off-screen to the LEFT */
-.slideshow-inner::before {
-    transform: translateX(-100%);
-}
+    }
 
-/* Next slide is initially off-screen to the RIGHT */
-.slideshow-inner::after {
-    right: 0;  /* Position 'after' on the right */
-    transform: translateX(100%);
-}
-/* Active states for prev/next backgrounds */
+    /* Previous slide is initially off-screen to the LEFT */
+    .slideshow-inner::before {
+        transform: translateX(-100%);
+    }
+
+    /* Next slide is initially off-screen to the RIGHT */
+    .slideshow-inner::after {
+        right: 0;  /* Position 'after' on the right */
+        transform: translateX(100%);
+        background-image: var(--next-bg, none); /* Use the CSS variable, default to none */
+    }
+    /* Active states for prev/next backgrounds */
 .slideshow-inner.prev-active::before {
     transform: translateX(0); /* Bring into view from the left */
     opacity: 1;
 }
 
 .slideshow-inner.next-active::after {
-    transform: translateX(0); /* Bring into view from the right */
+    transform: translateX(0); /* Bring into view from the right*/
     opacity: 1;
 }
 
 .mySlides {
-    position: relative;
-    display: none;    /* Hidden by default */
-    z-index: 2;    /* Above the blurred backgrounds */
+    position: relative; /* For positioning the text */
+    display: none;  /* Hidden by default */
+    z-index: 2; /* Above the background images */
     max-width: 100%; /* Allow shrinking */
 }
 
@@ -372,9 +378,9 @@
 /* Next & previous buttons (style and position)*/
 .prev, .next {
   cursor: pointer;
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
+  position: absolute;  /* Absolute positioning */
+  top: 50%;          /* Vertically center */
+  transform: translateY(-50%); /*  for perfect centering */
   width: auto;
   padding: 16px;
   color: white;
@@ -383,63 +389,64 @@
   transition: 0.6s ease;
   border-radius: 0 3px 3px 0;
   user-select: none;
-  z-index: 3;
+  z-index: 3;       /* Ensure buttons are above background */
 }
 
 .next {
-    right: 0;
+    right: 0; /* Position on the right side */
     border-radius: 3px 0 0 3px;
 }
 
+/* On hover, add a black background color with a little bit see-through */
 .prev:hover, .next:hover {
     background-color: rgba(0,0,0,0.8);
 }
 
-/* Caption text */
+/* Caption text - higher z-index */
 .text {
-  color: #f2f2f2;
-  font-size: 15px;
-  padding: 8px 12px;
-  position: absolute;
-  bottom: 8px;
-  width: 100%;
-  text-align: center;
-  z-index: 3; /* Above the background */
+    color: #f2f2f2;
+    font-size: 15px;
+    padding: 8px 12px;
+    position: absolute;
+    bottom: 8px;
+    width: 100%;
+    text-align: center;
+     z-index: 3; /* Above the background */
 }
-
-/* Style the dots/bullets/indicators */
+    /* Style the dots/bullets/indicators */
 .dot {
-cursor: pointer;
-height: 15px;
-width: 15px;
-margin: 0 2px;
-background-color: #bbb;
-border-radius: 50%;
-display: inline-block;
-transition: background-color 0.6s ease;
+  cursor: pointer;
+  height: 15px;
+  width: 15px;
+  margin: 0 2px;
+  background-color: #bbb;
+  border-radius: 50%;
+  display: inline-block;
+  transition: background-color: 0.6s ease;
 }
 
 /* Place the dots container *below* the slideshow */
 .dot-container {
-  text-align: center;
-  margin-top: 20px; /* Add some space */
-  position: relative;  /* Not affected by slideshow positioning */
+    text-align: center;
+    margin-top: 20px; /* Add some space */
+     position: relative;  /* Not affected by slideshow positioning */
     z-index:4;
 }
 
 /* active dot/circle */
 .active, .dot:hover {
-background-color: #717171;
+ background-color: #717171;
 }
+
 /* --- Media Queries --- */
 
-    /* Mobile Styles (max-width: 768px) */
+  /* Mobile Styles (max-width: 768px) */
     @media (max-width: 768px) {
 
         .search-form input[type="text"] {
-            width: 60px;
+            width: 60px; /* Very small initial width */
         }
-            /* Two cards per row*/
+          /* Two cards per row*/
         .card {
             width: calc(50% - 20px);
         }
@@ -453,21 +460,4 @@ background-color: #717171;
             <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" class="logo">
           </a>
             <div class="nav-links">
-                <a href="{{ url_for('index') }}">Home</a>
-                <a href="{{ url_for('list_shows') }}">Shows</a>
-            </div>
-        </div>
-        <div class="navbar-center">
-            𝕚𝔹𝕆𝕏 𝕋𝕍
-        </div>
-        <form action="{{ url_for('index') }}" method="GET" class="search-form">
-            <input type="text" name="search" placeholder="Search for shows..." value="{{ search_query if search_query else '' }}">
-            <button type="submit"><i class="fas fa-search"></i></button>
-        </form>
-    </div>
-
-    <div class="container">
-        {% block content %}{% endblock %}
-    </div>
-</body>
-</html>
+                <a href="{{ url
