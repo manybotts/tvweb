@@ -7,25 +7,25 @@
 
     <h2>Trending Shows</h2>
     <div class="slideshow-container">
-        <div class="slideshow-inner" id="slideshowInner">
-        {% for show in trending_shows %}
-            <div class="mySlides {% if loop.index0 == 0 %}active-slide{% endif %}" data-index="{{ loop.index0 }}">
-                <a href="{{ url_for('show_details', message_id=show.message_id) }}">
-                    {% if show.poster_path %}
-                        <img src="{{ show.poster_path }}" alt="{{ show.show_name }}" >
-                    {% else %}
-                        <div class="telegram-loader">
-                            <div class="plane"></div>
-                            <div class="circle"></div>
-                        </div>
-                    {% endif %}
-                </a>
-                <div class="text">{{ show.show_name }} - {{ show.episode_title }}</div>
-            </div>
-        {% endfor %}
+        <div class="slideshow-inner" id="slideshowInner"> {# Add an ID #}
+            {% for show in trending_shows %}
+                <div class="mySlides {% if loop.index0 == 0 %}active-slide{% endif %}" data-index="{{ loop.index0 }}">
+                    <a href="{{ url_for('show_details', message_id=show.message_id) }}">
+                        {% if show.poster_path %}
+                            <img src="{{ show.poster_path }}" alt="{{ show.show_name }}" >
+                        {% else %}
+                            <div class="telegram-loader">
+                                <div class="plane"></div>
+                                <div class="circle"></div>
+                            </div>
+                        {% endif %}
+                    </a>
+                    <div class="text">{{ show.show_name }} - {{ show.episode_title }}</div>
+                </div>
+            {% endfor %}
 
-        <a class="prev" onclick="plusSlides(-1)">&#10094;</a>
-        <a class="next" onclick="plusSlides(1)">&#10095;</a>
+            <a class="prev" onclick="plusSlides(-1)">&#10094;</a>
+            <a class="next" onclick="plusSlides(1)">&#10095;</a>
         </div>
     </div>
 
@@ -118,6 +118,8 @@
    function showSlides(n) {
         const slides = document.getElementsByClassName("mySlides");
         const dots = document.getElementsByClassName("dot");
+        const slideshowInner = document.querySelector('.slideshow-inner');
+
         // Hide all slides and remove active class from all dots
         for (let i = 0; i < slides.length; i++) {
             slides[i].style.display = "none";
@@ -133,31 +135,36 @@
           dots[n].className += " active";
         }
 
+        // Remove previous classes
+        slideshowInner.classList.remove('prev-active', 'next-active');
+
         // Set background images.
         setSlideBackgrounds();
     }
 
     function setSlideBackgrounds() {
-      const slides = document.getElementsByClassName("mySlides");
-      const slideshowInner = document.querySelector('.slideshow-inner');
+        const slides = document.getElementsByClassName("mySlides");
+        const slideshowInner = document.querySelector('.slideshow-inner');
 
-      if (slides.length > 0) {
+        if (slides.length === 0) return; // No slides, do nothing
+
         const prevIndex = (slideIndex - 1 + slides.length) % slides.length;
         const nextIndex = (slideIndex + 1) % slides.length;
-        // Get image URLs using the data attributes, with null checks
+
         const currentImg = slides[slideIndex].querySelector('img')?.src || '';
         const prevImg = slides[prevIndex].querySelector('img')?.src || '';
         const nextImg = slides[nextIndex].querySelector('img')?.src || '';
 
-        slideshowInner.style.backgroundImage = `
-                linear-gradient(to right, rgba(0,0,0,0.8) 20%, rgba(0,0,0,0.2) 40%, rgba(0,0,0,0.2) 60%, rgba(0,0,0,0.8) 80%),
-                url('${prevImg}'),
-                url('${nextImg}'),
-                url('${currentImg}')
-            `;
-      }
+      // Set background images for ::before and ::after pseudo-elements
+        if (prevImg) {
+            slideshowInner.style.setProperty('--prev-bg', `url('${prevImg}')`);
+             slideshowInner.classList.add('prev-active');
+        }
+        if (nextImg) {
+            slideshowInner.style.setProperty('--next-bg', `url('${nextImg}')`);
+            slideshowInner.classList.add('next-active');
+        }
     }
-
 
     // Automatic slideshow (Optional)
     let slideInterval = setInterval(() => { plusSlides(1) }, 5000);  // Change image every 5 seconds
