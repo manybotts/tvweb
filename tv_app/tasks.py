@@ -13,50 +13,46 @@ from dotenv import load_dotenv
 from redis import Redis
 import asyncio
 from datetime import datetime, timezone
-from ratelimit import limits, sleep_and_retry, RateLimitException #Import rate limiting
+from ratelimit import limits, sleep_and_retry, RateLimitException
 
 load_dotenv()
 
-# Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+# Configure logging.  Increase the logging level to DEBUG
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s') # Use DEBUG level
 logger = logging.getLogger(__name__)
 
 # Celery configuration (using Redis as the broker and result backend)
 celery = Celery(__name__, broker=os.environ.get('REDIS_URL', 'redis://localhost:6379/0'), backend=os.environ.get('REDIS_URL', 'redis://localhost:6379/0'))
-# Use REDIS_URL environment variable - Railway provides this
-
 
 # --- TMDB Rate Limiting ---
-CALLS = 30   # Max calls per period
-PERIOD = 9  # Period in seconds
+CALLS = 30   # Max calls
+PERIOD = 9  # Period in seconds, adjust as needed
 
 # --- Helper Functions ---
 
 async def _fetch_telegram_updates(token, channel_id):
-    """Asynchronously fetches updates using telegram.ext.Application, handling offsets correctly."""
+    """Asynchronously fetches updates using telegram.ext.Application, handling offsets."""
     try:
         appli = Application.builder().token(token).build()
         posts = []
-        update_offset = None  # Initialize offset
+        update_offset = None
 
-        while True:  # Loop to fetch all updates
+        while True:  # Loop to fetch all updates.
             updates = await appli.bot.get_updates(allowed_updates=['channel_post'], timeout=60, offset=update_offset)
             logger.info(f"Received {len(updates)} updates from Telegram")
 
-            if not updates:  # No more updates
+            if not updates:
                 break
 
             for update in updates:
                 if update.channel_post and update.channel_post.sender_chat and str(update.channel_post.sender_chat.id) == channel_id:
                     if update.channel_post.caption:
                         posts.append(update.channel_post)
-                        logger.info(f"Added post to processing list: {update.channel_post.message_id}")  # Log added posts
+                        logger.info(f"Added post to processing list: {update.channel_post.message_id}")
 
-                # Update offset for next batch
-                update_offset = update.update_id + 1  # Correct offset handling
-        await appli.shutdown()
+                update_offset = update.update_id + 1 # Correct offset handling
+        await appli.shutdown() # Close application
         return posts
-
     except TelegramError as e:
         logger.error(f"Telegram error: {e}")
         return []
@@ -75,7 +71,7 @@ def parse_telegram_post(post):
     """Parses a Telegram post (caption) to extract show info."""
     try:
         text = post.caption
-        logger.debug(f"Parsing post: {post.message_id}, Caption: {text!r}")  # Keep for debugging if needed
+        logger.debug(f"Parsing post: {post.message_id}, Caption: {text!r}")
         lines = text.splitlines()
         show_name = None
         season_episode = None
@@ -83,23 +79,23 @@ def parse_telegram_post(post):
 
         if len(lines) >= 3:
             show_name = lines[0].strip()
-            logger.info(f"Show Name: {show_name}")
+            logger.debug(f"Show Name: {show_name}")  # Use DEBUG level
             if lines[1].strip().startswith('#_'):
                 season_episode = None
                 link_line_index = 2
-                logger.info("Season/Episode: None (starts with #_)")
+                logger.debug("Season/Episode: None (starts with #_)")  # Use DEBUG level
             else:
                 season_episode = lines[1].strip()
                 link_line_index = 2
-                logger.info(f"Season/Episode: {season_episode}")
+                logger.debug(f"Season/Episode: {season_episode}")  # Use DEBUG level
 
             for i in range(link_line_index, len(lines)):
                 line_lower = lines[i].lower()
                 if "click here" in line_lower:
-                    logger.debug(f"Found potential link line: {lines[i]}") # Keep for debugging
+                    logger.debug(f"Found potential link line: {lines[i]}")
                     if post.caption_entities:
                         for entity in post.caption_entities:
-                            logger.debug(f"  Entity: type={entity.type}, offset={entity.offset}, length={entity.length}, url={entity.url}")  #Keep for debugging
+                            logger.debug(f"  Entity: type={entity.type}, offset={entity.offset}, length={entity.length}, url={entity.url}")
                             if entity.type == 'text_link' and (entity.offset >= sum(len(l) + 1 for l in lines[:i]) and entity.offset < sum(len(l) + 1 for l in lines[:i+1])):
                                 download_link = entity.url
                                 logger.info(f"Download Link Found: {download_link}")
@@ -110,7 +106,7 @@ def parse_telegram_post(post):
         if show_name:
             return {
                 'show_name': show_name,
-                'season_episode': season_episode,  # Use the renamed variable
+                'season_episode': season_episode,
                 'download_link': download_link,
                 'message_id': post.message_id,
             }
@@ -130,23 +126,20 @@ def fetch_tmdb_data(show_name, language='en-US'):
         logger.info(f"Fetching TMDb data for: {show_name}")
         # Use Authorization header (Best Practice)
         headers = {
-            "Authorization": f"Bearer {os.environ.get('TMDB_BEARER_TOKEN')}",  # Use Bearer token
+            "Authorization": f"Bearer {os.environ.get('TMDB_BEARER_TOKEN')}",
             "Content-Type": "application/json"
         }
         search_url = f"https://api.themoviedb.org/3/search/tv?query={quote_plus(show_name)}&language={language}"
-
-        # Set a reasonable timeout (e.g., 10 seconds)
-        search_response = requests.get(search_url, headers=headers, timeout=10)  # Add timeout here
-        search_response.raise_for_status()  # This is good!  Keep it.
+        search_response = requests.get(search_url, headers=headers, timeout=10)
+        search_response.raise_for_status()
         search_data = search_response.json()
 
         if search_data['results']:
             show_id = search_data['results'][0]['id']
             details_url = f"https://api.themoviedb.org/3/tv/{show_id}?language={language}"
-            details_response = requests.get(details_url, headers=headers, timeout=10)  # Add timeout here
-            details_response.raise_for_status() # Keep this!
+            details_response = requests.get(details_url, headers=headers, timeout=10)
+            details_response.raise_for_status()
             details_data = details_response.json()
-
             logger.info(f"TMDb data found for: {show_name}")
             return {
                 'poster_path': f"https://image.tmdb.org/t/p/w500{details_data.get('poster_path')}" if details_data.get('poster_path') else None,
@@ -159,8 +152,8 @@ def fetch_tmdb_data(show_name, language='en-US'):
 
     except requests.exceptions.RequestException as e:
         logger.error(f"Error fetching data from TMDb: {e}")
-        return None
-    except RateLimitException as e:  # Catch the specific RateLimitException
+        return None  # Don't retry on request exceptions
+    except RateLimitException as e:
         logger.warning(f"TMDb rate limit hit: {e}")
         raise  # Re-raise to trigger Celery's retry mechanism
     except Exception as e:
@@ -182,21 +175,24 @@ def update_tv_shows(self):
                     logger.info("No new posts found.")
                     return
 
-                # --- KEY CHANGE: Import and use app context ---
-                from tv_app.app import app  # Import app from the package
+                from tv_app.app import app
                 with app.app_context():
-                    from tv_app.models import db, TVShow  # Import inside context
+                    from tv_app.models import db, TVShow
 
                     for post in posts:
                         parsed_data = parse_telegram_post(post)
+                        # --- CRITICAL DEBUG LOG ---
+                        logger.info(f"Parsed Data: {parsed_data}")
+
                         if parsed_data:
                             logger.info(f"Processing show: {parsed_data['show_name']}")
-                            tmdb_data = fetch_tmdb_data(parsed_data['show_name']) # Rate limited!
+                            tmdb_data = fetch_tmdb_data(parsed_data['show_name'])
+                            # --- CRITICAL DEBUG LOG ---
+                            logger.info(f"TMDb Data: {tmdb_data}")
 
-                            # --- Keep episode_title! ---
                             show_data = {
                                 'show_name': parsed_data['show_name'],
-                                'episode_title': parsed_data['season_episode'],  # Use 'episode_title'
+                                'episode_title': parsed_data['season_episode'],
                                 'download_link': parsed_data['download_link'],
                                 'message_id': parsed_data['message_id'],
                                 'overview': tmdb_data.get('overview') if tmdb_data else None,
@@ -204,21 +200,18 @@ def update_tv_shows(self):
                                 'poster_path': tmdb_data.get('poster_path') if tmdb_data else None,
                             }
 
-                            # Use SQLAlchemy to interact with the database.
                             existing_show = TVShow.query.filter_by(message_id=parsed_data['message_id']).first()
                             if existing_show:
-                                # Update existing show
                                 for key, value in show_data.items():
                                     setattr(existing_show, key, value)
-                                db.session.commit()  # Commit after each update
+                                db.session.commit()
                                 logger.info(f"Successfully updated: {parsed_data['show_name']}")
                             else:
-                                # Create new show
-                                new_show = TVShow(**show_data)  # Use ** to unpack the dictionary
+                                new_show = TVShow(**show_data)
                                 db.session.add(new_show)
-                                db.session.commit()  # Commit after each addition
+                                db.session.commit()
                                 logger.info(f"Successfully inserted: {parsed_data['show_name']}")
-                    db.session.remove()
+                    db.session.remove() #Close db connection
 
             finally:
                 lock.release()
@@ -226,8 +219,8 @@ def update_tv_shows(self):
         else:
             logger.info("Could not acquire lock, task is likely already running.")
 
-    except MaxRetriesExceededError:  # Correctly handle MaxRetriesExceededError
+    except MaxRetriesExceededError:
         logger.error("Max retries exceeded for update_tv_shows task.")
     except Exception as e:
         logger.exception(f"An unexpected error occurred in update_tv_shows: {e}")
-        self.retry(exc=e, countdown=60)  # Retry after 60 seconds
+        self.retry(exc=e, countdown=60)
