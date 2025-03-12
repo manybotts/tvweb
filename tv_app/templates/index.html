@@ -1,178 +1,405 @@
-{% extends "base.html" %}
-
-{% block title %}TV Show Updates{% endblock %}
-
-{% block content %}
-    <h1><span class="blinking-dot"></span>New TV Show Updates</h1>
-
-    <h2>Trending Shows</h2>
-    <div class="slideshow-container">
-        <div class="slideshow-inner" id="slideshowInner"> {# Added an ID for easier access #}
-        {% for show in trending_shows %}
-            <div class="mySlides {% if loop.index0 == 0 %}active-slide{% endif %}" data-index="{{ loop.index0 }}">
-                <a href="{{ url_for('show_details', message_id=show.message_id) }}">
-                    {% if show.poster_path %}
-                         <div class="background-image" style="background-image: url('{{ show.poster_path }}');"></div>
-                        <img src="{{ show.poster_path }}" alt="{{ show.show_name }}" >
-                    {% else %}
-                        <div class="telegram-loader">
-                            <div class="plane"></div>
-                            <div class="circle"></div>
-                        </div>
-                    {% endif %}
-                </a>
-                <div class="text">{{ show.show_name }} - {{ show.episode_title }}</div>
-            </div>
-        {% endfor %}
-
-        <a class="prev" onclick="plusSlides(-1)">&#10094;</a>
-        <a class="next" onclick="plusSlides(1)">&#10095;</a>
-     </div>
-    </div>
-
-    <br>
-
-    <div style="text-align:center">
-        {% for show in trending_shows %}
-          <span class="dot" onclick="currentSlide({{ loop.index }})"></span>
-        {% endfor %}
-    </div>
-
-    <h2>All Shows</h2>
-    <div class="tv-shows">
-      {% if tv_shows %}
-        {% for show in tv_shows %}
-            <div class="card">
-                <a href="{{ url_for('show_details', message_id=show.message_id) }}">
-                    {% if show.poster_path %}
-                        <img src="{{ show.poster_path }}" alt="{{ show.show_name }}" loading="lazy">
-                    {% else %}
-                        <div class="telegram-loader">
-                            <div class="plane"></div>
-                            <div class="circle"></div>
-                        </div>
-                    {% endif %}
-                    <h2>{{ show.show_name }}</h2>
-                    <p>{{ show.episode_title }}</p>
-                </a>
-            </div>
-        {% endfor %}
-    {% else %}
-        <p>No TV shows found.</p>
-    {% endif %}
-    </div>
-
-    <div class="pagination">
-        {% if page > 1 %}
-            <a href="{{ url_for('index', page=1, search=search_query) }}">First</a>
-            <a href="{{ url_for('index', page=page-1, search=search_query) }}">Previous</a>
-        {% endif %}
-
-        {% set window_size = 5 %}
-        {% set start_page = [page - (window_size // 2), 1] | max %}
-        {% set end_page = [start_page + window_size - 1, total_pages] | min %}
-
-        {% if start_page > 1 %}
-            <span>...</span>
-        {% endif %}
-
-        {% for p in range(start_page, end_page + 1) %}
-            {% if p == page %}
-                <span class="current-page">{{ p }}</span>
-            {% else %}
-                <a href="{{ url_for('index', page=p, search=search_query) }}">{{ p }}</a>
-            {% endif %}
-        {% endfor %}
-
-        {% if end_page < total_pages %}
-            <span>...</span>
-        {% endif %}
-
-        {% if page < total_pages %}
-            <a href="{{ url_for('index', page=page+1, search=search_query) }}">Next</a>
-            {% if page != total_pages -1 and total_pages > window_size %}
-              <a href="{{ url_for('index', page=total_pages, search=search_query) }}">Last</a>
-            {% endif %}
-        {% endif %}
-    </div>
-  <script>
-     let slideIndex = 0; // Start at 0 for easier indexing, and consistent with JS array indices
-    showSlides(slideIndex);
-
-    function plusSlides(n) {
-      showSlides(slideIndex += n);
-    }
-
-    function currentSlide(n) {
-      showSlides(slideIndex = n - 1);
-    }
-
-    function showSlides(n) {
-        const slides = document.getElementsByClassName("mySlides");
-        const dots = document.getElementsByClassName("dot");
-
-        // Wrap around
-        if (n >= slides.length) {slideIndex = 0}
-        if (n < 0) {slideIndex = slides.length - 1}
-
-        // Hide all slides and remove active class from all dots.
-        for (let i = 0; i < slides.length; i++) {
-            slides[i].style.display = "none";
-             if (dots.length > 0) {
-                dots[i].classList.remove("active");
-            }
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}{% endblock %} - TV Show Tracker</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" integrity="sha512-9usAa10IRO0HhonpyAIVpjrylPvoDwiPUiKdWk5t3PyolY1cOd4DSE0Ga+ri4AuTroPR5aQvXU9xC6qOPnzFeg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
+    <style>
+        /* Basic styling */
+        body {
+            font-family: 'Open Sans', sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+            color: #333;
         }
 
-      //Show the current slide
-      if (slides.length > 0) {
-        slides[slideIndex].style.display = "block";
-      }
-      //Activate current dot
-      if (dots.length > 0) {
-        dots[slideIndex].classList.add("active");
-      }
-
-      // Set background images
-      setSlideBackgrounds();
-    }
-
-
-    function setSlideBackgrounds() {
-        const slides = document.getElementsByClassName("mySlides");
-        const slideshowInner = document.getElementById("slideshowInner"); // Use getElementById
-
-        if (slides.length > 0) {
-            const prevIndex = (slideIndex - 1 + slides.length) % slides.length; // Correctly wrap
-            const nextIndex = (slideIndex + 1) % slides.length; // Correctly wrap
-
-            // --- Correctly get image URLs ---
-            const currentImg = slides[slideIndex].querySelector('img')?.src || '';
-            const prevImg = slides[prevIndex].querySelector('img')?.src || '';
-            const nextImg = slides[nextIndex].querySelector('img')?.src || '';
-
-
-            // Set CSS variables for the background images
-            slideshowInner.style.setProperty('--prev-bg', `url('${prevImg}')`);
-            slideshowInner.style.setProperty('--next-bg', `url('${nextImg}')`);
-            slideshowInner.style.setProperty('--current-bg', `url('${currentImg}')`);
-
-            // Add/remove classes to control transitions
-            slideshowInner.classList.remove('prev-active', 'next-active');
-            if (prevImg) {
-                slideshowInner.classList.add('prev-active'); // Only add if image exists
-            }
-            if (nextImg) {
-                slideshowInner.classList.add('next-active'); // Only add if image exists
-            }
+       /* --- Navbar --- */
+       .navbar {
+            background-color: #007bff;
+            color: white;
+            padding: 5px 10px;
+            display: flex;
+            align-items: center;
+            position: relative; /* For absolute positioning of the title */
         }
+
+        .logo-container {
+            display: flex;
+            align-items: center;
+            margin-right: auto; /* Push to the left*/
+        }
+
+        .logo {
+            width: 30px;
+            height: auto;
+            margin-right: 5px;
+            border-radius: 50%;
+        }
+
+.nav-links {
+            display: flex;
+            align-items: center;
+            margin-left: 10px; /* space between logo and links. */
+        }
+        .navbar a:hover {
+            background-color: #0056b3;
+        }
+
+       .navbar-center {
+            font-weight: bold;
+            font-size: 1.2em;
+            white-space: nowrap;
+            position: absolute; /* Absolute positioning */
+            left: 50%;        /* Start at 50% */
+            transform: translateX(-50%); /* Adjust for centering */
+        }
+
+        .navbar a {
+            color: white;
+            text-decoration: none;
+            padding: 5px 8px;
+            margin: 0 2px;
+            border-radius: 5px;
+            transition: background-color 0.3s ease;
+            font-size: 0.9em;
+            white-space: nowrap;
+        }
+
+        .search-form {
+            margin-left: auto; /* Push search form to the right */
+            display: flex;
+            align-items: center;
+        }
+
+      .search-form input[type="text"] {
+            padding: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-right: 5px;
+            width: 80px; /* Initial width */
+            transition: width 0.3s ease;
+        }
+
+      .search-form:hover input[type="text"], .search-form input[type="text"]:focus {
+          width: 150px; /* Expanded width */
+      }
+
+        .search-form button {
+            padding: 5px 10px;
+            background-color: #fff;
+            color: #007bff;
+            border: 1px solid #007bff;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s ease, color 0.3s ease;
+            white-space: nowrap;
+        }
+
+        .search-form button:hover {
+            background-color: #007bff;
+            color: white;
+        }
+        /* --- End Navbar --- */
+
+        .container {
+            max-width: 1200px;
+            margin: auto;
+            overflow: hidden;
+            padding: 20px;
+        }
+     h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #007bff;
+          font-family: sans-serif;
+          font-size: 1.5em;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .blinking-dot {
+          width: 10px;
+          height: 10px;
+          background-color: green;
+          border-radius: 50%; /* Make it round */
+          margin-right: 8px; /* Space between dot and text */
+          animation: blink 1s steps(5, start) infinite;
+        }
+
+        @keyframes blink {
+          to {
+            visibility: hidden;
+          }
+        }
+
+      /* Card styles */
+        .tv-shows {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: flex-start;
+            gap: 10px;
+        }
+
+      .card {
+        border: 1px solid #ddd;
+        padding: 10px;
+        margin: 0; /* Use gap */
+        width: calc(25% - 10px);  /* Four/row desktop */
+        text-align: center;
+        background-color: #fff;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        transition: transform 0.2s ease;
+        box-sizing: border-box;
+        flex-grow: 0;
+        flex-shrink: 0;
     }
-      // Automatic slideshow
-  let slideInterval = setInterval(() => { plusSlides(1); }, 5000);
 
-  // Stop slideshow on hover
-  let slideshowContainer = document.querySelector('.slideshow-container');
-  slideshowContainer.addEventListener('mouseover', () => { clearInterval(slideInterval); });
-  slideshowContainer.addEventListener('mouseout', () => { slideInterval = setInterval(() => { plusSlides(1); }, 5000); });
+    .card:hover {
+        transform: translateY(-5px);
+    }
 
-</script>
-{% endblock %}
+    .card img {
+        max-width: 100%;
+        height: auto;
+        border-bottom: 1px solid #eee;
+        margin-bottom: 5px;
+    }
+    .card a{
+      text-decoration: none;
+      color: inherit;
+    }
+
+    .card h2 {
+        font-size: 1em;
+        margin-bottom: 2px;
+        color: #007bff;
+    }
+
+    .card p {
+        font-size: 0.8em;
+        color: #666;
+    }
+      .telegram-loader {
+        width: 40px;
+        height: 40px;
+        margin: 10px auto;
+        position: relative;
+    }
+
+    .telegram-loader .plane {
+        width: 0;
+        height: 0;
+        border-top: 20px solid #007bff;
+        border-left: 12px solid transparent;
+        border-right: 12px solid transparent;
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform-origin: 50% 0%;
+        animation: fly 1.5s linear infinite;
+    }
+
+    .telegram-loader .circle {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      border: 2px solid rgba(0, 123, 255, 0.3);
+      position: absolute;
+      top: 0;
+      left: 0;
+      animation: rotate 2s linear infinite;
+    }
+
+    @keyframes fly {
+      0% { transform: translate(-50%, -50%) rotate(0deg); }
+      50% { transform: translate(-50%, -100%) rotate(45deg); }
+      100% { transform: translate(-50%, -50%) rotate(90deg); }
+    }
+
+    @keyframes rotate {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .pagination {
+        text-align: center;
+        margin-top: 20px;
+         clear: both; /* Add clear: both; */
+    }
+
+    .pagination a {
+        padding: 5px 10px;
+        text-decoration: none;
+        color: #007bff;
+        border: 1px solid #ddd;
+        margin: 0 2px;
+        border-radius: 5px;
+    }
+
+    .pagination a:hover {
+        background-color: #007bff;
+        color: white;
+    }
+    .pagination .current-page {
+        padding: 5px 10px;
+        margin: 0 2px;
+        border-radius: 5px;
+        background-color: #007bff;
+        color: white;
+        border: 1px solid #007bff;
+    }
+    .download-button {
+        display: inline-block;
+        padding: 8px 15px;
+        font-size: 1em;
+        background-color: #007bff;
+        color: white;
+        text-decoration: none;
+        border-radius: 5px;
+        transition: background-color: 0.3s ease;
+    }
+
+    .download-button:hover {
+        background-color: #0056b3;
+    }
+
+      ul{
+          list-style: none;
+          padding: 0;
+        }
+
+     ul li {
+            padding: 10px;
+            border-bottom: 1px solid #ddd;
+            transition: background-color: 0.2s ease;
+        }
+      ul li:last-child {
+        border-bottom: none;
+    }
+
+    ul li:hover {
+        background-color: #f0f8ff;
+    }
+    ul li a {
+      display: block;
+      width: 100%;
+      text-decoration: none;
+      color: #007bff;
+  }
+/* --- Slideshow CSS --- */
+
+.slideshow-container {
+    position: relative;
+    width: 100%;
+    max-width: none;
+    margin: auto;
+    overflow: hidden;
+}
+
+.slideshow-inner {
+    height: 500px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+    background-image: linear-gradient(to right, rgba(0,0,0,0.8) 20%, rgba(0,0,0,0.2) 40%, rgba(0,0,0,0.2) 60%, rgba(0,0,0,0.8) 80%);
+    background-size: cover;
+    background-repeat: no-repeat;
+
+}
+
+/* Previous and next slide backgrounds (blurred) */
+.slideshow-inner::before,
+.slideshow-inner::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 50%;
+    height: 100%;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    backdrop-filter: blur(15px) brightness(0.5);
+    z-index: 1;
+    transition: transform 0.5s ease, opacity 0.5s ease;
+    opacity: 0;
+    background-image: var(--prev-bg, none); /* Use CSS variables */
+}
+
+/* Next slide (initially off-screen to the RIGHT) */
+.slideshow-inner::after {
+    right: 0; /* Position 'after' on the right */
+    transform: translateX(100%);
+    background-image: var(--next-bg, none);
+}
+
+/* Previous slide (initially off-screen to the LEFT) */
+.slideshow-inner::before {
+    transform: translateX(-100%);
+}
+
+/* Active states for prev/next backgrounds */
+.slideshow-inner.prev-active::before {
+    transform: translateX(0); /* Bring into view */
+    opacity: 1;
+}
+
+.slideshow-inner.next-active::after {
+    transform: translateX(0); /* Bring into view */
+    opacity: 1;
+}
+
+.mySlides {
+    position: relative;
+    display: none;  /* Hidden by default */
+    z-index: 2;
+    max-width: 100%;
+}
+
+.mySlides.active-slide{
+    display: block;
+}
+
+.mySlides img {
+    max-width: 500px;
+    max-height: 400px;
+    object-fit: contain;
+    display: block;
+    margin: 0 auto;
+}
+
+/* --- Part 1 End.  Navbar and most styles are here --- */
+</style>
+</head>
+<body>
+    <div class="navbar">
+        <div class="logo-container">
+          <a href="{{ url_for('index') }}">
+            <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" class="logo">
+          </a>
+            <div class="nav-links">
+                <a href="{{ url_for('index') }}">Home</a>
+                <a href="{{ url_for('list_shows') }}">Shows</a>
+            </div>
+        </div>
+        <div class="navbar-center">
+            𝕚𝔹𝕆𝕏 𝕋𝕍
+        </div>
+        <form action="{{ url_for('index') }}" method="GET" class="search-form">
+            <input type="text" name="search" placeholder="Search for shows..." value="{{ search_query if search_query else '' }}">
+            <button type="submit"><i class="fas fa-search"></i></button>
+        </form>
+    </div>
+
+    <div class="container">
+        {% block content %}{% endblock %}
+    </div>
+</body>
+</html>
