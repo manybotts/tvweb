@@ -51,6 +51,10 @@ def get_tv_show_by_message_id(message_id):
     """Retrieves a single TV show by its message_id."""
     return TVShow.query.filter_by(message_id=message_id).first()
 
+def get_all_show_names():
+    """Retrieves a list of all unique show names."""
+    return [show.show_name for show in TVShow.query.distinct(TVShow.show_name).order_by(TVShow.show_name).all()]
+
 def get_trending_shows(limit=5):
     """Retrieves the top 'limit' trending shows, ordered by clicks."""
     return TVShow.query.order_by(TVShow.clicks.desc()).limit(limit).all()
@@ -62,19 +66,28 @@ def index():
     """Homepage: displays TV shows with pagination and search, plus trending shows."""
     search_query = request.args.get('search', '')
     page = request.args.get('page', 1, type=int)
-    per_page = 10  # Using 10, as you configured
+    per_page = 10
 
     logger.info("About to enqueue update_tv_shows task")
     update_tv_shows.delay()  # Enqueue the Celery task
     logger.info("update_tv_shows task enqueued")
 
-    tv_shows, total_pages = get_all_tv_shows(page, per_page, search_query)
-    trending_shows = get_trending_shows()  # Get trending shows
+    if search_query:
+        # If there's a search query, *only* fetch the matching shows.
+        tv_shows, total_pages = get_all_tv_shows(page, per_page, search_query)
+        trending_shows = []  # Don't fetch trending shows if searching
+    else:
+        # If there's *no* search query, fetch both all shows and trending shows.
+        tv_shows, total_pages = get_all_tv_shows(page, per_page)
+        trending_shows = get_trending_shows()
 
     logger.info(f"Total pages: {total_pages}")
     logger.info(f"TV Shows retrieved (for template): {tv_shows}")  # CRITICAL LOG
 
-    return render_template('index.html', tv_shows=tv_shows, page=page, total_pages=total_pages, search_query=search_query, trending_shows=trending_shows)
+    # --- TEMPORARY DIAGNOSTIC RETURN ---
+    return f"<pre>{tv_shows!r}</pre>"
+    # --- Original return (comment out for now) ---
+    # return render_template('index.html', tv_shows=tv_shows, page=page, total_pages=total_pages, search_query=search_query, trending_shows=trending_shows)
 
 
 @app.route('/show/<int:message_id>')
@@ -103,4 +116,4 @@ def list_shows():
     return render_template('shows.html', show_names=show_names)
 
 if __name__ == "__main__":
-    app.run(debug=False, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+    app.run(debug=False, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))  # Turn off debug for production!
