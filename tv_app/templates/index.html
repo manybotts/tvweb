@@ -7,11 +7,12 @@
 
     <h2>Trending Shows</h2>
     <div class="slideshow-container">
-        <div class="slideshow-inner" id="slideshowInner">
+        <div class="slideshow-inner" id="slideshowInner"> {# Added an ID for easier access #}
         {% for show in trending_shows %}
             <div class="mySlides {% if loop.index0 == 0 %}active-slide{% endif %}" data-index="{{ loop.index0 }}">
                 <a href="{{ url_for('show_details', message_id=show.message_id) }}">
                     {% if show.poster_path %}
+                         <div class="background-image" style="background-image: url('{{ show.poster_path }}');"></div>
                         <img src="{{ show.poster_path }}" alt="{{ show.show_name }}" >
                     {% else %}
                         <div class="telegram-loader">
@@ -27,14 +28,15 @@
         <a class="prev" onclick="plusSlides(-1)">&#10094;</a>
         <a class="next" onclick="plusSlides(1)">&#10095;</a>
      </div>
-     <div class="dot-container">
+    </div>
+
+    <br>
+
+    <div style="text-align:center">
         {% for show in trending_shows %}
           <span class="dot" onclick="currentSlide({{ loop.index }})"></span>
         {% endfor %}
     </div>
-    </div>
-
-    <br>
 
     <h2>All Shows</h2>
     <div class="tv-shows">
@@ -93,8 +95,8 @@
             {% endif %}
         {% endif %}
     </div>
-<script>
-    let slideIndex = 0;
+  <script>
+     let slideIndex = 0; // Start at 0 for easier indexing, and consistent with JS array indices
     showSlides(slideIndex);
 
     function plusSlides(n) {
@@ -106,51 +108,61 @@
     }
 
     function showSlides(n) {
-      let i;
-      const slides = document.getElementsByClassName("mySlides");
-      const dots = document.getElementsByClassName("dot");
-      if (n >= slides.length) {slideIndex = 0}
-      if (n < 0) {slideIndex = slides.length - 1}
-      for (i = 0; i < slides.length; i++) {
-        slides[i].style.display = "none";
-      }
-      for (i = 0; i < dots.length; i++) {
-        dots[i].className = dots[i].className.replace(" active", "");
-      }
-      if (slides.length > 0) { // Check if slides exist
+        const slides = document.getElementsByClassName("mySlides");
+        const dots = document.getElementsByClassName("dot");
+
+        // Wrap around
+        if (n >= slides.length) {slideIndex = 0}
+        if (n < 0) {slideIndex = slides.length - 1}
+
+        // Hide all slides and remove active class from all dots.
+        for (let i = 0; i < slides.length; i++) {
+            slides[i].style.display = "none";
+             if (dots.length > 0) {
+                dots[i].classList.remove("active");
+            }
+        }
+
+      //Show the current slide
+      if (slides.length > 0) {
         slides[slideIndex].style.display = "block";
       }
+      //Activate current dot
+      if (dots.length > 0) {
+        dots[slideIndex].classList.add("active");
+      }
 
-       if (dots.length > 0) { // Check if dots exist
-            dots[slideIndex].className += " active";
-        }
-      setSlideBackgrounds(); // Update backgrounds
+      // Set background images
+      setSlideBackgrounds();
     }
+
 
     function setSlideBackgrounds() {
         const slides = document.getElementsByClassName("mySlides");
         const slideshowInner = document.getElementById("slideshowInner"); // Use getElementById
 
         if (slides.length > 0) {
-            const prevIndex = (slideIndex - 1 + slides.length) % slides.length;
-            const nextIndex = (slideIndex + 1) % slides.length;
+            const prevIndex = (slideIndex - 1 + slides.length) % slides.length; // Correctly wrap
+            const nextIndex = (slideIndex + 1) % slides.length; // Correctly wrap
 
+            // --- Correctly get image URLs ---
+            const currentImg = slides[slideIndex].querySelector('img')?.src || '';
             const prevImg = slides[prevIndex].querySelector('img')?.src || '';
             const nextImg = slides[nextIndex].querySelector('img')?.src || '';
-            const currentImg = slides[slideIndex].querySelector('img')?.src || '';
 
 
+            // Set CSS variables for the background images
             slideshowInner.style.setProperty('--prev-bg', `url('${prevImg}')`);
             slideshowInner.style.setProperty('--next-bg', `url('${nextImg}')`);
             slideshowInner.style.setProperty('--current-bg', `url('${currentImg}')`);
 
-            // Add/remove classes for transitions
+            // Add/remove classes to control transitions
             slideshowInner.classList.remove('prev-active', 'next-active');
             if (prevImg) {
-                slideshowInner.classList.add('prev-active');
+                slideshowInner.classList.add('prev-active'); // Only add if image exists
             }
             if (nextImg) {
-                slideshowInner.classList.add('next-active');
+                slideshowInner.classList.add('next-active'); // Only add if image exists
             }
         }
     }
