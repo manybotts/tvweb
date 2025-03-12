@@ -25,6 +25,7 @@ logger = logging.getLogger(__name__)
 celery = Celery(__name__, broker=os.environ.get('REDIS_URL', 'redis://localhost:6379/0'), backend=os.environ.get('REDIS_URL', 'redis://localhost:6379/0'))
 # Use REDIS_URL environment variable - Railway provides this
 
+
 # --- TMDB Rate Limiting ---
 CALLS = 30   # Max calls per period
 PERIOD = 9  # Period in seconds
@@ -230,9 +231,3 @@ def update_tv_shows(self):
     except Exception as e:
         logger.exception(f"An unexpected error occurred in update_tv_shows: {e}")
         self.retry(exc=e, countdown=60)  # Retry after 60 seconds
-
-# Simple test task
-@celery.task
-def test_task():
-  logger.info("The test Celery task has run!")
-  return "Test task complete"
