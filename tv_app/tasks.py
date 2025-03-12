@@ -14,45 +14,59 @@ from redis import Redis
 import asyncio
 from datetime import datetime, timezone
 from ratelimit import limits, sleep_and_retry, RateLimitException
+import difflib  # Import difflib
+import json
 
 load_dotenv()
 
-# Configure logging.  Increase the logging level to DEBUG
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s') # Use DEBUG level
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 # Celery configuration (using Redis as the broker and result backend)
 celery = Celery(__name__, broker=os.environ.get('REDIS_URL', 'redis://localhost:6379/0'), backend=os.environ.get('REDIS_URL', 'redis://localhost:6379/0'))
+# Use REDIS_URL environment variable - Railway provides this
+
 
 # --- TMDB Rate Limiting ---
-CALLS = 30   # Max calls
-PERIOD = 9  # Period in seconds, adjust as needed
+CALLS = 30   # Max calls per period
+PERIOD = 9  # Period in seconds
+
+# --- Batch Size ---
+TELEGRAM_BATCH_SIZE = 50  # Fetch updates in batches of 50
+DATABASE_BATCH_SIZE = 10 # Commit to the database in batches of 10
+
+# --- Redis Client ---
+redis_client = Redis.from_url(os.environ.get('REDIS_URL'), decode_responses=True) #For Caching
+
 
 # --- Helper Functions ---
 
-async def _fetch_telegram_updates(token, channel_id):
+async def _fetch_telegram_updates(token, channel_id, limit=TELEGRAM_BATCH_SIZE):
     """Asynchronously fetches updates using telegram.ext.Application, handling offsets."""
     try:
         appli = Application.builder().token(token).build()
         posts = []
-        update_offset = None
+        update_offset = None  # Initialize offset
 
-        while True:  # Loop to fetch all updates.
+        while True:  # Loop to fetch all updates
             updates = await appli.bot.get_updates(allowed_updates=['channel_post'], timeout=60, offset=update_offset)
             logger.info(f"Received {len(updates)} updates from Telegram")
 
-            if not updates:
+            if not updates:  # No more updates
                 break
 
             for update in updates:
                 if update.channel_post and update.channel_post.sender_chat and str(update.channel_post.sender_chat.id) == channel_id:
                     if update.channel_post.caption:
                         posts.append(update.channel_post)
-                        logger.info(f"Added post to processing list: {update.channel_post.message_id}")
+                        logger.info(f"Added post to processing list: {update.channel_post.message_id}")  # Log added posts
 
-                update_offset = update.update_id + 1 # Correct offset handling
-        await appli.shutdown() # Close application
+                # Update offset for next batch
+                update_offset = update.update_id + 1  # Correct offset handling
+        await appli.shutdown()
         return posts
+
     except TelegramError as e:
         logger.error(f"Telegram error: {e}")
         return []
@@ -68,7 +82,7 @@ async def fetch_telegram_posts():
     return posts
 
 def parse_telegram_post(post):
-    """Parses a Telegram post (caption) to extract show info."""
+    """Parses a Telegram post caption to extract show info, handling variations."""
     try:
         text = post.caption
         logger.debug(f"Parsing post: {post.message_id}, Caption: {text!r}")
@@ -79,15 +93,15 @@ def parse_telegram_post(post):
 
         if len(lines) >= 3:
             show_name = lines[0].strip()
-            logger.debug(f"Show Name: {show_name}")  # Use DEBUG level
+            logger.info(f"Show Name: {show_name}")
             if lines[1].strip().startswith('#_'):
                 season_episode = None
                 link_line_index = 2
-                logger.debug("Season/Episode: None (starts with #_)")  # Use DEBUG level
+                logger.info("Season/Episode: None (starts with #_)")
             else:
                 season_episode = lines[1].strip()
                 link_line_index = 2
-                logger.debug(f"Season/Episode: {season_episode}")  # Use DEBUG level
+                logger.info(f"Season/Episode: {season_episode}")
 
             for i in range(link_line_index, len(lines)):
                 line_lower = lines[i].lower()
@@ -95,7 +109,7 @@ def parse_telegram_post(post):
                     logger.debug(f"Found potential link line: {lines[i]}")
                     if post.caption_entities:
                         for entity in post.caption_entities:
-                            logger.debug(f"  Entity: type={entity.type}, offset={entity.offset}, length={entity.length}, url={entity.url}")
+                            logger.debug(f"  Entity: type={entity.type}, offset={entity.offset}, length={entity.length}, url={entity.url}")  # Added URL logging
                             if entity.type == 'text_link' and (entity.offset >= sum(len(l) + 1 for l in lines[:i]) and entity.offset < sum(len(l) + 1 for l in lines[:i+1])):
                                 download_link = entity.url
                                 logger.info(f"Download Link Found: {download_link}")
@@ -103,7 +117,9 @@ def parse_telegram_post(post):
                         if download_link:
                             break
 
+        # --- Preprocess Show Name ---
         if show_name:
+            show_name = preprocess_show_name(show_name)  # Clean the show name
             return {
                 'show_name': show_name,
                 'season_episode': season_episode,
@@ -113,51 +129,138 @@ def parse_telegram_post(post):
         else:
             logger.warning(f"No show name found in post: {post.message_id}")
             return None
+
     except Exception as e:
         logger.exception(f"Error during parsing: {e}")
         return None
+
+def preprocess_show_name(name):
+    """Cleans up the show name before querying TMDb."""
+    # Remove common extra text (case-insensitive)
+    name = re.sub(r"(?i)\s*(season finale|new episodes|original series|tv series|limited series)\s*", "", name)
+    # Remove trailing years (e.g., "Show Name 2023")
+    name = re.sub(r"\s*\(\d{4}\)$", "", name)  # (YYYY) at the end
+    name = re.sub(r"\s*\d{4}$", "", name)       # YYYY at the end
+    # Replace "&" with "and" and vice-versa
+    name = name.replace("&", "and").replace("  ", " ")
+    # Remove any brackets
+    name = re.sub(r'[\(\[].*?[\)\]]', '', name)
+     # Remove common short forms (case-insensitive)
+    name = re.sub(r"(?i)\s*\b(hd|4k|2k|fhd|s\d+|e\d+)\b", "", name)
+    return name.strip()
+
+
+def get_close_matches_with_threshold(query, possibilities, n=3, cutoff=0.6):
+    """
+    Find close matches to a query string within a list of possibilities,
+    using a specified cutoff threshold for similarity.
+    """
+    close_matches = difflib.get_close_matches(query, possibilities, n=n, cutoff=cutoff)
+    return close_matches
 
 # --- Rate Limited TMDB Fetch ---
 @sleep_and_retry
 @limits(calls=CALLS, period=PERIOD)
 def fetch_tmdb_data(show_name, language='en-US'):
-    """Fetches TV show data from TMDb, with rate limiting."""
+    """Fetches TV show data from TMDb, with rate limiting, preprocessing, and caching."""
+
+    original_show_name = show_name  # Keep the original name for logging
+    show_name = preprocess_show_name(show_name)  # Preprocess the name
+    logger.info(f"Fetching TMDb data for (preprocessed): {show_name}")
+
+    # --- Check Cache First ---
+    cache_key = f"tmdb_data:{show_name.lower()}:{language}"  # Use lowercase for consistency
+    cached_data = redis_client.get(cache_key)
+    if cached_data:
+        logger.info(f"Cache hit for: {show_name}")
+        return json.loads(cached_data)
+
+    headers = {
+        "Authorization": f"Bearer {os.environ.get('TMDB_BEARER_TOKEN')}",
+        "Content-Type": "application/json"
+    }
+
+    # --- 1. Initial Search (with preprocessed name) ---
+    search_url = f"https://api.themoviedb.org/3/search/tv?query={quote_plus(show_name)}&language={language}"
     try:
-        logger.info(f"Fetching TMDb data for: {show_name}")
-        # Use Authorization header (Best Practice)
-        headers = {
-            "Authorization": f"Bearer {os.environ.get('TMDB_BEARER_TOKEN')}",
-            "Content-Type": "application/json"
-        }
-        search_url = f"https://api.themoviedb.org/3/search/tv?query={quote_plus(show_name)}&language={language}"
         search_response = requests.get(search_url, headers=headers, timeout=10)
         search_response.raise_for_status()
         search_data = search_response.json()
 
         if search_data['results']:
-            show_id = search_data['results'][0]['id']
+             # --- Fuzzy Matching ---
+            tmdb_titles = [result['name'] for result in search_data['results']]
+            best_match = get_close_matches_with_threshold(show_name, tmdb_titles, n=1, cutoff=0.6)
+
+            if best_match:
+                best_match_index = tmdb_titles.index(best_match[0])
+                show_id = search_data['results'][best_match_index]['id']
+            else:
+                show_id = search_data['results'][0]['id']  # Fallback to the first result
+
+
+            # --- 2. Fetch Details (and Cache) ---
             details_url = f"https://api.themoviedb.org/3/tv/{show_id}?language={language}"
             details_response = requests.get(details_url, headers=headers, timeout=10)
             details_response.raise_for_status()
             details_data = details_response.json()
-            logger.info(f"TMDb data found for: {show_name}")
-            return {
+
+            # --- Prepare data for caching ---
+            data_to_cache = {
                 'poster_path': f"https://image.tmdb.org/t/p/w500{details_data.get('poster_path')}" if details_data.get('poster_path') else None,
                 'overview': details_data.get('overview'),
                 'vote_average': details_data.get('vote_average'),
             }
+            # --- Cache the data (set expiry to, e.g., 7 days) ---
+            redis_client.setex(cache_key, 7 * 24 * 60 * 60, json.dumps(data_to_cache))  # Cache for 7 days
+            logger.info(f"TMDb data found and cached for: {show_name}")
+            return data_to_cache
+
         else:
-            logger.warning(f"No TMDb data found for: {show_name}")
+            # --- 3. Try Shortening the Name (Iterative) ---
+            logger.info(f"No direct match for: {show_name}, trying shortened versions...")
+            name_parts = show_name.split()
+            for i in range(len(name_parts) - 1, 0, -1):  # Iterate backwards
+                shortened_name = " ".join(name_parts[:i])
+                if len(shortened_name) < 3:  # Don't go too short
+                    break
+                logger.info(f"Trying shortened name: {shortened_name}")
+                shortened_url = f"https://api.themoviedb.org/3/search/tv?query={quote_plus(shortened_name)}&language={language}"
+                shortened_response = requests.get(shortened_url, headers=headers, timeout=10)
+                if shortened_response.status_code == 200:
+                    shortened_data = shortened_response.json()
+                    if shortened_data['results']:
+                         # --- Fuzzy Matching ---
+                        tmdb_titles = [result['name'] for result in shortened_data['results']]
+                        best_match = get_close_matches_with_threshold(shortened_name, tmdb_titles, n=1, cutoff=0.6)  # Get best match
+
+                        if best_match:
+                          best_match_index = tmdb_titles.index(best_match[0])
+                          show_id = shortened_data['results'][best_match_index]['id']
+                          # --- Fetch Details and Cache ---
+                          details_url = f"https://api.themoviedb.org/3/tv/{show_id}?language={language}"
+                          details_response = requests.get(details_url, headers=headers, timeout=10)
+                          details_response.raise_for_status()
+                          details_data = details_response.json()
+                          data_to_cache = {
+                                'poster_path': f"https://image.tmdb.org/t/p/w500{details_data.get('poster_path')}" if details_data.get('poster_path') else None,
+                                'overview': details_data.get('overview'),
+                                'vote_average': details_data.get('vote_average'),
+                            }
+                          redis_client.setex(cache_key, 7 * 24 * 60 * 60, json.dumps(data_to_cache))
+                          logger.info(f"TMDb data found (with shortened name) and cached for: {show_name}")
+                          return data_to_cache
+            logger.warning(f"No TMDb data found for: {original_show_name} (or any shortened versions)")
             return None
 
     except requests.exceptions.RequestException as e:
         logger.error(f"Error fetching data from TMDb: {e}")
-        return None  # Don't retry on request exceptions
+        return None
     except RateLimitException as e:
         logger.warning(f"TMDb rate limit hit: {e}")
-        raise  # Re-raise to trigger Celery's retry mechanism
+        raise
     except Exception as e:
-        logger.exception(f"An unexpected error occurred fetching TMDb data: {e}")
+        logger.exception(f"Unexpected error fetching TMDb data: {e}")
         return None
 
 @celery.task(bind=True, retry_backoff=True)
@@ -165,7 +268,7 @@ def update_tv_shows(self):
     """Updates the database with new TV show info from Telegram."""
     try:
         redis_client = Redis.from_url(os.environ.get('REDIS_URL'), decode_responses=True)
-        lock = redis_client.lock("update_tv_shows_lock", timeout=60, blocking_timeout=5)
+        lock = redis_client.lock("update_tv_shows_lock", timeout=120, blocking_timeout=5) # Increased timeout
 
         if lock.acquire(blocking=False):
             logger.info("Lock acquired, starting update_tv_shows task.")
@@ -181,14 +284,9 @@ def update_tv_shows(self):
 
                     for post in posts:
                         parsed_data = parse_telegram_post(post)
-                        # --- CRITICAL DEBUG LOG ---
-                        logger.info(f"Parsed Data: {parsed_data}")
-
                         if parsed_data:
                             logger.info(f"Processing show: {parsed_data['show_name']}")
                             tmdb_data = fetch_tmdb_data(parsed_data['show_name'])
-                            # --- CRITICAL DEBUG LOG ---
-                            logger.info(f"TMDb Data: {tmdb_data}")
 
                             show_data = {
                                 'show_name': parsed_data['show_name'],
@@ -211,7 +309,7 @@ def update_tv_shows(self):
                                 db.session.add(new_show)
                                 db.session.commit()
                                 logger.info(f"Successfully inserted: {parsed_data['show_name']}")
-                    db.session.remove() #Close db connection
+                    db.session.remove()
 
             finally:
                 lock.release()
