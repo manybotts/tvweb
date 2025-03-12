@@ -392,6 +392,8 @@ ul li a {
     /* Above the background images */
     max-width: 100%;
     /* Allow shrinking */
+     width: 100%; /* Ensure it takes full width */
+    text-align: center;  /* Center content within .mySlides */
 }
 
 .mySlides.active-slide {
@@ -447,17 +449,22 @@ ul li a {
   position: static;    /* Correctly position relative to flow */
 }
 
-/* Caption text */
+/* Caption text - Enhanced Styling */
 .text {
-    color: #f2f2f2;
-    font-size: 15px;
-    padding: 8px 12px;
-    position: absolute;
-    bottom: 8px;
-    width: 100%;
-    text-align: center;
-    z-index: 3;
-    /* Above the background */
+  color: #fff;       /* White text */
+  font-size: 1.2em;    /* Larger font size */
+  font-weight: bold;  /* Bold text */
+  padding: 8px 12px;
+  position: absolute;
+  top: 50%;         /* Position in the vertical center */
+  left: 50%;        /* Position in the horizontal center */
+  transform: translate(-50%, -50%); /* Perfect centering */
+  width: auto;     /* Auto width based on content */
+  text-align: center;
+  z-index: 3;       /* Above the background */
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7); /* Text shadow */
+  background-color: rgba(0, 0, 0, 0.3); /* Semi-transparent background */
+  border-radius: 5px; /* Rounded corners */
 }
 
 /* Style the dots/bullets/indicators */
@@ -496,7 +503,7 @@ ul li a {
         }
          /* Caption - smaller font on mobile */
         .text {
-            font-size: 12px;
+            font-size: 1em; /*Adjust as necessary*/
         }
 
         /* Dots - smaller on mobile */
@@ -527,7 +534,7 @@ ul li a {
         font-size: 12px;
     }
       .text {
-        font-size: 10px; /* Even smaller */
+        font-size: 0.9em; /* Adjust as needed */
     }
      .dot {
         height: 8px;
@@ -542,4 +549,4 @@ ul li a {
 /* General Slideshow Height Adjustment */
 .slideshow-inner {
     height: 350px;  /* Default height for larger screens */
-}
+            }
