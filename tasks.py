@@ -4,14 +4,14 @@ from celery.exceptions import MaxRetriesExceededError
 import os
 import re
 import requests
-from telegram import Bot  # Use the basic Bot class
+from telegram import Bot
 from telegram.error import TelegramError
 from urllib.parse import quote_plus
 from pymongo import MongoClient, ASCENDING, DESCENDING
 import logging
 from dotenv import load_dotenv
 from redis import Redis
-# No asyncio needed here
+import asyncio  # Correctly using asyncio
 
 load_dotenv()
 
@@ -21,7 +21,6 @@ logger = logging.getLogger(__name__)
 
 # Celery configuration (using Redis as the broker and result backend)
 celery = Celery(__name__, broker=os.environ.get('REDIS_URL', 'redis://localhost:6379/0'), backend=os.environ.get('REDIS_URL', 'redis://localhost:6379/0'))
-# Use REDIS_URL environment variable - Railway provides this
 
 # Database connection
 def get_db():
@@ -38,28 +37,34 @@ def get_db():
 # --- Helper Functions ---
 
 def _fetch_telegram_updates(token, channel_id):
-    """Synchronously fetches updates.  PRIVATE helper."""
+    """Synchronously fetches updates using asyncio.run()."""
     try:
-        bot = Bot(token=token) # Use basic Bot, not Application
-        updates = bot.get_updates(allowed_updates=['channel_post'], timeout=60)
+        bot = Bot(token=token)
+
+        async def get_updates():  # Define an async inner function
+            return await bot.get_updates(allowed_updates=['channel_post'], timeout=60)
+
+        updates = asyncio.run(get_updates())  # Run it synchronously
+
         posts = []
-        update_offset = None
+        update_offset = None  # Initialize here
         for update in updates:
             if update.channel_post and update.channel_post.sender_chat and str(update.channel_post.sender_chat.id) == channel_id:
                 if update.channel_post.caption:
                     posts.append(update.channel_post)
-            update_offset = update.update_id + 1
+            update_offset = update.update_id + 1  # Correct offset updating
         return posts
     except TelegramError as e:
         logger.error(f"Telegram error: {e}")
         return []
 
 def fetch_telegram_posts():
-    """Fetches all unacknowledged posts."""
+    """Fetches all unacknowledged posts from the configured Telegram channel."""
     logger.info(f"Fetching updates from Telegram channel: {os.environ.get('TELEGRAM_CHANNEL_ID')}")
     posts = _fetch_telegram_updates(os.environ.get('TELEGRAM_BOT_TOKEN'), os.environ.get('TELEGRAM_CHANNEL_ID'))
     logger.info(f"Total posts to process: {len(posts)}")
     return posts
+
 def parse_telegram_post(post):
     """Parses a Telegram post (caption) to extract show info."""
     try:
@@ -145,14 +150,11 @@ def fetch_tmdb_data(show_name, language='en-US'):
     except Exception as e:
         logger.exception(f"An unexpected error occurred: {e}")
         return None
-
 @celery.task(bind=True, retry_backoff=True)
 def update_tv_shows(self):
+    """Updates the database with new TV show information from Telegram."""
     try:
-        # Get a Redis connection
         redis_client = Redis.from_url(os.environ.get('REDIS_URL'))
-
-        # Acquire the lock.
         lock = redis_client.lock("update_tv_shows_lock", timeout=60, blocking_timeout=5)
 
         if lock.acquire(blocking=False):
@@ -197,14 +199,13 @@ def update_tv_shows(self):
                 lock.release()
                 logger.info("Lock released.")
         else:
-            logger.warning("Could not acquire lock.  Another update_tv_shows task is likely running.")
+            logger.warning("Could not acquire lock. Another update_tv_shows task is likely running.")
 
     except MaxRetriesExceededError:
         logger.error("Max retries exceeded for update_tv_shows task.")
     except Exception as exc:
-        logger.exception(f"Task failed")
+        logger.exception(f"Task failed during general exception: {exc}")  # More specific
         raise self.retry(exc=exc, countdown=60)
-
 
 # Simple test task (Keep this for easy testing)
 @celery.task
