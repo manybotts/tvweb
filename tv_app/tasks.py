@@ -13,6 +13,7 @@ import difflib
 import json
 from pyrogram import Client, errors
 from contextlib import asynccontextmanager
+from celery.beat.embedded_service import EmbeddedService  # Import embedded Celery Beat
 
 load_dotenv()
 
@@ -35,6 +36,15 @@ celery.conf.beat_schedule = {
         'schedule': crontab(minute='*/1'),
     },
 }
+
+# Embedded Celery Beat
+beat_service = EmbeddedService(celery)  # Create an embedded beat instance
+
+@celery.on_after_finalize.connect
+def start_embedded_beat(sender, **kwargs):
+    """Start Celery Beat inside the worker"""
+    logger.info("Starting Celery Beat inside the worker...")
+    beat_service.start()  # Start the embedded beat
 
 # Rate Limiting Constants
 CALLS = 30
