@@ -1,7 +1,9 @@
 # tv_app/init_db.py
+from .app import create_app
 from .models import db, TVShow
-from .app import app
-from sqlalchemy import inspect
+from sqlalchemy import inspect  # Import the inspect function
+
+app = create_app()
 
 with app.app_context():
     inspector = inspect(db.engine)
