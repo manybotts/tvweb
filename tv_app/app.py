@@ -3,10 +3,10 @@ import re
 from flask import Flask, render_template, redirect, url_for, request
 import logging
 from dotenv import load_dotenv
-# Removed: from .tasks import update_tv_shows  # Don't import tasks directly
-from .models import db, TVShow
+from .models import db, TVShow  # Corrected import
 from sqlalchemy import desc
 from .tasks import make_celery  # Import make_celery
+
 
 load_dotenv()
 
@@ -18,11 +18,12 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your_secret_key')
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['REDIS_URL'] = os.environ.get('REDIS_URL', 'redis://localhost:6379/0') # Add this line
+app.config['REDIS_URL'] = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')  # Celery needs this
 db.init_app(app)
 
-# Create Celery instance *after* app
+# Create Celery instance *after* app, using make_celery
 celery = make_celery(app)
+
 
 # --- Database Operations ---
 
@@ -35,7 +36,7 @@ def get_all_tv_shows(page=1, per_page=10, search_query=None):
         query = query.filter(TVShow.show_name.ilike(f"%{search_query}%"))
 
     total_shows = query.count()
-    tv_shows = query.order_by(desc(TVShow.created_at)).offset(offset).limit(per_page).all() #Use desc
+    tv_shows = query.order_by(desc(TVShow.created_at)).offset(offset).limit(per_page).all()
     total_pages = (total_shows + per_page - 1) // per_page
 
     return tv_shows, total_pages
@@ -50,7 +51,7 @@ def get_all_show_names():
 
 def get_trending_shows(limit=5):
     """Retrieves the top 'limit' trending shows, ordered by clicks."""
-    return TVShow.query.order_by(desc(TVShow.clicks)).limit(limit).all() # Use desc
+    return TVShow.query.order_by(desc(TVShow.clicks)).limit(limit).all()
 
 # --- Routes ---
 
@@ -59,22 +60,14 @@ def index():
     """Homepage: displays TV shows with pagination and search, plus trending shows."""
     search_query = request.args.get('search', '')
     page = request.args.get('page', 1, type=int)
-    per_page = 10  # Moved per_page to the function level
-
-    # Removed:  Direct task call.  Telethon + Celery handles updates.
-    # logger.info("About to enqueue update_tv_shows task")
-    # update_tv_shows.delay()
-    # logger.info("update_tv_shows task enqueued")
+    per_page = 10
 
     if search_query:
         tv_shows, total_pages = get_all_tv_shows(page, per_page, search_query)
-        trending_shows = []
+        trending_shows = []  # No trending shows when searching
     else:
         tv_shows, total_pages = get_all_tv_shows(page, per_page)
         trending_shows = get_trending_shows()
-
-    logger.info(f"Total pages: {total_pages}")
-    logger.info(f"TV Shows retrieved: {tv_shows}")
 
     return render_template('index.html', tv_shows=tv_shows, page=page, total_pages=total_pages, search_query=search_query, trending_shows=trending_shows)
 
@@ -84,7 +77,7 @@ def show_details(message_id):
     """Displays details for a single TV show and increments its click count."""
     show = get_tv_show_by_message_id(message_id)
     if show:
-        with app.app_context():
+        with app.app_context():  # Correct way to use app context
             show.clicks += 1
             db.session.commit()
         return render_template('show_details.html', show=show)
