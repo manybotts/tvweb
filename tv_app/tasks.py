@@ -10,6 +10,7 @@ import logging
 from dotenv import load_dotenv
 from redis import Redis
 from thefuzz import process
+from celery.utils.log import get_task_logger  # <--- MOVED HERE
 
 # --- Imports for Flask and Database ---
 from .models import db, TVShow  # Relative import!
@@ -17,8 +18,8 @@ from .models import db, TVShow  # Relative import!
 load_dotenv()
 
 # Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-logger = get_task_logger(__name__)
+# No need to reconfigure here, get_task_logger handles it
+logger = get_task_logger(__name__) #Now works
 
 # --- Telethon Setup (Bot Account) ---
 API_ID = int(os.environ.get('TELEGRAM_API_ID'))
