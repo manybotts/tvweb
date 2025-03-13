@@ -3,8 +3,8 @@ import re
 from flask import Flask, render_template, redirect, url_for, request
 import logging
 from dotenv import load_dotenv
-from .tasks import update_tv_shows
-from .models import db, TVShow
+from .tasks import update_tv_shows  # Import Celery task
+from .models import db, TVShow  # Import from models.py
 from sqlalchemy import desc
 
 load_dotenv()
@@ -22,16 +22,16 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False  # Suppress a warning
 
 db.init_app(app)  # Initialize db with the app
 
-# --- REMOVE THESE LINES ---
-# with app.app_context():
-#     db.create_all()
-#     logger.info("SQLAlchemy and PostgreSQL Database connected")
+# --- Moved db.create_all() inside app context ---
+with app.app_context():
+    db.create_all()
+    logger.info("SQLAlchemy and PostgreSQL Database connected and tables created/verified.")
 
 # --- Database Operations ---
 
 def get_all_tv_shows(page=1, per_page=10, search_query=None):
     """Retrieves TV shows with pagination and search."""
-    logger.info(f"get_all_tv_shows called: page={page}, per_page={per_page}, search_query={search_query!r}")
+    logger.info(f"get_all_tv_shows called: page={page}, per_page={per_page}, search_query={search_query!r}")  # Log inputs
     offset = (page - 1) * per_page
     query = TVShow.query
 
@@ -39,11 +39,14 @@ def get_all_tv_shows(page=1, per_page=10, search_query=None):
         logger.info(f"Applying search filter: {search_query!r}")
         query = query.filter(TVShow.show_name.ilike(f"%{search_query}%"))
 
+    # Log the generated SQL query (VERY HELPFUL)
+    # logger.info(f"Generated SQL query: {query.statement}") # Removed for production.
+
     total_shows = query.count()
     logger.info(f"Total shows matching query: {total_shows}")
 
     tv_shows = query.order_by(TVShow.created_at.desc()).offset(offset).limit(per_page).all()
-    logger.info(f"Retrieved shows: {tv_shows}")
+    logger.info(f"Retrieved shows: {tv_shows}")  # Log the actual show objects
 
     total_pages = (total_shows + per_page - 1) // per_page
     return tv_shows, total_pages
@@ -71,7 +74,7 @@ def index():
     per_page = 10
 
     logger.info("About to enqueue update_tv_shows task")
-    update_tv_shows.delay()  # Enqueue the Celery task
+    #update_tv_shows.delay()  # Enqueue the Celery task. We are going to use Celery Beat.
     logger.info("update_tv_shows task enqueued")
 
     if search_query:
@@ -81,7 +84,7 @@ def index():
     else:
         # If there's *no* search query, fetch both all shows and trending shows.
         tv_shows, total_pages = get_all_tv_shows(page, per_page)
-        trending_shows = get_trending_shows()  # Get trending shows
+        trending_shows = get_trending_shows()
 
     logger.info(f"Total pages: {total_pages}")
     logger.info(f"TV Shows retrieved (for template): {tv_shows}")  # CRITICAL LOG
@@ -94,7 +97,7 @@ def show_details(message_id):
     """Displays details for a single TV show and increments its click count."""
     show = get_tv_show_by_message_id(message_id)
     if show:
-        with app.app_context():
+        with app.app_context():  # Use application context for db access
             show.clicks += 1
             db.session.commit()
         return render_template('show_details.html', show=show)
@@ -107,12 +110,5 @@ def redirect_to_download(message_id):
     if show and show.download_link:
         return redirect(show.download_link)
     return "Show or link not found", 404
-
-@app.route('/shows')
-def list_shows():
-    """Displays a list of all available TV show names."""
-    show_names = get_all_show_names()
-    return render_template('shows.html', show_names=show_names)
-
 if __name__ == "__main__":
-    app.run(debug=False, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+    app.run(debug=False, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))  # Turn off debug!
