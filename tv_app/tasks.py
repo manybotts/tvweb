@@ -1,7 +1,7 @@
 import os
 import re
 import requests
-from celery import Celery, current_app
+from celery import Celery, current_app  # current_app is crucial
 from celery.exceptions import MaxRetriesExceededError
 from telethon import TelegramClient, events, types
 from telethon.sessions import StringSession
@@ -18,7 +18,7 @@ load_dotenv()
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
+logger = get_task_logger(__name__)
 
 # --- Telethon Setup (Bot Account) ---
 API_ID = int(os.environ.get('TELEGRAM_API_ID'))
@@ -26,7 +26,7 @@ API_HASH = os.environ.get('TELEGRAM_API_HASH')
 BOT_TOKEN = os.environ.get('TELEGRAM_BOT_TOKEN')
 TELEGRAM_CHANNEL_ID = int(os.environ.get('TELEGRAM_CHANNEL_ID'))
 
-# --- Helper Functions --- (No changes)
+# --- Helper Functions --- (No changes here)
 def parse_telegram_post(post):
     """Parses a Telegram post."""
     try:
@@ -67,6 +67,7 @@ def parse_telegram_post(post):
     except Exception as e:
         logger.exception(f"Error during parsing: {e}")
         return None
+
 def clean_show_name(show_name):
     return ''.join(e for e in show_name if e.isalnum() or e.isspace()).strip().lower()
 
@@ -149,12 +150,12 @@ def make_celery(app):
         backend=app.config['REDIS_URL']   # Use REDIS_URL for results too
     )
     celery.conf.update(app.config)
-
+    print(f"REDIS_URL from app.config: {app.config['REDIS_URL']}")  # Keep this
     # Define tasks *inside* a function
     def register_tasks(celery):
         @celery.task(bind=True, retry_backoff=True)
         def update_tv_shows(self, event_data):
-            """Celery task to process a new message."""
+            """Celery task to process a new message event."""
             try:
                 message_id, show_name, episode_title, download_link = (
                     event_data['message_id'],
