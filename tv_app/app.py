@@ -3,6 +3,7 @@ import re
 from flask import Flask, render_template, redirect, url_for, request
 import logging
 from dotenv import load_dotenv
+from .tasks import update_tv_shows  # Import Celery task
 from .models import db, TVShow  # Import from models.py
 from sqlalchemy import desc
 
@@ -21,23 +22,6 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False  # Suppress a warning
 
 db.init_app(app)  # Initialize db with the app
 
-# --- Database Initialization (Runs Only Once) ---
-DB_INIT_FLAG_FILE = "db_initialized.flag"
-
-def init_db():
-    """Initializes the database tables."""
-    with app.app_context():
-        db.create_all()
-    # Create a flag file to indicate that the database has been initialized
-    with open(DB_INIT_FLAG_FILE, "w") as f:
-        f.write("initialized")
-
-# Check if the database has already been initialized
-if not os.path.exists(DB_INIT_FLAG_FILE):
-    init_db()
-    logger.info("SQLAlchemy and PostgreSQL Database connected and initialized.")
-else:
-    logger.info("SQLAlchemy and PostgreSQL Database connection - initialization skipped.")
 # --- Database Operations ---
 
 def get_all_tv_shows(page=1, per_page=10, search_query=None):
@@ -49,6 +33,9 @@ def get_all_tv_shows(page=1, per_page=10, search_query=None):
     if search_query:
         logger.info(f"Applying search filter: {search_query!r}")
         query = query.filter(TVShow.show_name.ilike(f"%{search_query}%"))
+
+    # Log the generated SQL query (VERY HELPFUL)
+    # logger.info(f"Generated SQL query: {query.statement}") # Removed for production
 
     total_shows = query.count()
     logger.info(f"Total shows matching query: {total_shows}")
@@ -64,6 +51,10 @@ def get_tv_show_by_message_id(message_id):
     """Retrieves a single TV show by its message_id."""
     return TVShow.query.filter_by(message_id=message_id).first()
 
+def get_all_show_names():
+    """Retrieves a list of all unique show names."""
+    return [show.show_name for show in TVShow.query.distinct(TVShow.show_name).order_by(TVShow.show_name).all()]
+
 def get_trending_shows(limit=5):
     """Retrieves the top 'limit' trending shows, ordered by clicks."""
     return TVShow.query.order_by(TVShow.clicks.desc()).limit(limit).all()
@@ -73,13 +64,12 @@ def get_trending_shows(limit=5):
 @app.route('/')
 def index():
     """Homepage: displays TV shows with pagination and search, plus trending shows."""
-    from .tasks import update_tv_shows #Import here to avoid circular imports
     search_query = request.args.get('search', '')
     page = request.args.get('page', 1, type=int)
     per_page = 10
 
     logger.info("About to enqueue update_tv_shows task")
-    # update_tv_shows.delay()  # Enqueue the Celery task. We are using Celery Beat.
+    #update_tv_shows.delay()  # Enqueue the Celery task. We are using Celery Beat.
     logger.info("update_tv_shows task enqueued")
 
     if search_query:
@@ -115,6 +105,12 @@ def redirect_to_download(message_id):
     if show and show.download_link:
         return redirect(show.download_link)
     return "Show or link not found", 404
+  
+@app.route('/shows') #Restored
+def list_shows():
+    """Displays a list of all available TV show names."""
+    show_names = get_all_show_names()
+    return render_template('shows.html', show_names=show_names)
 
 if __name__ == "__main__":
-    app.run(debug=False, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))  # Turn off debug!
+    app.run(debug=False, host='0.0.0.0', port=int(os.environ.get('PORT', 5000))) #Turn to false when in production
