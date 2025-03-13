@@ -1,7 +1,7 @@
 import os
 import re
 import requests
-from celery import Celery
+from celery import Celery, current_app  # current_app is crucial
 from celery.exceptions import MaxRetriesExceededError
 from telethon import TelegramClient, events, types
 from telethon.sessions import StringSession
@@ -10,10 +10,9 @@ import logging
 from dotenv import load_dotenv
 from redis import Redis
 from thefuzz import process
-from flask import Flask
 
 # --- Imports for Flask and Database ---
-from tv_app.models import db, TVShow  # Import your models
+from .models import db, TVShow  # Relative import!
 
 load_dotenv()
 
@@ -27,8 +26,7 @@ API_HASH = os.environ.get('TELEGRAM_API_HASH')
 BOT_TOKEN = os.environ.get('TELEGRAM_BOT_TOKEN')
 TELEGRAM_CHANNEL_ID = int(os.environ.get('TELEGRAM_CHANNEL_ID'))
 
-# --- Helper Functions ---
-
+# --- Helper Functions --- (No changes here)
 def parse_telegram_post(post):
     """Parses a Telegram post."""
     try:
@@ -69,6 +67,7 @@ def parse_telegram_post(post):
     except Exception as e:
         logger.exception(f"Error during parsing: {e}")
         return None
+
 def clean_show_name(show_name):
     return ''.join(e for e in show_name if e.isalnum() or e.isspace()).strip().lower()
 
@@ -152,69 +151,78 @@ def make_celery(app):
     )
     celery.conf.update(app.config)
 
-    # Define the update_tv_shows task *inside* make_celery
-    @celery.task(bind=True, retry_backoff=True)
-    def update_tv_shows(self, event_data):
-        """Celery task to process a new message event and update the database."""
-        try:
-            message_id, show_name, episode_title, download_link = (
-                event_data['message_id'],
-                event_data['show_name'],
-                event_data['episode_title'],
-                event_data['download_link'],
-            )
-            tmdb_data = fetch_tmdb_data(show_name)
-            show_data = {
-                'show_name': show_name,
-                'episode_title': episode_title,
-                'download_link': download_link,
-                'message_id': message_id,
-                'overview': tmdb_data.get('overview') if tmdb_data else None,
-                'vote_average': tmdb_data.get('vote_average') if tmdb_data else None,
-                'poster_path': tmdb_data.get('poster_path') if tmdb_data else None,
-            }
-            with app.app_context():
-                existing_show = TVShow.query.filter_by(message_id=message_id).first()
-                if existing_show:
-                    for key, value in show_data.items():
-                        setattr(existing_show, key, value)
-                    db.session.commit()
-                    logger.info(f"Successfully updated: {show_name} - {episode_title}")
-                else:
-                    new_show = TVShow(**show_data)
-                    db.session.add(new_show)
-                    db.session.commit()
-                    logger.info(f"Successfully inserted: {show_name} - {episode_title}")
-                db.session.remove()  # Added session removal
+    # Define tasks *inside* a function, taking the Celery app as argument
+    def register_tasks(celery):
+        @celery.task(bind=True, retry_backoff=True)
+        def update_tv_shows(self, event_data):
+            """Celery task to process a new message event."""
+            try:
+                message_id, show_name, episode_title, download_link = (
+                    event_data['message_id'],
+                    event_data['show_name'],
+                    event_data['episode_title'],
+                    event_data['download_link'],
+                )
+                tmdb_data = fetch_tmdb_data(show_name)
+                show_data = {
+                    'show_name': show_name,
+                    'episode_title': episode_title,
+                    'download_link': download_link,
+                    'message_id': message_id,
+                    'overview': tmdb_data.get('overview') if tmdb_data else None,
+                    'vote_average': tmdb_data.get('vote_average') if tmdb_data else None,
+                    'poster_path': tmdb_data.get('poster_path') if tmdb_data else None,
+                }
 
-        except MaxRetriesExceededError:
-            logger.error("Max retries exceeded for update_tv_shows task.")
-        except Exception as e:
-            logger.exception(f"An unexpected error occurred in update_tv_shows: {e}")
-            self.retry(exc=e, countdown=60)
+                # Use current_app to get the Flask app context
+                with current_app.app_context():
+                    existing_show = TVShow.query.filter_by(message_id=message_id).first()
+                    if existing_show:
+                        for key, value in show_data.items():
+                            setattr(existing_show, key, value)
+                        db.session.commit()
+                        logger.info(f"Updated: {show_name} - {episode_title}")
+                    else:
+                        new_show = TVShow(**show_data)
+                        db.session.add(new_show)
+                        db.session.commit()
+                        logger.info(f"Inserted: {show_name} - {episode_title}")
+                    db.session.remove()  # Clean up
 
-    @celery.task
-    def run_telethon_client():
-        """Celery task to run the Telethon client (bot account)."""
-        try:
-            # Use the bot token for authentication
-            client = TelegramClient(StringSession(), API_ID, API_HASH).start(bot_token=BOT_TOKEN)
+            except MaxRetriesExceededError:
+                logger.error("Max retries exceeded for update_tv_shows.")
+            except Exception as e:
+                logger.exception(f"Error in update_tv_shows: {e}")
+                self.retry(exc=e, countdown=60)
 
-            @client.on(events.NewMessage(chats=[TELEGRAM_CHANNEL_ID]))
-            async def new_message_listener(event):
-                await process_telegram_message(event)
+        @celery.task
+        def run_telethon_client():
+            """Celery task to run Telethon client."""
+            try:
+                client = TelegramClient(StringSession(), API_ID, API_HASH).start(bot_token=BOT_TOKEN)
 
-            with client:
-                logger.info("Telethon client (bot) started. Listening for new messages...")
-                client.run_until_disconnected()
+                @client.on(events.NewMessage(chats=[TELEGRAM_CHANNEL_ID]))
+                async def new_message_listener(event):
+                    await process_telegram_message(event)
 
-        except Exception as e:
-            logger.exception(f"Error in Telethon client: {e}")
+                with client:
+                    logger.info("Telethon client started. Listening...")
+                    client.run_until_disconnected()
 
-    # Return the celery object *and* the tasks (so they're accessible)
+            except Exception as e:
+                logger.exception(f"Error in Telethon client: {e}")
+
+        @celery.task
+        def test_task():
+            logger.info("Test task running!")
+
+    # Register tasks *after* defining them
+    register_tasks(celery)
     return celery
 
+
 async def process_telegram_message(event):
+    """Processes a Telegram message."""
     if event.message.sender_chat and event.message.sender_chat.id == TELEGRAM_CHANNEL_ID:
         parsed_data = parse_telegram_post(event)
         if parsed_data:
@@ -236,12 +244,5 @@ async def process_telegram_message(event):
                     'episode_title': episode_title,
                     'download_link': parsed_data['download_link'],
                 }
-                make_celery(app).tasks['tv_app.tasks.update_tv_shows'].delay(event_data)
-
-
-
-# --- Simple test task ---
-@celery.task
-def test_task():
-    logger.info("The test Celery task has run!")
-    return "Test task complete"
+                # Correctly call the task using current_app.tasks
+                current_app.tasks['tv_app.tasks.update_tv_shows'].delay(event_data)
