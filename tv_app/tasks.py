@@ -1,3 +1,4 @@
+# tasks.py
 from celery import Celery
 from celery.exceptions import MaxRetriesExceededError
 import os
@@ -16,7 +17,7 @@ from pyrogram import Client, errors
 
 load_dotenv()
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 celery = Celery(__name__, broker=os.environ.get('REDIS_URL', 'redis://localhost:6379/0'), backend=os.environ.get('REDIS_URL', 'redis://localhost:6379/0'))
@@ -42,59 +43,53 @@ channel_id = int(os.environ.get('TELEGRAM_CHANNEL_ID'))
 
 pyrogram_client = Client("tv_shows_bot", api_id=api_id, api_hash=api_hash, bot_token=bot_token)
 
-INIT_FLAG_FILE = "/tmp/telegram_bot_initialized"
+async def _fetch_telegram_updates(token, channel_id):
+    try:
+        appli = Application.builder().token(token).build()
+        posts = []
+        update_offset = None
 
-async def initialize_telegram_bot():
-    force_init = os.environ.get("INIT_FORCE_RESET", "False").lower() == "true"
-    if not os.path.exists(INIT_FLAG_FILE) or force_init:
-        logger.info("Initializing Telegram bot connection...")
-        try:
-            async with pyrogram_client:
-                try:
-                    chat = await pyrogram_client.get_chat(channel_id)
-                    if chat.type != "channel":
-                        logger.error(f"The provided ID {channel_id} is not a channel.")
-                        return False
-                except errors.PeerIdInvalid:
-                    logger.error("Bot has never interacted with the channel. Send a message from the bot to the channel and restart.")
-                    return False
-                except errors.ChatAdminRequired:
-                    logger.error(f"Bot is not an admin in {channel_id}. Please add the bot to the channel as an admin.")
-                    return False
-                except Exception as e:
-                     logger.error(f"Bot could not connect, check the provided variables: {e}")
-                     return False
+        while True:
+            updates = await appli.bot.get_updates(allowed_updates=['channel_post'], timeout=60, offset=update_offset)
+            logger.info(f"Received {len(updates)} updates from Telegram")
 
-                logger.info("Telegram bot initialized successfully.")
-                with open(INIT_FLAG_FILE, "w") as f:
-                    f.write("initialized")
-                return True
+            if not updates:
+                break
 
-        except Exception as e:
-            logger.exception(f"Unexpected error during initialization: {e}")
-            return False
-    else:
-        logger.info("Telegram bot already initialized.")
-        return True
+            for update in updates:
+                if update.channel_post and update.channel_post.sender_chat and str(update.channel_post.sender_chat.id) == channel_id:
+                    if update.channel_post.caption:
+                        posts.append(update.channel_post)
+                        logger.info(f"Added post to processing list: {update.channel_post.message_id}")
+                update_offset = update.update_id + 1
+        await appli.shutdown()
+        return posts
+    except TelegramError as e:
+        logger.error(f"Telegram error: {e}")
+        return []
+    except Exception as e:
+        logger.exception(f"Telegram API error in _fetch_telegram_updates: {e}")
+        return []
 
 async def fetch_telegram_posts():
     logger.info(f"Fetching updates from Telegram channel: {channel_id}")
     posts = []
     try:
         async with pyrogram_client:
-            async for message in pyrogram_client.get_chat_history(chat_id=channel_id):
-                if message.caption:
-                    posts.append(message)
-                    logger.info(f"Added post to processing list: {message.id}")
+          async for message in pyrogram_client.get_chat_history(chat_id=channel_id):
+            if message.caption:
+                posts.append(message)
+                logger.info(f"Added post to processing list: {message.id}")
+
     except errors.FloodWait as e:
         logger.warning(f"FloodWait error: {e}.  Waiting for {e.value} seconds.")
         await asyncio.sleep(e.value)
         posts.extend(await fetch_telegram_posts())
     except errors.ChatAdminRequired:
-        logger.error(f"Bot is not an admin in {channel_id}. Please add as admin with posting rights.")
-        return []
+      logger.error(f"Bot is not an admin in {channel_id}. Please add as admin with posting rights.")
+      return []
     except errors.PeerIdInvalid:
-        logger.error(f"Peer id invalid: {channel_id}. Make sure the ID is correct, and the bot has interacted once.")
+        logger.error(f"Peer id invalid: {channel_id}. Make sure that the bot has been added as admin in your private channel.")
         return []
     except Exception as e:
         logger.exception(f"Error fetching posts: {e}")
@@ -116,10 +111,11 @@ def parse_telegram_post(post):
             show_name = lines[0].strip()
             logger.info(f"Show Name: {show_name}")
             if len(lines) >1:
-               if lines[1].strip().startswith('#_'):
+              if lines[1].strip().startswith('#_'):
                 season_episode = None
+                link_line_index = 2
                 logger.info("Season/Episode: None (starts with #_)")
-               else:
+              else:
                 season_episode = lines[1].strip()
                 logger.info(f"Season/Episode: {season_episode}")
             if post.caption_entities:
@@ -140,6 +136,7 @@ def parse_telegram_post(post):
         else:
             logger.warning(f"No show name found in post: {post.id}")
             return None
+
     except Exception as e:
         logger.exception(f"Error during parsing: {e}")
         return None
@@ -154,10 +151,10 @@ def preprocess_show_name(name):
     return name.strip()
 
 def get_close_matches_with_threshold(query, possibilities, n=3, cutoff=0.6):
-   return difflib.get_close_matches(query, possibilities, n=n, cutoff=cutoff)
+    return difflib.get_close_matches(query, possibilities, n=n, cutoff=cutoff)
 
-#@sleep_and_retry   # Removed
-#@limits(calls=CALLS, period=PERIOD) # Removed
+@sleep_and_retry
+@limits(calls=CALLS, period=PERIOD)
 def fetch_tmdb_data(show_name, language='en-US'):
     original_show_name = show_name
     show_name = preprocess_show_name(show_name)
@@ -204,6 +201,7 @@ def fetch_tmdb_data(show_name, language='en-US'):
                 redis_client.setex(cache_key, 7 * 24 * 60 * 60, json.dumps(data_to_cache))
             logger.info(f"TMDb data found and cached for: {show_name}")
             return data_to_cache
+
         else:
             logger.info(f"No direct match for: {show_name}, trying shortened versions...")
             name_parts = show_name.split()
@@ -223,6 +221,7 @@ def fetch_tmdb_data(show_name, language='en-US'):
                         if best_match:
                           best_match_index = tmdb_titles.index(best_match[0])
                           show_id = shortened_data['results'][best_match_index]['id']
+                          # --- Fetch Details and Cache ---
                           details_url = f"https://api.themoviedb.org/3/tv/{show_id}?language={language}"
                           details_response = requests.get(details_url, headers=headers, timeout=10)
                           details_response.raise_for_status()
@@ -234,11 +233,11 @@ def fetch_tmdb_data(show_name, language='en-US'):
                             }
                           if redis_client:
                             redis_client.setex(cache_key, 7 * 24 * 60 * 60, json.dumps(data_to_cache))
-
                           logger.info(f"TMDb data found (with shortened name) and cached for: {show_name}")
                           return data_to_cache
             logger.warning(f"No TMDb data found for: {original_show_name} (or any shortened versions)")
             return None
+
     except requests.exceptions.RequestException as e:
         logger.error(f"Error fetching data from TMDb: {e}")
         return None
@@ -251,46 +250,59 @@ def fetch_tmdb_data(show_name, language='en-US'):
 
 @celery.task(bind=True, retry_backoff=True)
 def update_tv_shows(self):
-    logger.info("Starting update_tv_shows task.")
+    """Updates the database with new TV show info from Telegram."""
     try:
-        asyncio.run(initialize_telegram_bot())
-        posts = asyncio.run(fetch_telegram_posts())
-        if not posts:
-            logger.info("No new posts found.")
-            return
+        # --- Redis Lock ---
+        redis_client = Redis.from_url(os.environ.get('REDIS_URL'), decode_responses=True)
+        lock = redis_client.lock("update_tv_shows_lock", timeout=120, blocking_timeout=5)
 
-        from tv_app.app import app
-        with app.app_context():
-            from tv_app.models import db, TVShow
+        if lock.acquire(blocking=False):
+            logger.info("Lock acquired, starting update_tv_shows task.")
+            try:
+                posts =  asyncio.run(fetch_telegram_posts())  # Use asyncio.run
+                if not posts:
+                    logger.info("No new posts found.")
+                    return
 
-            for post in posts:
-                parsed_data = parse_telegram_post(post)
-                if parsed_data:
-                    logger.info(f"Processing show: {parsed_data['show_name']}")
-                    tmdb_data = fetch_tmdb_data(parsed_data['show_name'])
+                from tv_app.app import app
+                with app.app_context():
+                    from tv_app.models import db, TVShow
 
-                    show_data = {
-                        'show_name': parsed_data['show_name'],
-                        'episode_title': parsed_data['season_episode'],
-                        'download_link': parsed_data['download_link'],
-                        'message_id': parsed_data['message_id'],
-                        'overview': tmdb_data.get('overview') if tmdb_data else None,
-                        'vote_average': tmdb_data.get('vote_average') if tmdb_data else None,
-                        'poster_path': tmdb_data.get('poster_path') if tmdb_data else None,
-                    }
+                    for post in posts:
+                        parsed_data = parse_telegram_post(post)
+                        if parsed_data:
+                            logger.info(f"Processing show: {parsed_data['show_name']}")
+                            tmdb_data = fetch_tmdb_data(parsed_data['show_name'])
 
-                    existing_show = TVShow.query.filter_by(message_id=parsed_data['message_id']).first()
-                    if existing_show:
-                        for key, value in show_data.items():
-                            setattr(existing_show, key, value)
-                        logger.info(f"Successfully updated: {parsed_data['show_name']}")
-                    else:
-                        new_show = TVShow(**show_data)
-                        db.session.add(new_show)
-                        logger.info(f"Successfully inserted: {parsed_data['show_name']}")
+                            show_data = {
+                                'show_name': parsed_data['show_name'],
+                                'episode_title': parsed_data['season_episode'],
+                                'download_link': parsed_data['download_link'],
+                                'message_id': parsed_data['message_id'],
+                                'overview': tmdb_data.get('overview') if tmdb_data else None,
+                                'vote_average': tmdb_data.get('vote_average') if tmdb_data else None,
+                                'poster_path': tmdb_data.get('poster_path') if tmdb_data else None,
+                            }
 
-                db.session.commit()
-                db.session.remove()
+                            existing_show = TVShow.query.filter_by(message_id=parsed_data['message_id']).first()
+                            if existing_show:
+                                for key, value in show_data.items():
+                                    setattr(existing_show, key, value)
+                                db.session.commit()
+                                logger.info(f"Successfully updated: {parsed_data['show_name']}")
+                            else:
+                                new_show = TVShow(**show_data)
+                                db.session.add(new_show)
+                                db.session.commit()
+                                logger.info(f"Successfully inserted: {parsed_data['show_name']}")
+                    db.session.remove()
+
+            finally:
+                if lock:
+                  lock.release()
+                  logger.info("Lock released.")
+        else:
+            logger.info("Could not acquire lock, task is likely already running.")
 
     except MaxRetriesExceededError:
         logger.error("Max retries exceeded for update_tv_shows task.")
