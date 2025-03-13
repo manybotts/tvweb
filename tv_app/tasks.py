@@ -20,9 +20,9 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-# Celery Configuration
+# Celery Configuration (Ensure Explicit Name)
 celery = Celery(
-    __name__,
+    'tv_app.tasks',
     broker=os.environ.get('REDIS_URL', 'redis://localhost:6379/0'),
     backend=os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
 )
@@ -36,7 +36,7 @@ celery.conf.beat_schedule = {
     },
 }
 
-# Embedded Celery Beat
+# Embedded Celery Beat (Only Starts When Worker is Running)
 beat_service = EmbeddedService(celery)  
 
 def start_embedded_beat():
@@ -44,11 +44,11 @@ def start_embedded_beat():
     logger.info("Starting Celery Beat inside the worker...")
     beat_service.start()
 
-# Start Celery Beat when the worker starts
 @celery.on_after_configure.connect
 def setup_embedded_beat(sender, **kwargs):
     """Ensures that Beat starts correctly after Celery is configured."""
-    start_embedded_beat()
+    if os.environ.get("RUNNING_CELERY_WORKER", "false").lower() == "true":
+        start_embedded_beat()
 
 # Rate Limiting Constants
 CALLS = 30
