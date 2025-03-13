@@ -12,7 +12,6 @@ from ratelimit import limits, sleep_and_retry
 import json
 from pyrogram import Client, errors
 from contextlib import asynccontextmanager
-from celery.beat.embedded_service import EmbeddedService
 
 load_dotenv()
 
@@ -20,9 +19,9 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-# Celery Configuration (Ensure Explicit Name)
+# Celery Configuration
 celery = Celery(
-    'tv_app.tasks',
+    __name__,
     broker=os.environ.get('REDIS_URL', 'redis://localhost:6379/0'),
     backend=os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
 )
@@ -35,20 +34,6 @@ celery.conf.beat_schedule = {
         'schedule': crontab(minute='*/1'),
     },
 }
-
-# Embedded Celery Beat (Only Starts When Worker is Running)
-beat_service = EmbeddedService(celery)  
-
-def start_embedded_beat():
-    """Start Celery Beat inside the worker after initialization."""
-    logger.info("Starting Celery Beat inside the worker...")
-    beat_service.start()
-
-@celery.on_after_configure.connect
-def setup_embedded_beat(sender, **kwargs):
-    """Ensures that Beat starts correctly after Celery is configured."""
-    if os.environ.get("RUNNING_CELERY_WORKER", "false").lower() == "true":
-        start_embedded_beat()
 
 # Rate Limiting Constants
 CALLS = 30
