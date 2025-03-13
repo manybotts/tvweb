@@ -15,7 +15,3 @@ click==8.1.7
 soupsieve==2.5
 Flask-SQLAlchemy==3.1.1
 python-telegram-bot==20.8
-ratelimit
-# --- Pyrogram and its dependencies ---
-pyrogram==2.0.106  # Or latest version: pip install pyrogram
-tgcrypto
