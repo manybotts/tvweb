@@ -9,11 +9,10 @@ from dotenv import load_dotenv
 from redis import Redis
 import asyncio
 from ratelimit import limits, sleep_and_retry
-import difflib
 import json
 from pyrogram import Client, errors
 from contextlib import asynccontextmanager
-from celery.beat.embedded_service import EmbeddedService  # Import embedded Celery Beat
+from celery.beat.embedded_service import EmbeddedService
 
 load_dotenv()
 
@@ -38,21 +37,30 @@ celery.conf.beat_schedule = {
 }
 
 # Embedded Celery Beat
-beat_service = EmbeddedService(celery)  # Create an embedded beat instance
+beat_service = EmbeddedService(celery)  
 
-@celery.on_after_finalize.connect
-def start_embedded_beat(sender, **kwargs):
-    """Start Celery Beat inside the worker"""
+def start_embedded_beat():
+    """Start Celery Beat inside the worker after initialization."""
     logger.info("Starting Celery Beat inside the worker...")
-    beat_service.start()  # Start the embedded beat
+    beat_service.start()
+
+# Start Celery Beat when the worker starts
+@celery.on_after_configure.connect
+def setup_embedded_beat(sender, **kwargs):
+    """Ensures that Beat starts correctly after Celery is configured."""
+    start_embedded_beat()
 
 # Rate Limiting Constants
 CALLS = 30
 PERIOD = 9
 DATABASE_BATCH_SIZE = 10
 
-# Redis Client
-redis_client = Redis.from_url(os.environ.get('REDIS_URL'), decode_responses=True)
+# Redis Client with Error Handling
+try:
+    redis_client = Redis.from_url(os.environ.get('REDIS_URL'), decode_responses=True)
+except Exception as e:
+    logger.error(f"Failed to connect to Redis: {e}")
+    redis_client = None
 
 # Telegram API Credentials
 api_id = int(os.environ.get("API_ID"))
@@ -127,7 +135,7 @@ def preprocess_show_name(name):
 def fetch_tmdb_data(show_name, language='en-US'):
     """Fetches TV show data from TMDb, with rate limiting and caching."""
     cache_key = f"tmdb_data:{show_name.lower()}:{language}"
-    cached_data = redis_client.get(cache_key)
+    cached_data = redis_client.get(cache_key) if redis_client else None
     if cached_data:
         logger.info(f"Cache hit for: {show_name}")
         return json.loads(cached_data)
@@ -155,19 +163,19 @@ def fetch_tmdb_data(show_name, language='en-US'):
             'overview': details_data.get('overview'),
             'vote_average': details_data.get('vote_average'),
         }
-        redis_client.setex(cache_key, 7 * 24 * 60 * 60, json.dumps(result))
+        if redis_client:
+            redis_client.setex(cache_key, 7 * 24 * 60 * 60, json.dumps(result))
         return result
     except requests.exceptions.RequestException as e:
         logger.error(f"TMDb API error: {e}")
-        return cached_data if cached_data else None  # Return cache on failure
+        return None
 
 @celery.task(bind=True, retry_backoff=True)
 def update_tv_shows(self):
     """Updates the database with new TV show info from Telegram."""
-    redis_client = Redis.from_url(os.environ.get('REDIS_URL'), decode_responses=True)
-    lock = redis_client.lock("update_tv_shows_lock", timeout=120, blocking_timeout=5)
+    lock = redis_client.lock("update_tv_shows_lock", timeout=120, blocking_timeout=5) if redis_client else None
 
-    if not lock.acquire(blocking=False):
+    if lock and not lock.acquire(blocking=False):
         logger.info("Another instance is running, skipping this execution.")
         return
 
@@ -195,4 +203,5 @@ def update_tv_shows(self):
         logger.exception(f"Error in update_tv_shows: {e}")
         self.retry(exc=e, countdown=min(300, (self.request.retries + 1) * 30))
     finally:
-        lock.release()
+        if lock:
+            lock.release()
