@@ -1,8 +1,8 @@
 # models.py
 from flask_sqlalchemy import SQLAlchemy
-from datetime import datetime, timezone
+from datetime import datetime
 
-db = SQLAlchemy()  # Create the db object here
+db = SQLAlchemy()
 
 class TVShow(db.Model):
     __tablename__ = 'tv_shows'
@@ -16,7 +16,7 @@ class TVShow(db.Model):
     vote_average = db.Column(db.Float)
     poster_path = db.Column(db.String)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    clicks = db.Column(db.Integer, default=0)  # ADD THIS LINE
+    clicks = db.Column(db.Integer, default=0)
 
     def __repr__(self):
         return f'<TVShow {self.show_name} - {self.episode_title}>'
