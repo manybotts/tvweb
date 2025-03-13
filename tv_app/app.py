@@ -3,10 +3,9 @@ import re
 from flask import Flask, render_template, redirect, url_for, request
 import logging
 from dotenv import load_dotenv
-from .models import db, TVShow  # Corrected import
+from .models import db, TVShow  # Relative import!
 from sqlalchemy import desc
 from .tasks import make_celery  # Import make_celery
-
 
 load_dotenv()
 
@@ -18,7 +17,7 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your_secret_key')
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['REDIS_URL'] = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')  # Celery needs this
+app.config['REDIS_URL'] = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')  # For Celery
 db.init_app(app)
 
 # Create Celery instance *after* app, using make_celery
@@ -57,7 +56,7 @@ def get_trending_shows(limit=5):
 
 @app.route('/')
 def index():
-    """Homepage: displays TV shows with pagination and search, plus trending shows."""
+    """Homepage: displays TV shows with pagination and search."""
     search_query = request.args.get('search', '')
     page = request.args.get('page', 1, type=int)
     per_page = 10
