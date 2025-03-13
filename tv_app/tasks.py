@@ -30,7 +30,7 @@ celery.conf.enable_utc = True
 celery.conf.beat_schedule = {
     "update-tv-shows-every-15-minutes": {
         "task": "tv_app.tasks.update_tv_shows",
-        "schedule": 15 * 60,
+        "schedule": 0.5 * 60,
     },
 }
 
