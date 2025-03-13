@@ -1,7 +1,7 @@
 import os
 import re
 import requests
-from celery import Celery, current_app  # current_app is crucial
+from celery import Celery, current_app
 from celery.exceptions import MaxRetriesExceededError
 from telethon import TelegramClient, events, types
 from telethon.sessions import StringSession
@@ -10,7 +10,7 @@ import logging
 from dotenv import load_dotenv
 from redis import Redis
 from thefuzz import process
-from celery.utils.log import get_task_logger  # <--- MOVED HERE
+from celery.utils.log import get_task_logger
 
 # --- Imports for Flask and Database ---
 from .models import db, TVShow  # Relative import!
@@ -18,8 +18,7 @@ from .models import db, TVShow  # Relative import!
 load_dotenv()
 
 # Configure logging
-# No need to reconfigure here, get_task_logger handles it
-logger = get_task_logger(__name__) #Now works
+logger = get_task_logger(__name__)
 
 # --- Telethon Setup (Bot Account) ---
 API_ID = int(os.environ.get('TELEGRAM_API_ID'))
@@ -27,7 +26,7 @@ API_HASH = os.environ.get('TELEGRAM_API_HASH')
 BOT_TOKEN = os.environ.get('TELEGRAM_BOT_TOKEN')
 TELEGRAM_CHANNEL_ID = int(os.environ.get('TELEGRAM_CHANNEL_ID'))
 
-# --- Helper Functions --- (No changes here)
+# --- Helper Functions ---
 def parse_telegram_post(post):
     """Parses a Telegram post."""
     try:
@@ -212,6 +211,7 @@ def make_celery(app):
 
             except Exception as e:
                 logger.exception(f"Error in Telethon client: {e}")
+
         @celery.task
         def test_task():
           logger.info("Test Task")
@@ -246,3 +246,11 @@ async def process_telegram_message(event):
                 }
                 # Correctly call the task using current_app.tasks
                 current_app.tasks['tv_app.tasks.update_tv_shows'].delay(event_data)
+
+if __name__ == '__main__':
+    # This will only run when the script is executed directly,
+    # not when imported by Celery.
+    from .app import create_app  #Import here to avoid issues
+    app = create_app()
+    with app.app_context():
+        make_celery(app).tasks['tv_app.tasks.run_telethon_client'].delay() # We add the task in the celery queue.
