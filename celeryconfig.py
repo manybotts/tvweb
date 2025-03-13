@@ -1,15 +1,17 @@
 # celeryconfig.py
 from celery.schedules import crontab
 
+print("CELERYCONFIG.PY IS BEING READ!")  # Keep this for now, to confirm
+
 # Configure Celery Beat's schedule
 beat_schedule = {
-    'update-tv-shows-every-15-minutes': {  # A unique name for this task
-        'task': 'tv_app.tasks.update_tv_shows',     # The FULL PATH to your task
-        'schedule': crontab(minute='*/15'), # Run every 15 minutes
-        # 'args': (arg1, arg2),  # Optional arguments to the task
+    'update-tv-shows-every-15-minutes': {
+        'task': 'tv_app.tasks.update_tv_shows',
+        'schedule': crontab(minute='*/15'),  # Every 15 minutes
     },
 }
 
-# VERY IMPORTANT: Tell Celery to use this schedule
-imports = ('tv_app.tasks',)  # Import your tasks module
-result_expires = 3600  # Optional: Expire results after 1 hour
+imports = ('tv_app.tasks',)
+result_expires = 3600
+timezone = 'UTC'  # Force UTC timezone
+enable_utc = True
