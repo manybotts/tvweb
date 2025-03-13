@@ -51,7 +51,7 @@ except Exception as e:
 api_id = int(os.environ.get("API_ID"))
 api_hash = os.environ.get("API_HASH")
 bot_token = os.environ.get("TELEGRAM_BOT_TOKEN")
-channel_id = int(os.environ.get('TELEGRAM_CHANNEL_ID'))
+channel_id = os.environ.get("TELEGRAM_CHANNEL_ID")
 
 # Pyrogram Client Context Manager
 @asynccontextmanager
@@ -67,18 +67,25 @@ async def fetch_telegram_posts():
     """Fetch new posts from Telegram using Pyrogram with proper async handling."""
     logger.info(f"Fetching updates from Telegram channel: {channel_id}")
     posts = []
+    
     async with get_pyrogram_client() as client:
         try:
-            async for message in client.get_chat_history(chat_id=channel_id):
+            chat = await client.get_chat(channel_id)  # ✅ Ensure bot can access the channel
+            async for message in client.get_chat_history(chat_id=chat.id, limit=10):  # Fetch only new posts
                 if message.caption:
                     posts.append(message)
         except errors.FloodWait as e:
-            logger.warning(f"FloodWait error: {e}. Waiting {e.value} seconds.")
+            logger.warning(f"FloodWait error: {e}. Waiting {e.value} seconds before retrying.")
             await asyncio.sleep(e.value)
-            posts.extend(await fetch_telegram_posts())  # Retry
+            return await fetch_telegram_posts()  # Retry after wait
+        except errors.ChatAdminRequired:
+            logger.error(f"Bot is not an admin in {channel_id}. Please grant admin permissions.")
+        except errors.RPCError as e:
+            logger.error(f"Telegram API error: {e}")
         except Exception as e:
-            logger.exception(f"Error fetching posts: {e}")
-    logger.info(f"Total posts fetched: {len(posts)}")
+            logger.exception(f"Unexpected error fetching posts: {e}")
+
+    logger.info(f"Total new posts fetched: {len(posts)}")
     return posts
 
 def parse_telegram_post(post):
@@ -165,8 +172,11 @@ def update_tv_shows(self):
         return
 
     try:
-        posts = asyncio.run(fetch_telegram_posts())
+        logger.info("Starting Telegram fetch...")
+        posts = asyncio.run(fetch_telegram_posts())  # ✅ Fetch new posts using async
+
         if not posts:
+            logger.info("No new posts found.")
             return
 
         from tv_app.app import app
@@ -182,8 +192,10 @@ def update_tv_shows(self):
 
                     new_shows.append(TVShow(**parsed_data))
 
-            db.session.bulk_save_objects(new_shows)
-            db.session.commit()
+            if new_shows:
+                db.session.bulk_save_objects(new_shows)
+                db.session.commit()
+                logger.info(f"Successfully added {len(new_shows)} new shows to the database.")
     except Exception as e:
         logger.exception(f"Error in update_tv_shows: {e}")
         self.retry(exc=e, countdown=min(300, (self.request.retries + 1) * 30))
