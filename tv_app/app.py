@@ -3,9 +3,10 @@ import re
 from flask import Flask, render_template, redirect, url_for, request
 import logging
 from dotenv import load_dotenv
-from .tasks import update_tv_shows
+# Removed: from .tasks import update_tv_shows  # Don't import tasks directly
 from .models import db, TVShow
 from sqlalchemy import desc
+from .tasks import make_celery  # Import make_celery
 
 load_dotenv()
 
@@ -17,7 +18,11 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your_secret_key')
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['REDIS_URL'] = os.environ.get('REDIS_URL', 'redis://localhost:6379/0') # Add this line
 db.init_app(app)
+
+# Create Celery instance *after* app
+celery = make_celery(app)
 
 # --- Database Operations ---
 
@@ -30,7 +35,7 @@ def get_all_tv_shows(page=1, per_page=10, search_query=None):
         query = query.filter(TVShow.show_name.ilike(f"%{search_query}%"))
 
     total_shows = query.count()
-    tv_shows = query.order_by(TVShow.created_at.desc()).offset(offset).limit(per_page).all()
+    tv_shows = query.order_by(desc(TVShow.created_at)).offset(offset).limit(per_page).all() #Use desc
     total_pages = (total_shows + per_page - 1) // per_page
 
     return tv_shows, total_pages
@@ -45,7 +50,7 @@ def get_all_show_names():
 
 def get_trending_shows(limit=5):
     """Retrieves the top 'limit' trending shows, ordered by clicks."""
-    return TVShow.query.order_by(TVShow.clicks.desc()).limit(limit).all()
+    return TVShow.query.order_by(desc(TVShow.clicks)).limit(limit).all() # Use desc
 
 # --- Routes ---
 
@@ -56,19 +61,17 @@ def index():
     page = request.args.get('page', 1, type=int)
     per_page = 10  # Moved per_page to the function level
 
-    logger.info("About to enqueue update_tv_shows task")
-    update_tv_shows.delay()
-    logger.info("update_tv_shows task enqueued")
+    # Removed:  Direct task call.  Telethon + Celery handles updates.
+    # logger.info("About to enqueue update_tv_shows task")
+    # update_tv_shows.delay()
+    # logger.info("update_tv_shows task enqueued")
 
     if search_query:
-        # If there's a search query, *only* fetch the matching shows.
         tv_shows, total_pages = get_all_tv_shows(page, per_page, search_query)
-        trending_shows = []  # Don't fetch trending shows if searching
+        trending_shows = []
     else:
-        # If there's *no* search query, fetch both all shows and trending shows.
         tv_shows, total_pages = get_all_tv_shows(page, per_page)
         trending_shows = get_trending_shows()
-
 
     logger.info(f"Total pages: {total_pages}")
     logger.info(f"TV Shows retrieved: {tv_shows}")
@@ -81,7 +84,7 @@ def show_details(message_id):
     """Displays details for a single TV show and increments its click count."""
     show = get_tv_show_by_message_id(message_id)
     if show:
-        with app.app_context():  # Use application context for db access
+        with app.app_context():
             show.clicks += 1
             db.session.commit()
         return render_template('show_details.html', show=show)
