@@ -26,6 +26,7 @@ celery = Celery(
     broker=os.environ.get('REDIS_URL', 'redis://localhost:6379/0'),
     backend=os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
 )
+
 celery.conf.timezone = 'UTC'
 celery.conf.enable_utc = True
 celery.conf.beat_schedule = {
@@ -175,6 +176,7 @@ def update_tv_shows(self):
                 if parsed_data:
                     tmdb_data = fetch_tmdb_data(parsed_data['show_name'])
                     parsed_data.update(tmdb_data or {})
+
                     new_shows.append(TVShow(**parsed_data))
 
             db.session.bulk_save_objects(new_shows)
