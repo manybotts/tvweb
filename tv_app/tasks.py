@@ -1,7 +1,7 @@
 import os
 import re
 import requests
-from celery import Celery, current_app  # current_app is crucial
+from celery import Celery, current_app
 from celery.exceptions import MaxRetriesExceededError
 from telethon import TelegramClient, events, types
 from telethon.sessions import StringSession
@@ -26,7 +26,7 @@ API_HASH = os.environ.get('TELEGRAM_API_HASH')
 BOT_TOKEN = os.environ.get('TELEGRAM_BOT_TOKEN')
 TELEGRAM_CHANNEL_ID = int(os.environ.get('TELEGRAM_CHANNEL_ID'))
 
-# --- Helper Functions --- (No changes here)
+# --- Helper Functions --- (No changes)
 def parse_telegram_post(post):
     """Parses a Telegram post."""
     try:
@@ -67,7 +67,6 @@ def parse_telegram_post(post):
     except Exception as e:
         logger.exception(f"Error during parsing: {e}")
         return None
-
 def clean_show_name(show_name):
     return ''.join(e for e in show_name if e.isalnum() or e.isspace()).strip().lower()
 
@@ -146,16 +145,16 @@ def fetch_tmdb_data(show_name, language='en-US'):
 def make_celery(app):
     celery = Celery(
         app.import_name,
-        broker=app.config['REDIS_URL'],
-        backend=app.config['REDIS_URL']
+        broker=app.config['REDIS_URL'],  # Use REDIS_URL from app config
+        backend=app.config['REDIS_URL']   # Use REDIS_URL for results too
     )
     celery.conf.update(app.config)
 
-    # Define tasks *inside* a function, taking the Celery app as argument
+    # Define tasks *inside* a function
     def register_tasks(celery):
         @celery.task(bind=True, retry_backoff=True)
         def update_tv_shows(self, event_data):
-            """Celery task to process a new message event."""
+            """Celery task to process a new message."""
             try:
                 message_id, show_name, episode_title, download_link = (
                     event_data['message_id'],
@@ -174,7 +173,7 @@ def make_celery(app):
                     'poster_path': tmdb_data.get('poster_path') if tmdb_data else None,
                 }
 
-                # Use current_app to get the Flask app context
+                # Use current_app for the Flask app context
                 with current_app.app_context():
                     existing_show = TVShow.query.filter_by(message_id=message_id).first()
                     if existing_show:
@@ -187,7 +186,7 @@ def make_celery(app):
                         db.session.add(new_show)
                         db.session.commit()
                         logger.info(f"Inserted: {show_name} - {episode_title}")
-                    db.session.remove()  # Clean up
+                    db.session.remove()
 
             except MaxRetriesExceededError:
                 logger.error("Max retries exceeded for update_tv_shows.")
@@ -211,10 +210,9 @@ def make_celery(app):
 
             except Exception as e:
                 logger.exception(f"Error in Telethon client: {e}")
-
         @celery.task
         def test_task():
-            logger.info("Test task running!")
+          logger.info("Test Task")
 
     # Register tasks *after* defining them
     register_tasks(celery)
