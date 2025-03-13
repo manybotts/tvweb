@@ -7,7 +7,7 @@ print("CELERYCONFIG.PY IS BEING READ!")  # Keep this for now, to confirm
 beat_schedule = {
     'update-tv-shows-every-15-minutes': {
         'task': 'tv_app.tasks.update_tv_shows',
-        'schedule': crontab(minute='*/15'),  # Every 15 minutes
+        'schedule': crontab(minute='*/1'),  # Every 15 minutes
     },
 }
 
