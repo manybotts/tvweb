@@ -1,47 +1,20 @@
+# tv_app/app.py
 import os
-import re
-from flask import Flask, render_template, redirect, url_for, request
-import logging
-from dotenv import load_dotenv
-from .tasks import update_tv_shows
-from .models import db, TVShow
+from flask import Flask, render_template, redirect, url_for, request, jsonify
+from .tasks import update_tv_shows, test_task  # Relative import
+from .models import db, TVShow  # Relative import
 from sqlalchemy import desc
+from dotenv import load_dotenv
 
 load_dotenv()
 
-# Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
-
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your_secret_key')
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL')
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///tv_shows.db')  # Default to SQLite
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db.init_app(app)
 
-# --- Database Operations ---
-
-def get_all_tv_shows(page=1, per_page=10, search_query=None):
-    """Retrieves TV shows with pagination and search."""
-    offset = (page - 1) * per_page
-    query = TVShow.query
-
-    if search_query:
-        query = query.filter(TVShow.show_name.ilike(f"%{search_query}%"))
-
-    total_shows = query.count()
-    tv_shows = query.order_by(TVShow.created_at.desc()).offset(offset).limit(per_page).all()
-    total_pages = (total_shows + per_page - 1) // per_page
-
-    return tv_shows, total_pages
-
-def get_tv_show_by_message_id(message_id):
-    """Retrieves a single TV show by its message_id."""
-    return TVShow.query.filter_by(message_id=message_id).first()
-
-def get_all_show_names():
-    """Retrieves a list of all unique show names."""
-    return [show.show_name for show in TVShow.query.distinct(TVShow.show_name).order_by(TVShow.show_name).all()]
+# --- Database Operations (using SQLAlchemy's built-in features) ---
 
 def get_trending_shows(limit=5):
     """Retrieves the top 'limit' trending shows, ordered by clicks."""
@@ -54,52 +27,57 @@ def index():
     """Homepage: displays TV shows with pagination and search, plus trending shows."""
     search_query = request.args.get('search', '')
     page = request.args.get('page', 1, type=int)
-    per_page = 10  # Moved per_page to the function level
-
-    logger.info("About to enqueue update_tv_shows task")
-    update_tv_shows.delay()
-    logger.info("update_tv_shows task enqueued")
+    per_page = 10
 
     if search_query:
-        # If there's a search query, *only* fetch the matching shows.
-        tv_shows, total_pages = get_all_tv_shows(page, per_page, search_query)
-        trending_shows = []  # Don't fetch trending shows if searching
+        shows = TVShow.query.filter(TVShow.show_name.ilike(f'%{search_query}%')).paginate(page=page, per_page=per_page, error_out=False)
+        trending_shows = []
     else:
-        # If there's *no* search query, fetch both all shows and trending shows.
-        tv_shows, total_pages = get_all_tv_shows(page, per_page)
+        shows = TVShow.query.order_by(TVShow.created_at.desc()).paginate(page=page, per_page=per_page, error_out=False)
         trending_shows = get_trending_shows()
 
-
-    logger.info(f"Total pages: {total_pages}")
-    logger.info(f"TV Shows retrieved: {tv_shows}")
-
-    return render_template('index.html', tv_shows=tv_shows, page=page, total_pages=total_pages, search_query=search_query, trending_shows=trending_shows)
+    return render_template('index.html', shows=shows, search_query=search_query, trending_shows=trending_shows)
 
 
-@app.route('/show/<int:message_id>')
-def show_details(message_id):
+@app.route('/show/<int:show_id>')
+def show_details(show_id):
     """Displays details for a single TV show and increments its click count."""
-    show = get_tv_show_by_message_id(message_id)
-    if show:
-        with app.app_context():  # Use application context for db access
-            show.clicks += 1
-            db.session.commit()
-        return render_template('show_details.html', show=show)
-    return "Show not found", 404
+    show = TVShow.query.get_or_404(show_id)  # Use get_or_404 with the primary key
+    show.clicks += 1
+    db.session.commit()
+    return render_template('show_details.html', show=show)
 
-@app.route('/redirect/<int:message_id>')
-def redirect_to_download(message_id):
+
+@app.route('/redirect/<int:show_id>')
+def redirect_to_download(show_id):
     """Redirects to the download link for a TV show."""
-    show = get_tv_show_by_message_id(message_id)
-    if show and show.download_link:
+    show = TVShow.query.get_or_404(show_id)  # Use get_or_404 with the primary key
+    if show.download_link:
         return redirect(show.download_link)
     return "Show or link not found", 404
 
-@app.route('/shows')
+@app.route('/shows')  # Keep this as is - it lists show *names*, not full details
 def list_shows():
     """Displays a list of all available TV show names."""
-    show_names = get_all_show_names()
+    show_names = [show.show_name for show in TVShow.query.distinct(TVShow.show_name).order_by(TVShow.show_name).all()]
     return render_template('shows.html', show_names=show_names)
 
-if __name__ == "__main__":
-    app.run(debug=False, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+@app.route('/update', methods=['POST'])
+def update():
+    update_tv_shows.delay()  # Run the task asynchronously
+    return jsonify({'message': 'Update initiated'}), 202
+
+@app.route('/test_celery')
+def test_celery():
+    result = test_task.delay()
+    return f"Celery test task initiated. Check logs/flower. Task ID: {result.id}", 200
+
+@app.route('/delete_all', methods=['POST'])
+def delete_all_shows():
+    try:
+        num_rows_deleted = db.session.query(TVShow).delete()
+        db.session.commit()
+        return jsonify({'message': f'All {num_rows_deleted} shows deleted.'}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'message': f'Error deleting shows: {str(e)}'}), 500
