@@ -12,7 +12,7 @@ result_backend = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')  # Use 
 beat_schedule = {
     'update-tv-shows-every-15-minutes': {  # Changed the name for clarity
         'task': 'tv_app.tasks.update_tv_shows',
-        'schedule': crontab(minute='*/3'),  # Run every 15 minutes.  CORRECTED.
+        'schedule': crontab(minute='*/1'),  # Run every 15 minutes.  CORRECTED.
     },
 }
 
