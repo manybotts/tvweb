@@ -396,7 +396,7 @@ h1 {
     opacity: 0.7; /* Initially faded */
     transition: opacity 0.4s ease, transform 0.4s ease; /* Smooth transitions */
     position: relative; /* Needed for absolute positioning of title */
-    width: calc(25% - 20px);
+    width: calc(25% - 20px); /* Same as regular cards */
 }
 
 .mySlides:first-child{
@@ -431,7 +431,6 @@ h1 {
     border: none;
     border-radius: 5px;
 }
-
 .next {
     right: 0;
      border-radius: 5px 0 0 5px;
@@ -475,62 +474,82 @@ h1 {
 /* Adjustments for smaller screens */
 
 @media (max-width: 768px) {
-    .nav-links {
-        margin: 0; /* Remove margin */
-    }
-    .nav-link .link-text {
-        display: none; /* Hide link text on small screens */
-    }
-      .search-form input[type="text"]{
-     display: none;
-   }
-   .search-form .search-button{
-        display: none;
-    }
-    .search-icon-button {
-        display: inline-block; /* Show icon button */
-    }
-      .card {
-        width: calc(50% - 15px); /* Two cards per row, adjust gap */
-    }
+	.nav-links {
+		margin: 0;
+		/* Remove margin */
+	}
+
+	.nav-link .link-text {
+		display: none;
+		/* Hide link text on small screens */
+	}
+
+	.search-form input[type="text"] {
+		display: none;
+	}
+
+	.search-form .search-button {
+		display: none;
+	}
+
+	.search-icon-button {
+		display: inline-block;
+		/* Show icon button */
+	}
+
+	.card {
+		width: calc(50% - 15px);
+		/* Two cards per row, adjust gap */
+	}
+
     .mySlides{
          width: calc(50% - 10px);
     }
 
-    .prev,
-    .next {
-        font-size: 16px; /* Smaller arrows */
-        padding: 10px; /* Smaller padding */
-    }
-
+	.prev,
+	.next {
+		font-size: 16px;
+		/* Smaller arrows */
+		padding: 10px;
+		/* Smaller padding */
+	}
 }
 
 @media (max-width: 480px) {
+	.navbar-brand .brand-text {
+		display: none;
+		/* Hide brand text on very small screens */
+	}
 
-    .navbar-brand .brand-text {
-        display: none; /* Hide brand text on very small screens */
-    }
-    .card {
-        width: 95%; /* One card per row on very small screens */
-    }
+	.card {
+		width: 95%;
+		/* One card per row on very small screens */
+	}
 
     .mySlides{
         width: 90%; /* One slide visible */
     }
-    .prev,
-    .next {
-        font-size: 14px; /* Smaller arrows */
-        padding: 8px; /* Smaller padding */
-    }
 
-     .dot-container {
-        padding: 10px; /* Reduce padding */
-    }
+	.prev,
+	.next {
+		font-size: 14px;
+		/* Smaller arrows */
+		padding: 8px;
+		/* Smaller padding */
+	}
 
-    .dot {
-        height: 8px; /* Smaller dots */
-        width: 8px;
-        margin: 0 1px; /* Less margin */
-    }
+	.dot-container {
+		padding: 10px;
+		/* Reduce padding */
+	}
+
+	.dot {
+		height: 8px;
+		/* Smaller dots */
+		width: 8px;
+		margin: 0 1px;
+		/* Less margin */
+	}
 }
+
 /* --- End of style.css --- */
