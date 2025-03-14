@@ -1,6 +1,8 @@
 /* --- tv_app/static/style.css --- */
 /* --- PART 1 START --- */
 
+/* --- General Styles --- */
+
 body {
     font-family: 'Open Sans', sans-serif;
     line-height: 1.6;
@@ -9,6 +11,27 @@ body {
     background-color: #141414;
     color: #fff;
 }
+
+.container {
+    max-width: 1200px;
+    margin: auto;
+    overflow: hidden;
+    padding: 20px;
+    padding-top: 80px; /* Account for fixed navbar */
+    box-sizing: border-box;
+}
+
+h2 {
+    text-align: left;
+    margin-bottom: 20px;
+    color: #fff;
+    font-family: 'Netflix Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    font-size: 1.1em;
+    display: flex;
+    align-items: center;
+}
+
+/* --- Navbar --- */
 
 .navbar {
     background-color: #141414;
@@ -67,35 +90,31 @@ body {
     margin-right: 5px;
 }
 
-/* Hide link text on small screens */
-@media (max-width: 768px) {
-    .nav-link .link-text {
-        display: none;
-    }
-}
-
 .navbar a:hover {
     background-color: rgba(255, 255, 255, 0.1);
 }
 
-/* Style for the brand text (iBOX TV) */
 .brand-text {
     color: white;
     font-weight: bold;
     font-size: 1.2em;
     font-family: 'Panton Rust', 'Helvetica Neue', Helvetica, Arial, sans-serif;
     margin-right: 20px;
-    /* Add space on the Right */
     display: inline;
+}
+
+/* --- Desktop Search (Hidden on Mobile) --- */
+
+.desktop-search {
+    display: flex; /* Ensure it's flex by default */
+    align-items: center;
 }
 
 .search-form {
     margin-left: 5px;
-    display: flex;
-    align-items: center;
     position: relative;
 }
-
+/*Style for the text box*/
 .search-form input[type="text"] {
     padding: 8px;
     border: 1px solid #555;
@@ -104,9 +123,8 @@ body {
     border-radius: 4px;
     margin-right: 5px;
     width: 150px;
-    transition: width 0.3s ease, display 0.3s ease;
+    transition: width 0.3s ease;
     display: none;
-    /* Initially hidden */
 }
 
 .search-form input[type="text"]:focus {
@@ -114,8 +132,7 @@ body {
     border-color: #007bff;
     background-color: #444;
 }
-
-/* Style for the regular search button (visible on larger screens) */
+/*Style for the search button*/
 .search-form .search-button {
     padding: 8px 16px;
     background-color: #007bff;
@@ -124,15 +141,13 @@ body {
     border-radius: 4px;
     cursor: pointer;
     transition: background-color 0.3s ease;
-    display: none;
-    /* Initially hidden */
+     display: none;
 }
 
 .search-form .search-button:hover {
     background-color: #0056b3;
 }
-
-/* Search icon button style */
+/*Style for the icon*/
 .search-icon-button {
     background: none;
     border: none;
@@ -144,41 +159,94 @@ body {
 }
 
 .search-icon-button i {
+    pointer-events: none; /*  So clicks go through to the button */
+}
+
+/* --- Mobile Search (Hidden on Desktop) --- */
+
+.mobile-search-form {
+    display: none; /* Hidden by default (shown on mobile via media query) */
+    align-items: center;
+    position: relative;
+}
+
+.mobile-search-input {
+    padding: 8px;
+    border: 1px solid #555;
+    background-color: #333;
+    color: white;
+    border-radius: 4px;
+    margin-right: 5px; /* Space between input and button */
+    width: 0; /* Initially hidden */
+    opacity: 0;
+    transition: width 0.3s ease, opacity 0.3s ease;
+    position: absolute; /* Position absolutely within the form */
+    right: 45px; /* Adjust as needed for positioning */
+    top: 50%;
+    transform: translateY(-50%);
+}
+.mobile-search-input:focus{
+      border-color: #007bff;
+      background-color: #444;
+}
+
+.mobile-search-form.active .mobile-search-input {
+    width: 150px; /* Expand to this width when active */
+    opacity: 1;
+}
+
+.mobile-search-button {
+    background: none;
+    border: none;
+    color: white;
+    cursor: pointer;
+    position: absolute;
+    right: 10px; /* Position to the right edge */
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 1.2em; /* Adjust as needed */
+    padding: 8px;
+}
+
+.mobile-search-icon-button {
+    background: none;
+    border: none;
+    padding: 8px;
+    cursor: pointer;
+    color: white;
+    font-size: 1.2em;
+   /* margin-left: auto;  Push to the right */
+}
+
+.mobile-search-icon-button i {
     pointer-events: none;
 }
 
-/* Media query to show/hide search elements */
+/* --- Media Queries for Navbar --- */
+
 @media (max-width: 768px) {
+    .nav-link .link-text {
+        display: none; /* Hide link text on small screens */
+    }
 
     .nav-links {
-        margin: 0;
+        margin: 0; /* Remove margin */
     }
 
     .brand-text {
-        font-size: 1em;
+        font-size: 1em; /* Smaller font size on mobile */
+    }
+
+    .desktop-search {
+        display: none; /* Hide desktop search on mobile */
+    }
+
+    .mobile-search-form {
+        display: flex; /* Show mobile search on mobile */
     }
 }
 
-.container {
-    max-width: 1200px;
-    margin: auto;
-    overflow: hidden;
-    padding: 20px;
-    padding-top: 80px;
-    box-sizing: border-box;
-}
-
-h2 {
-    text-align: left;
-    margin-bottom: 20px;
-    color: #fff;
-    font-family: 'Netflix Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif;
-    font-size: 1.1em;
-    display: flex;
-    align-items: center;
-}
-
-/* ---Icons---*/
+/* --- Icons --- */
 .eye-icon::before {
     font-family: "Font Awesome 6 Free";
     content: "\f06e";
@@ -198,6 +266,16 @@ h2 {
     font-weight: 900;
     font-size: 0.8em;
 }
+ .show-label-icon::before {
+    font-family: "Font Awesome 6 Free";
+    content: "\f039";
+    margin-right: 8px;
+    display: inline-block;
+    font-weight: 900;
+    font-size: 0.8em;
+}
+
+/* --- Card Styles --- */
 
 .tv-shows {
     display: flex;
@@ -205,12 +283,18 @@ h2 {
     justify-content: flex-start;
     gap: 15px;
 }
-
+.show-list{
+     display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    gap: 15px;
+    padding: 20px;
+}
 .card {
     border: 1px solid #333;
     padding: 15px;
     margin-bottom: 20px;
-    width: calc(25% - 20px);
+    width: calc(25% - 15px); /* Default: Four columns with gap */
     text-align: center;
     background-color: #222;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.6);
@@ -234,6 +318,7 @@ h2 {
      display: flex;
      flex-direction: column;
 }
+
 .card img {
     max-width: 100%;
     height: auto;
@@ -257,6 +342,27 @@ h2 {
     margin-bottom: 0;
     margin-top: auto;
 }
+
+ .show-item {
+     background-color: #222;
+    color: #fff;
+    padding: 10px 15px;
+    border-radius: 5px;
+    text-decoration: none;
+    transition: background-color: 0.3s ease;
+    width: calc(20% - 12px);  /*Five Columns*/
+    box-sizing: border-box;
+    text-align: center;
+}
+/* --- PART 1 END --- */
+/* --- tv_app/static/style.css --- */
+/* --- PART 2 START --- */
+
+.show-item:hover {
+    background-color: #333;
+}
+
+/* --- Loader --- */
 
 .telegram-loader {
     width: 48px;
@@ -305,6 +411,8 @@ h2 {
     }
 }
 
+/* --- Pagination --- */
+
 .pagination {
     text-align: center;
     margin-top: 20px;
@@ -334,6 +442,8 @@ h2 {
     border: 1px solid #007bff;
 }
 
+/* --- Download Button --- */
+/*(This is not in use, and its safe to be used later)*/
 .download-button {
     display: inline-block;
     padding: 10px 20px;
@@ -342,46 +452,13 @@ h2 {
     color: white;
     text-decoration: none;
     border-radius: 5px;
-    transition: background-color: 0.3s ease;
+    transition: background-color 0.3s ease;
     margin-top: 10px;
     border: none;
 }
 
 .download-button:hover {
     background-color: #0056b3;
-}
-  .show-label-icon::before {
-    font-family: "Font Awesome 6 Free";
-    content: "\f039";
-    margin-right: 8px;
-    display: inline-block;
-    font-weight: 900;
-    font-size: 0.8em;
-}
- .show-list{
-     display: flex;
-    flex-wrap: wrap;
-    justify-content: flex-start;
-    gap: 15px;
-    padding: 20px;
-}
- .show-item {
-     background-color: #222;
-    color: #fff;
-    padding: 10px 15px;
-    border-radius: 5px;
-    text-decoration: none;
-    transition: background-color 0.3s ease;
-    width: calc(20% - 12px);  /*Five Columns*/
-    box-sizing: border-box;
-    text-align: center;
-}
-/* --- PART 1 END --- */
-/* --- tv_app/static/style.css --- */
-/* --- PART 2 START --- */
-
-.show-item:hover {
-    background-color: #333;
 }
 
 /* --- Slideshow --- */
@@ -437,9 +514,9 @@ h2 {
 
 .mobile-slideshow .mySlides.active-slide {
     opacity: 1;
-    transform: scale(1.1);
+    transform: scale(1.05); /* Slightly Reduced Scale */
     z-index: 2;
-    margin: 0 10px;
+    margin: 0 5px; /*  Reduced margin */
 }
 
 .mobile-slideshow .mySlides:not(.active-slide) {
@@ -532,7 +609,7 @@ h2 {
 /* --- Desktop Slideshow --- */
 
 .desktop-slideshow {
-    height: 250px;
+    height: 280px; /* Increased height slightly */
 }
 
 .desktop-slideshow .slideshow-inner {
@@ -545,8 +622,8 @@ h2 {
 
 .desktop-slideshow .mySlides {
     flex: 0 0 auto;
-    width: calc((100% / 5) - 20px);  /*Five columns*/
-    margin: 0 10px;
+    width: calc((100% / 5) - 16px);  /* Five columns, adjusted margin */
+    margin: 0 8px; /* Reduced margin */
     height: 90%;
     display: none;
     transition: transform 0.5s ease, opacity 0.5s ease, filter 0.5s ease;
@@ -563,7 +640,7 @@ h2 {
 
 /* Style for non-active slides */
 .desktop-slideshow .mySlides:not(.active-slide) {
-    filter: brightness(0.5) blur(2px);
+    filter: brightness(0.5) blur(1px); /* Reduced blur */
     transform: scale(0.8);
 }
 
@@ -648,11 +725,13 @@ h2 {
     }
 
     .card {
-        width: calc(50% - 15px); /* Two columns on smaller screens */
+        width: calc(50% - 10px); /* Two columns, adjusted gap */
+        gap:10px;
     }
       /* Adjust mobile slide width */
       .mobile-slideshow .mySlides {
-        width: calc(50% - 15px);
+        width: calc(50% - 10px); /* Adjusted for two slides */
+         margin: 0 5px;
     }
       .mobile-slideshow .mySlides.active-slide {
         margin: 0 5px; /* Adjust active slide margin */
@@ -663,12 +742,16 @@ h2 {
 }
 
 @media (max-width: 480px) {
+.mobile-slideshow {
+        height: 180px; /*  Reduced height */
+    }
     .card {
-        width: 95%; /* One column on very small screens */
+        width: 100%; /* One column on very small screens, full width */
+        margin-bottom: 10px; /* Reduced margin */
     }
      /* Further adjust mobile slide width */
     .mobile-slideshow .mySlides {
-        width: 90%;
+        width: 85%;  /*  Single slide, wider */
          margin: 0 5px;
     }
 
@@ -691,7 +774,8 @@ h2 {
             width: calc(25% - 15px);
         }
         .desktop-slideshow .mySlides {
-           width: calc((100% / 4) - 20px);/* Four Slides */
+           width: calc((100% / 4) - 16px);/* Four Slides, adjusted margin */
+           margin: 0 8px;
         }
          .mobile-slideshow{
             display:none
@@ -707,7 +791,9 @@ h2 {
             width: calc(20% - 12px);
         }
           .desktop-slideshow .mySlides {
-           width: calc((100% / 5) - 20px);/* Five Slides */
+           width: calc((100% / 5) - 16px);/* Five Slides, adjusted margin */
+            margin: 0 8px;
+
         }
          .mobile-slideshow{
             display:none
@@ -728,6 +814,7 @@ h2 {
 /* --- PART 2 END --- */
 /* --- tv_app/static/style.css --- */
 /* --- PART 3 START --- */
+
 .show-details-container {
     padding: 20px;
 }
@@ -801,72 +888,5 @@ h2 {
     .show-info {
         width: auto;
     }
-}
-
-
-/* --- Desktop Search (Hidden on Mobile) --- */
-
-.desktop-search {
-    display: flex !important; /* Ensure it's flex by default */
-    align-items: center;
-}
-/* --- Mobile Search (Hidden on Desktop) --- */
-
-.mobile-search-form {
-    display: none; /* Hidden by default (shown on mobile via media query) */
-    align-items: center;
-    position: relative;
-}
-
-.mobile-search-input {
-    padding: 8px;
-    border: 1px solid #555;
-    background-color: #333;
-    color: white;
-    border-radius: 4px;
-    margin-right: 5px; /* Space between input and button */
-    width: 0; /* Initially hidden */
-    opacity: 0;
-    transition: width 0.3s ease, opacity 0.3s ease;
-     position: absolute; /* Position absolutely within the form */
-    right: 45px; /* Adjust as needed for positioning */
-    top: 50%;
-    transform: translateY(-50%);
-}
-.mobile-search-input:focus{
-      border-color: #007bff;
-      background-color: #444;
-}
-
-.mobile-search-form.active .mobile-search-input {
-    width: 150px; /* Expand to this width when active */
-    opacity: 1;
-}
-
-.mobile-search-button {
-    background: none;
-    border: none;
-    color: white;
-    cursor: pointer;
-     position: absolute;
-    right: 10px; /* Position to the right edge */
-    top: 50%;
-    transform: translateY(-50%);
-    font-size: 1.2em; /* Adjust as needed */
-     padding: 8px;
-}
-
-.mobile-search-icon-button {
-    background: none;
-    border: none;
-    padding: 8px;
-    cursor: pointer;
-    color: white;
-    font-size: 1.2em;
-   /* margin-left: auto;  Push to the right */
-}
-
-.mobile-search-icon-button i {
-    pointer-events: none;
 }
 /* --- PART 3 END --- */
