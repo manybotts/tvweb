@@ -2,11 +2,11 @@ document.addEventListener('DOMContentLoaded', function() {
     // --- Mobile Search Toggle ---
     const mobileSearchForm = document.querySelector('.mobile-search-form');
     const mobileSearchInput = document.querySelector('.mobile-search-input');
-    const mobileSearchIconButton = document.querySelector('.mobile-search-icon-button');
+    const mobileSearchIconButton = document.querySelector('.search-icon-button'); // Use unified search icon
 
     if (mobileSearchIconButton) {
         mobileSearchIconButton.addEventListener('click', function(event) {
-            event.preventDefault();
+            event.preventDefault(); // *** PREVENT DEFAULT HERE ***
             mobileSearchForm.classList.toggle('active');
             if (mobileSearchForm.classList.contains('active')) {
                 mobileSearchInput.focus();
@@ -15,23 +15,25 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Hide mobile search when clicking outside
         document.addEventListener('click', function(event) {
-            if (!mobileSearchForm.contains(event.target) && mobileSearchForm.classList.contains('active')) {
+            if (!mobileSearchForm.contains(event.target) && !mobileSearchIconButton.contains(event.target) && mobileSearchForm.classList.contains('active')) {
                 mobileSearchForm.classList.remove('active');
             }
         });
 
         // Hide mobile search when input loses focus
         mobileSearchInput.addEventListener('blur', function() {
-            mobileSearchForm.classList.remove('active');
+             if (!mobileSearchInput.value.trim()) { // Check if input is empty
+                mobileSearchForm.classList.remove('active');
+            }
         });
     }
 
 
     // --- Desktop Search Toggle ---
     const searchForm = document.querySelector('.search-form');
-    const searchInput = document.querySelector('.search-input');
-    const searchButton = document.querySelector('.search-button');
-    const searchIconButton = document.querySelector('.search-icon-button');
+    const searchInput = document.querySelector('.search-form .search-input');
+    const searchButton = document.querySelector('.search-form .search-button');
+    const searchIconButton = document.querySelector('.search-icon-button'); // Re-use for desktop
     let searchExpanded = false;
 
     function toggleSearch() {
@@ -47,11 +49,17 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    if (searchIconButton) {
-        searchIconButton.addEventListener('click', function(event) {
-            event.preventDefault();
-            toggleSearch();
-        });
+	if (searchIconButton) {
+		// Desktop search toggle
+		searchIconButton.addEventListener('click', function(event) {
+			if (window.innerWidth > 768) { // Only toggle desktop search on larger screens
+				event.preventDefault(); // Prevent form submission
+				toggleSearch();
+			}
+			// Mobile search handled above
+		});
+	}
+
 
         // Handle clicks outside search form (desktop close) and blur
         document.addEventListener('click', function(event) {
@@ -66,7 +74,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 toggleSearch();
             }
         });
-    }
+
 
 
     // --- Slideshow Logic ---
