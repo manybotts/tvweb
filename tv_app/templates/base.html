@@ -18,12 +18,20 @@
             <div class="nav-links">
                 <a href="{{ url_for('index') }}" class="nav-link"><i class="fas fa-home"></i><span class="link-text">Home</span></a>
                 <a href="{{ url_for('list_shows') }}" class="nav-link"><i class="fas fa-tv"></i><span class="link-text">Shows</span></a>
-                 <button type="button" class="search-icon-button">
+                <button type="button" class="search-icon-button desktop-search">
                     <i class="fas fa-search"></i>
                 </button>
-                <form action="{{ url_for('index') }}" method="GET" class="search-form">
+                <form action="{{ url_for('index') }}" method="GET" class="search-form desktop-search">
                     <input type="text" name="search" placeholder="Search for shows..." class="search-input">
                     <button type="submit" class="search-button">Search</button>
+                </form>
+
+                <form action="{{ url_for('index') }}" method="GET" class="mobile-search-form">
+                    <button type="button" class="mobile-search-icon-button">
+                        <i class="fas fa-search"></i>
+                    </button>
+                    <input type="text" name="search" placeholder="Search..." class="mobile-search-input">
+                    <button type="submit" class="mobile-search-button"><i class="fas fa-search"></i></button>
                 </form>
             </div>
             <span class="brand-text">iBOX TV</span>
