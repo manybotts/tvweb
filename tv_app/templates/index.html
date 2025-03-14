@@ -13,21 +13,22 @@
         <div class="slideshow-container">
             <div class="slideshow-inner">
             {% for show in trending_shows %}
-            <div class="mySlides card">
-                <a href="{{ url_for('show_details', show_id=show.id) }}">
+                <div class="mySlides">
+                    <a href="{{ url_for('show_details', show_id=show.id) }}">
                     {% if show.poster_path %}
                         <img src="{{ show.poster_path }}" alt="{{ show.show_name }}">
                     {% else %}
                         <div class="telegram-loader"></div>
                     {% endif %}
-                    <h2>{{ show.show_name }}</h2>
-                    <p>{{ show.episode_title }}</p>
-                </a>
-            </div>
+                    <div class="slide-caption">
+                        <h2>{{ show.show_name }}</h2>
+                        <p>{{ show.episode_title }}</p>
+                    </div>
+                    </a>
+                </div>
             {% endfor %}
-
             </div>
-            <div class="slideshow-controls">
+             <div class="slideshow-controls">
                  <button  class="prev" onclick="plusSlides(-1)">&#10094;</button>
                  <button class="next" onclick="plusSlides(1)">&#10095;</button>
             </div>
