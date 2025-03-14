@@ -9,7 +9,6 @@ flower==2.0.1
 gunicorn==21.2.0
 thefuzz==0.20.0
 python-Levenshtein==0.23.0
-telegram==20.7
 python-telegram-bot==20.7
 ratelimit==2.2.1
 Werkzeug==3.0.1
