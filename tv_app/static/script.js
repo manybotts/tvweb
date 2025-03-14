@@ -27,11 +27,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Handle clicks outside search form (mobile close) and blur
         document.addEventListener('click', function(event) {
-            if (window.innerWidth <= 768) {
+           //removed the if statement to ensure it applies for all screen sizes
                 if (!searchForm.contains(event.target) && searchExpanded) {
                     toggleSearch();
                 }
-            }
         });
         searchInput.addEventListener('blur', function() {
             if (searchExpanded) {
@@ -97,49 +96,45 @@ document.addEventListener('DOMContentLoaded', function() {
     const desktopSlides = document.querySelectorAll(".desktop-slideshow .mySlides");
 
     function showDesktopSlides() {
-    if (!desktopSlides.length) return;
+        if (!desktopSlides.length) return;
 
-    // Hide all slides and reset styles
-    for (let i = 0; i < desktopSlides.length; i++) {
-        desktopSlides[i].style.display = 'none';
-        desktopSlides[i].classList.remove('active-slide');
-        desktopSlides[i].style.transform = ''; // Reset any transform
-        desktopSlides[i].style.opacity = '';    // Reset opacity
-        desktopSlides[i].style.filter = '';     // Reset filter
-    }
+        // Hide all slides and reset styles
+        for (let i = 0; i < desktopSlides.length; i++) {
+            desktopSlides[i].style.display = 'none';
+            desktopSlides[i].classList.remove('active-slide');
+            desktopSlides[i].style.transform = ''; // Reset any transform
+            desktopSlides[i].style.opacity = '';    // Reset opacity
+            desktopSlides[i].style.filter = '';     // Reset filter
+        }
+
+        // Calculate visible range, ensuring it's centered
+        let numVisible = 5;
+        if (desktopSlides.length < numVisible) {
+            numVisible = desktopSlides.length;
+        }
+        const startIndex = Math.max(0, desktopSlideIndex - Math.floor((numVisible - 1) / 2));
+        const endIndex = Math.min(desktopSlides.length - 1, startIndex + numVisible - 1);
 
 
-     // Calculate visible range, ensuring it's centered
-     let numVisible = 5; // Change for number you want
-     if(desktopSlides.length < numVisible)
-     {
-        numVisible = desktopSlides.length;
-     }
-     const startIndex = Math.max(0, desktopSlideIndex - Math.floor((numVisible -1 ) / 2));
-     const endIndex = Math.min(desktopSlides.length -1, startIndex + numVisible - 1);
+        // Display and style slides in the visible range
+        for (let i = startIndex; i <= endIndex; i++) {
+             desktopSlides[i].style.display = 'block'; // Display the slide
 
-    // Display and style slides in the visible range
-    for (let i = startIndex; i <= endIndex; i++) {
-        desktopSlides[i].style.display = 'block';
-
-        if (i === desktopSlideIndex) {
-            desktopSlides[i].classList.add('active-slide');
-            desktopSlides[i].style.transform = 'scale(1.1)';
-            desktopSlides[i].style.opacity = '1';
-        } else {
-            desktopSlides[i].style.transform = 'scale(0.8)';
-            desktopSlides[i].style.opacity = '0.7';
-            desktopSlides[i].style.filter = 'brightness(0.5) blur(2px)';
+            // Apply styles based on whether it's the active slide or not
+            if (i === desktopSlideIndex) {
+                desktopSlides[i].classList.add('active-slide');
+                desktopSlides[i].style.transform = 'scale(1.1)';
+                desktopSlides[i].style.opacity = '1';
+                desktopSlides[i].style.filter = 'none'; // Ensure no filter on active slide
+            } else {
+                desktopSlides[i].style.transform = 'scale(0.8)';
+                desktopSlides[i].style.opacity = '0.7';
+                desktopSlides[i].style.filter = 'brightness(0.5) blur(2px)';
+            }
         }
     }
-     if (desktopSlideIndex > 0) {
-        desktopSlides[desktopSlideIndex - 1].style.display = 'block';
-    }
-    if (desktopSlideIndex < desktopSlides.length - 1) {
-        desktopSlides[desktopSlideIndex + 1].style.display = 'block';
-    }
 
-}
+
     function desktopPlusSlides(n) {
         desktopSlideIndex += n;
 
