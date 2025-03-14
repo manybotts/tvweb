@@ -15,10 +15,10 @@
              <div class="desktop-slideshow">
                 <div class="slideshow-inner">
                 {% for show in trending_shows %}
-                    <div class="mySlides card">
+                    <div class="mySlides">
                         <a href="{{ url_for('show_details', show_id=show.id) }}">
                             {% if show.poster_path %}
-                                <img src="{{ show.poster_path }}" alt="{{ show.show_name }}">
+                                <img src="{{ show.poster_path }}" alt="{{ show.show_name }}" class="slideshow-image">
                             {% else %}
                                 <div class="telegram-loader"></div>
                             {% endif %}
@@ -32,10 +32,10 @@
              <div class="mobile-slideshow">
                 <div class="slideshow-inner">
                 {% for show in trending_shows %}
-                    <div class="mySlides card">
+                    <div class="mySlides">
                         <a href="{{ url_for('show_details', show_id=show.id) }}">
                             {% if show.poster_path %}
-                                <img src="{{ show.poster_path }}" alt="{{ show.show_name }}">
+                                <img src="{{ show.poster_path }}" alt="{{ show.show_name }}" class="slideshow-image">
                             {% else %}
                                 <div class="telegram-loader"></div>
                             {% endif %}
