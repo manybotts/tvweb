@@ -5,6 +5,7 @@ from .tasks import update_tv_shows, test_task  # Relative import
 from .models import db, TVShow  # Relative import
 from sqlalchemy import desc
 from dotenv import load_dotenv
+import logging #Import logging
 
 load_dotenv()
 
@@ -13,6 +14,10 @@ app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your_secret_key')
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///tv_shows.db')  # Default to SQLite
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db.init_app(app)
+
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 # --- Database Operations (using SQLAlchemy's built-in features) ---
 
@@ -31,6 +36,10 @@ def index():
 
     if search_query:
         shows = TVShow.query.filter(TVShow.show_name.ilike(f'%{search_query}%')).paginate(page=page, per_page=per_page, error_out=False)
+        if not shows.items: #Use pagination object
+          shows = TVShow.query.order_by(TVShow.created_at.desc()).paginate(page=page, per_page=per_page, error_out=False)
+          message = f"No show with name '{search_query}', Here are all available shows!"
+          return render_template('index.html', shows=shows, search_query=search_query, trending_shows=[], message=message)
         trending_shows = []
     else:
         shows = TVShow.query.order_by(TVShow.created_at.desc()).paginate(page=page, per_page=per_page, error_out=False)
