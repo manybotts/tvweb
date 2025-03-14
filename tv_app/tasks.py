@@ -23,8 +23,10 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-celery = Celery(__name__, broker=os.environ.get('REDIS_URL', 'redis://localhost:6379/0'), backend=os.environ.get('REDIS_URL', 'redis://localhost:6379/0'))
+celery = Celery(__name__)
+celery.config_from_object('celeryconfig')  # Load config!
 
+# TMDb API Rate Limits
 TMDB_CALLS_PER_SECOND = 4
 TMDB_PERIOD = 1
 
@@ -204,7 +206,7 @@ def fetch_tmdb_data(show_name, language='en-US'):
           latest_season_episode = f"S{str(latest_season_number).zfill(2)}E{str(latest_episode_number).zfill(2)}"
 
         tmdb_info = {
-            'poster_path': f"https://image.themoviedb.org/t/p/w500{details_data.get('poster_path')}" if details_data.get('poster_path') else None,
+            'poster_path': f"https://image.tmdb.org/t/p/w500{details_data.get('poster_path')}" if details_data.get('poster_path') else None,
             'overview': details_data.get('overview'),
             'vote_average': details_data.get('vote_average'),
             'latest_season_episode': latest_season_episode
@@ -312,5 +314,5 @@ def update_tv_shows(self):
 
 @celery.task
 def test_task():
-  logger.info("The test Celery task has run!")
-  return "Test task complete"
+    logger.info("The test Celery task has run!")
+    return "Test task complete"
