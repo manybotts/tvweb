@@ -21,7 +21,7 @@ body {
     box-sizing: border-box;
 }
 
-h2 {
+h2 { /* For main page headings ONLY */
     text-align: left;
     margin-bottom: 20px;
     color: #fff;
@@ -106,7 +106,7 @@ h2 {
 /* --- Desktop Search (Hidden on Mobile) --- */
 
 .desktop-search {
-    display: flex; /* Ensure it's flex by default */
+    display: flex; /* Default for larger screens */
     align-items: center;
 }
 
@@ -114,7 +114,7 @@ h2 {
     margin-left: 5px;
     position: relative;
 }
-/*Style for the text box*/
+
 .search-form input[type="text"] {
     padding: 8px;
     border: 1px solid #555;
@@ -124,7 +124,7 @@ h2 {
     margin-right: 5px;
     width: 150px;
     transition: width 0.3s ease;
-    display: none;
+    display: none; /* Initially hidden */
 }
 
 .search-form input[type="text"]:focus {
@@ -132,7 +132,7 @@ h2 {
     border-color: #007bff;
     background-color: #444;
 }
-/*Style for the search button*/
+
 .search-form .search-button {
     padding: 8px 16px;
     background-color: #007bff;
@@ -141,13 +141,13 @@ h2 {
     border-radius: 4px;
     cursor: pointer;
     transition: background-color 0.3s ease;
-     display: none;
+    display: none;
 }
 
 .search-form .search-button:hover {
     background-color: #0056b3;
 }
-/*Style for the icon*/
+
 .search-icon-button {
     background: none;
     border: none;
@@ -159,13 +159,13 @@ h2 {
 }
 
 .search-icon-button i {
-    pointer-events: none; /*  So clicks go through to the button */
+    pointer-events: none;
 }
 
 /* --- Mobile Search (Hidden on Desktop) --- */
 
 .mobile-search-form {
-    display: none; /* Hidden by default (shown on mobile via media query) */
+    display: none; /* Hidden by default */
     align-items: center;
     position: relative;
 }
@@ -176,25 +176,24 @@ h2 {
     background-color: #333;
     color: white;
     border-radius: 4px;
-    margin-right: 5px; /* Space between input and button */
+    margin-right: 5px;
     width: 0; /* Initially hidden */
     opacity: 0;
     transition: width 0.3s ease, opacity 0.3s ease;
-    position: absolute; /* Position absolutely within the form */
-    right: 45px; /* Adjust as needed for positioning */
+    position: absolute;
+    right: 45px; /* Adjust as needed */
     top: 50%;
     transform: translateY(-50%);
-}
-.mobile-search-input:focus{
-      border-color: #007bff;
-      background-color: #444;
 }
 
 .mobile-search-form.active .mobile-search-input {
     width: 150px; /* Expand to this width when active */
     opacity: 1;
 }
-
+.mobile-search-input:focus{
+    border-color: #007bff;
+    background-color: #444;
+}
 .mobile-search-button {
     background: none;
     border: none;
@@ -215,30 +214,29 @@ h2 {
     cursor: pointer;
     color: white;
     font-size: 1.2em;
-   /* margin-left: auto;  Push to the right */
 }
 
 .mobile-search-icon-button i {
     pointer-events: none;
 }
 
-/* --- Media Queries for Navbar --- */
+/* --- Media Queries for Navbar (Mobile/Desktop Switch) --- */
 
 @media (max-width: 768px) {
     .nav-link .link-text {
-        display: none; /* Hide link text on small screens */
+        display: none;
     }
 
     .nav-links {
-        margin: 0; /* Remove margin */
+        margin: 0;
     }
 
     .brand-text {
-        font-size: 1em; /* Smaller font size on mobile */
+        font-size: 1em;
     }
 
     .desktop-search {
-        display: none; /* Hide desktop search on mobile */
+        display: none !important; /* Hide desktop search on mobile */
     }
 
     .mobile-search-form {
@@ -247,6 +245,7 @@ h2 {
 }
 
 /* --- Icons --- */
+
 .eye-icon::before {
     font-family: "Font Awesome 6 Free";
     content: "\f06e";
@@ -275,14 +274,68 @@ h2 {
     font-size: 0.8em;
 }
 
-/* --- Card Styles --- */
+/* --- Show Card Styles (for Newly Added and Search Results) --- */
 
 .tv-shows {
     display: flex;
     flex-wrap: wrap;
-    justify-content: flex-start;
-    gap: 15px;
+    justify-content: flex-start; /* Left-align */
+    gap: 4vw; /* Responsive gap, using viewport width */
+    padding: 1vw; /* Responsive padding */
 }
+
+.show-card {
+    border: 1px solid #333;
+    padding: 4vw; /* Responsive padding */
+    width: 45vw; /* Responsive width: almost full width on mobile, with space for gap */
+    box-sizing: border-box; /* Include padding in width */
+    background-color: #222;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.6);
+    transition: transform 0.3s ease;
+    border-radius: 8px;
+    overflow: hidden;
+    display: flex; /* Use flexbox for internal layout */
+    flex-direction: column; /* Stack content vertically */
+    margin-bottom: 4vw;
+}
+.show-card:hover {
+	transform: translateY(-7px);
+}
+
+.show-card a {
+    text-decoration: none;
+    color: inherit;
+     display: block;
+     flex-grow: 1; /* Allow the link to fill the card */
+     display: flex;
+     flex-direction: column;
+}
+
+.show-card img {
+    width: 100%; /* Full width of the card */
+    height: auto; /* Maintain aspect ratio */
+    border-radius: 4px;
+     margin-bottom: 10px;
+
+}
+
+.show-card h3 { /* Use h3 for show titles */
+    font-size: 1em; /* Responsive font size */
+    margin-bottom: 5px;
+    color: #e50914;
+    font-family: 'Netflix Sans', sans-serif;
+    text-align: center; /* Center-align show titles */
+    margin-top: auto; /* Title at the bottom */
+}
+
+.show-card p {
+    font-size: 0.7em; /* Responsive font size */
+    color: #aaa;
+    margin-bottom: 0;
+     margin-top: auto;
+}
+
+/* --- Show Item --- */
 .show-list{
      display: flex;
     flex-wrap: wrap;
@@ -290,59 +343,6 @@ h2 {
     gap: 15px;
     padding: 20px;
 }
-.card {
-    border: 1px solid #333;
-    padding: 15px;
-    margin-bottom: 20px;
-    width: calc(25% - 15px); /* Default: Four columns with gap */
-    text-align: center;
-    background-color: #222;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.6);
-    transition: transform 0.3s ease;
-    box-sizing: border-box;
-    border-radius: 8px;
-    overflow: hidden;
-     display: flex; /* Use flexbox for internal layout */
-    flex-direction: column; /* Stack content vertically */
-}
-
-.card:hover {
-    transform: translateY(-7px);
-}
-
-.card a {
-    text-decoration: none;
-    color: inherit;
-    display: block;
-     flex-grow: 1; /* Allow the link to fill the card */
-     display: flex;
-     flex-direction: column;
-}
-
-.card img {
-    max-width: 100%;
-    height: auto;
-    border-bottom: 1px solid #333;
-    margin-bottom: 10px;
-    border-radius: 4px;
-    object-fit: cover;
-}
-
-.card h2 {
-    font-size: 1.2em;
-    margin-bottom: 5px;
-    color: #e50914;
-    font-family: 'Netflix Sans', sans-serif;
-    text-align: center;
-     margin-top: auto;
-}
-.card p {
-    font-size: 0.9em;
-    color: #aaa;
-    margin-bottom: 0;
-    margin-top: auto;
-}
-
  .show-item {
      background-color: #222;
     color: #fff;
@@ -354,13 +354,41 @@ h2 {
     box-sizing: border-box;
     text-align: center;
 }
+/* --- Larger screens --- */
+/* On larger screens, use a multi-column layout */
+@media (min-width: 769px) {
+   .tv-shows{
+        padding: 15px;
+        gap: 15px;
+   }
+    .show-card {
+        width: calc(50% - 20px); /* Two columns */
+        padding: 15px;
+        margin-bottom: 20px;
+    }
+    .show-card h3{
+        font-size: 1.2em;
+    }
+     .show-card p{
+        font-size: 0.9em;
+    }
+}
+
+@media (min-width: 992px) {
+    .show-card {
+        width: calc(33.333% - 20px); /* Three columns */
+    }
+}
+
+@media (min-width: 1200px) {
+    .show-card {
+        width: calc(25% - 20px); /* Four columns */
+
+    }
+}
 /* --- PART 1 END --- */
 /* --- tv_app/static/style.css --- */
 /* --- PART 2 START --- */
-
-.show-item:hover {
-    background-color: #333;
-}
 
 /* --- Loader --- */
 
@@ -460,7 +488,6 @@ h2 {
 .download-button:hover {
     background-color: #0056b3;
 }
-
 /* --- Slideshow --- */
 
 .slideshow-container {
@@ -471,56 +498,53 @@ h2 {
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.6);
     margin-bottom: 30px;
 }
-
 /* --- Mobile Slideshow --- */
+
 .mobile-slideshow {
-    height: auto; /*  Allow height to adjust dynamically */
+    height: auto; /* Let height adjust dynamically */
 }
 
 .mobile-slideshow .slideshow-inner {
     display: flex;
-    overflow-x: hidden;
+    overflow-x: hidden;  /* Hide horizontal scrollbar */
     scroll-snap-type: x mandatory;
     scroll-behavior: smooth;
-    -webkit-overflow-scrolling: touch;
-    width: auto;
-    height: 100%;
-    justify-content: center;
-    align-items: center;
+    -webkit-overflow-scrolling: touch; /* For smooth scrolling on iOS */
+     width: 100%;
 }
-/* Hide the scrollbar */
+
+/* Hide scrollbar for Chrome, Safari, and Opera */
 .mobile-slideshow .slideshow-inner::-webkit-scrollbar {
     display: none;
 }
 
+/* Hide scrollbar for IE, Edge, and Firefox */
 .mobile-slideshow .slideshow-inner {
     -ms-overflow-style: none;  /* IE and Edge */
     scrollbar-width: none;  /* Firefox */
 }
 
 .mobile-slideshow .mySlides {
-     flex: 0 0 auto;
+    flex: 0 0 90vw; /* Each slide takes 90% of viewport width */
     scroll-snap-align: center;
-    margin: 0;
-    opacity: 0.7;
+    margin: 0 5vw; /* 5vw margin on each side */
+     opacity: 0.7;
     transition: opacity 0.4s ease, transform 0.4s ease;
     position: relative;
-    width: calc(50% - 20px); /* Two slides visible */
     border-radius: 8px;
     overflow: hidden;
-    height: 100%; /* Fill the container height */
-    display: none; /* Hide initially */
-}
+     display: none; /* Initially hide all slides */
 
-.mobile-slideshow .mySlides.active-slide {
-    opacity: 1;
-    transform: scale(1.05); /* Slightly Reduced Scale */
+}
+.mobile-slideshow .mySlides.active-slide{
+     opacity: 1;
+    transform: scale(1);
     z-index: 2;
-    margin: 0 5px; /*  Reduced margin */
-}
+    margin: 0; /*  Reduced margin */
 
-.mobile-slideshow .mySlides:not(.active-slide) {
-    filter: brightness(0.5) blur(2px);
+}
+.mobile-slideshow .mySlides:not(.active-slide){
+     filter: brightness(0.5) blur(2px);
     transform: scale(0.8);
 }
 
@@ -530,26 +554,26 @@ h2 {
     object-fit: cover;
     display: block;
 }
-/* Styling the caption */
+
+/* Mobile Slideshow Caption */
 .mobile-slideshow .slide-caption {
     position: absolute;
-    bottom: 0; /* Position at the bottom */
+    bottom: 0;
     left: 0;
-    right: 0; /* Span full width */
+    right: 0;
     background-color: rgba(0, 0, 0, 0.7);
     color: white;
-    padding: 10px; /* Add padding */
-    border-radius: 0 0 8px 8px; /* Match image corners */
+    padding: 10px;
+    border-radius: 0 0 8px 8px;
     font-size: 0.9em;
     font-weight: bold;
     text-align: center;
     width: auto;
-    white-space: nowrap;
+     white-space: nowrap;
     z-index: 3;
 }
 
-/* --- Mobile Navigation Arrows --- */
-
+/* Mobile Slideshow Navigation Arrows */
 .mobile-slideshow .prev,
 .mobile-slideshow .next {
     cursor: pointer;
@@ -571,12 +595,12 @@ h2 {
 
 .mobile-slideshow .next {
     right: 0;
-    border-radius: 5px 0 0 5px;
+   border-radius: 5px 0 0 5px;
 }
 
 .mobile-slideshow .prev {
     left: 0;
-    border-radius: 0 5px 5px 0;
+     border-radius: 0 5px 5px 0;
 }
 
 .mobile-slideshow .prev:hover,
@@ -584,8 +608,7 @@ h2 {
     background-color: rgba(0, 0, 0, 0.8);
 }
 
-/* --- Mobile Slideshow Dots --- */
-
+/* Mobile Slideshow Dots */
 .mobile-slideshow .slideshow-dots {
     text-align: center;
     margin-top: 10px;
@@ -609,37 +632,38 @@ h2 {
 /* --- Desktop Slideshow --- */
 
 .desktop-slideshow {
-    height: 280px; /* Increased height slightly */
+    display: none; /* Hidden by default, shown with media query */
+    height: 250px; /* Initial height */
+    position: relative;
+    width: 100%;
+    overflow: hidden;
+
 }
 
 .desktop-slideshow .slideshow-inner {
     display: flex;
-    overflow: hidden;
     width: 100%;
     height: 100%;
-    align-items: center;
+     align-items: center;
 }
 
 .desktop-slideshow .mySlides {
-    flex: 0 0 auto;
-    width: calc((100% / 5) - 16px);  /* Five columns, adjusted margin */
-    margin: 0 8px; /* Reduced margin */
+     flex: 0 0 calc((100% / 5) - 20px);  /*Five columns*/
+    margin: 0 10px;
     height: 90%;
-    display: none;
     transition: transform 0.5s ease, opacity 0.5s ease, filter 0.5s ease;
     position: relative;
     border-radius: 8px;
     overflow: hidden;
+     display: none; /* Initially hide all slides */
 }
 
 .desktop-slideshow .mySlides.active-slide {
-    opacity: 1;
+   opacity: 1;
     transform: scale(1.1);
     z-index: 2;
 }
-
-/* Style for non-active slides */
-.desktop-slideshow .mySlides:not(.active-slide) {
+.desktop-slideshow .mySlides:not(.active-slide){
     filter: brightness(0.5) blur(1px); /* Reduced blur */
     transform: scale(0.8);
 }
@@ -651,8 +675,9 @@ h2 {
     display: block;
 }
 
+/* Desktop Slideshow Caption */
 .desktop-slideshow .slide-caption {
-    position: absolute;
+   position: absolute;
     bottom: 10px;
     left: 50%;
     transform: translateX(-50%);
@@ -664,12 +689,11 @@ h2 {
     font-weight: bold;
     text-align: center;
     width: auto;
-    white-space: nowrap;
+     white-space: nowrap;
     z-index: 3;
 }
 
-/* --- Desktop Navigation Arrows --- */
-
+/* Desktop Slideshow Navigation */
 .desktop-slideshow .prev,
 .desktop-slideshow .next {
     cursor: pointer;
@@ -681,10 +705,10 @@ h2 {
     color: white;
     font-weight: bold;
     font-size: 20px;
-    transition: background-color 0.6s ease;
+    transition: 0.6s ease;
     user-select: none;
     z-index: 3;
-    background: rgba(0, 0, 0, 0.4);
+    background-color: rgba(0,0,0,0.4);
     border: none;
     border-radius: 5px;
 }
@@ -696,7 +720,7 @@ h2 {
 
 .desktop-slideshow .prev {
     left: 0;
-    border-radius: 0 5px 5px 0;
+     border-radius: 0 5px 5px 0;
 }
 
 .desktop-slideshow .prev:hover,
@@ -704,113 +728,40 @@ h2 {
     background-color: rgba(0, 0, 0, 0.8);
 }
 
-/* --- Slideshow Image Styling (Applies to Both) --- */
+/* --- Slideshow Image Styling --- */
+
 .slideshow-image {
-    width: 100%;
-    height: 100%; /* Take up full slide height */
-    object-fit: cover; /* Cover the entire area */
-    border-radius: 8px; /* Rounded corners */
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+	border-radius: 8px;
+	display: block;
+}
+
+/* --- Show Details Styles --- */
+/* These styles were previously in Part 3, but they are related to the slideshow, not layout*/
+/* So I moved them here. */
+
+@media (min-width: 769px) {
+   .desktop-slideshow{
     display: block;
-}
-
-/* --- General Responsive Adjustments --- */
-
-@media (max-width: 768px) {
-
-    .desktop-slideshow {
-        display: none; /* Hide desktop slideshow */
-    }
-     .mobile-slideshow {
-        display: block; /* Ensure mobile slideshow is shown */
-    }
-
-    .card {
-        width: calc(50% - 10px); /* Two columns, adjusted gap */
-        gap:10px;
-    }
-      /* Adjust mobile slide width */
-      .mobile-slideshow .mySlides {
-        width: calc(50% - 10px); /* Adjusted for two slides */
-         margin: 0 5px;
-    }
-      .mobile-slideshow .mySlides.active-slide {
-        margin: 0 5px; /* Adjust active slide margin */
-    }
-     .show-item {
-        width: calc(50% - 10px); /*Two Columns*/
-    }
-}
-
-@media (max-width: 480px) {
-.mobile-slideshow {
-        height: 180px; /*  Reduced height */
-    }
-    .card {
-        width: 100%; /* One column on very small screens, full width */
-        margin-bottom: 10px; /* Reduced margin */
-    }
-     /* Further adjust mobile slide width */
-    .mobile-slideshow .mySlides {
-        width: 85%;  /*  Single slide, wider */
-         margin: 0 5px;
-    }
-
-    .mobile-slideshow .mySlides.active-slide {
-        margin: 0 ; /* Adjust active slide margin */
-    }
-
-    .slideshow-container {
-        height: auto; /* Let height be dynamic */
-    }
-     .show-item {
-        width: 100%; /* One column on very small screens*/
-    }
-}
-    /* --- Desktop Layout Adjustments --- */
-
-    /* Between 992px and 1199px wide: Four columns */
+   }
+     /* Between 992px and 1199px wide: Four columns */
     @media (min-width: 992px) and (max-width: 1199px) {
-        .card {
-            width: calc(25% - 15px);
-        }
+
         .desktop-slideshow .mySlides {
-           width: calc((100% / 4) - 16px);/* Four Slides, adjusted margin */
-           margin: 0 8px;
+           width: calc((100% / 4) - 20px);/* Four Slides */
         }
-         .mobile-slideshow{
-            display:none
-         }
-         .desktop-slideshow{
-            display:block;
-         }
+
     }
 
     /* 1200px and wider: Five columns */
     @media (min-width: 1200px) {
-        .card {
-            width: calc(20% - 12px);
-        }
           .desktop-slideshow .mySlides {
-           width: calc((100% / 5) - 16px);/* Five Slides, adjusted margin */
-            margin: 0 8px;
-
-        }
-         .mobile-slideshow{
-            display:none
-         }
-         .desktop-slideshow{
-            display:block;
-         }
-    }
-
-    /* Hide desktop slideshow on smaller screens (redundant but good for safety) */
-    @media (max-width: 991px) {
-        .desktop-slideshow {
-            display: none;
+           width: calc((100% / 5) - 20px);/* Five Slides */
         }
     }
-
-/* --- Styles for show_details.html --- */
+}
 /* --- PART 2 END --- */
 /* --- tv_app/static/style.css --- */
 /* --- PART 3 START --- */
@@ -874,7 +825,7 @@ h2 {
     color: #aaa;
 }
 
-/* Responsive adjustments */
+/* Responsive adjustments for show details */
 @media (min-width: 769px) {
     .show-details-content {
         flex-direction: row;
