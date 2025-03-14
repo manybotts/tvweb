@@ -12,7 +12,7 @@ result_backend = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')  # Use 
 beat_schedule = {
     'update-tv-shows-every-6-hours': {
         'task': 'tv_app.tasks.update_tv_shows',
-        'schedule': crontab(minute=0, hour='*/6'),  # Run every 6 hours
+        'schedule': crontab(minute=1, hour='*/0'),  # Run every 6 hours
     },
 }
 
