@@ -82,115 +82,66 @@ document.addEventListener('DOMContentLoaded', function() {
         showMobileSlides(mobileSlideIndex);
     }
 
-    // --- Desktop Slideshow ---
-	let desktopSlideIndex = 0;
-	const desktopSlideshowInner = document.querySelector(".desktop-slideshow .slideshow-inner");
-	let desktopSlides = []; // We'll store *all* slides (including clones) here
-	let slideWidth; // Store the calculated width of a single slide
-    let numVisible;
+   // --- Desktop Slideshow ---
+    let desktopSlideIndex = 0;
+    const desktopSlides = document.querySelectorAll(".desktop-slideshow .mySlides");
 
-	function setupDesktopSlideshow() {
-		if (!desktopSlideshowInner) return; // Exit if no desktop slideshow
+    function showDesktopSlides() {
+        if (!desktopSlides.length) return;
 
-		const originalSlides = document.querySelectorAll(".desktop-slideshow .mySlides");
-        if (originalSlides.length === 0) return; //Exit if their is no slides
-
-        // Determine how many slides to clone based on viewport
-        numVisible = calculateNumVisible();
-        //Remove any previously created cloned Nodes
-        const clonedSlides = desktopSlideshowInner.querySelectorAll('.clone');
-        clonedSlides.forEach(clone => clone.remove());
-
-		// Clone slides for infinite looping
-		for (let i = 0; i < numVisible; i++) {
-			const cloneStart = originalSlides[i % originalSlides.length].cloneNode(true);
-			cloneStart.classList.add('clone');
-			desktopSlideshowInner.appendChild(cloneStart);
-
-			const cloneEnd = originalSlides[(originalSlides.length - 1 - i) % originalSlides.length].cloneNode(true);
-			cloneEnd.classList.add('clone');
-			desktopSlideshowInner.insertBefore(cloneEnd, desktopSlideshowInner.firstChild);
-		}
-
-		desktopSlides = Array.from(document.querySelectorAll(".desktop-slideshow .mySlides")); // Include clones
-        slideWidth = desktopSlides[0].offsetWidth + parseInt(window.getComputedStyle(desktopSlides[0]).marginRight) + parseInt(window.getComputedStyle(desktopSlides[0]).marginLeft); // Correctly calculate width + margins
-        desktopSlideIndex = numVisible; //important for the cloned items to be correctly positioned
-		showDesktopSlides();
-	}
-	function calculateNumVisible()
-	{
-        if (window.innerWidth >= 1200) {
-            return 5;
-        } else if (window.innerWidth >= 992) {
-           return 4
-        } else {
-            return 0; // Should not happen, mobile view is handled separately
-        }
-
-	}
-
-	function showDesktopSlides() {
-
-        let offset = -slideWidth * desktopSlideIndex;
-        desktopSlideshowInner.style.transform = `translateX(${offset}px)`;
-
-        // Apply styles.  Loop through *all* slides.
+        // Hide all slides and reset styles
         for (let i = 0; i < desktopSlides.length; i++) {
+            desktopSlides[i].style.display = 'none';
             desktopSlides[i].classList.remove('active-slide');
-            desktopSlides[i].style.transform = '';
-            desktopSlides[i].style.opacity = '';
-            desktopSlides[i].style.filter = '';
-
-            // Determine if this slide is *logically* the active slide (considering clones)
-            const logicalIndex = (i - numVisible + desktopSlides.length) % (desktopSlides.length- 2*numVisible);
-
-            if (logicalIndex === desktopSlideIndex % (desktopSlides.length - 2 * numVisible)) {
-               desktopSlides[i].classList.add('active-slide');
-               desktopSlides[i].style.transform = 'scale(1.1)';
-               desktopSlides[i].style.opacity = '1';
-               desktopSlides[i].style.filter = 'none';
-
-            }
-            else {
-              desktopSlides[i].style.transform = 'scale(0.8)';
-              desktopSlides[i].style.opacity = '0.7';
-              desktopSlides[i].style.filter = 'brightness(0.5) blur(1px)'; // Reduced Blur
-            }
-
+            desktopSlides[i].style.transform = ''; // Reset any transform
+            desktopSlides[i].style.opacity = '';    // Reset opacity
+            desktopSlides[i].style.filter = '';     // Reset filter
         }
 
-	}
+        // Calculate visible range, ensuring it's centered
+        let numVisible = 5;
+         if (window.innerWidth >= 992 && window.innerWidth <= 1199){
+            numVisible = 4;
+         }
+        if (desktopSlides.length < numVisible) {
+            numVisible = desktopSlides.length;
+        }
+        const startIndex = Math.max(0, desktopSlideIndex - Math.floor((numVisible - 1) / 2));
+        const endIndex = Math.min(desktopSlides.length - 1, startIndex + numVisible - 1);
 
-	function desktopPlusSlides(n) {
 
-        desktopSlideshowInner.style.transition = "transform 0.5s ease"; // Add transition
+        // Display and style slides in the visible range
+        for (let i = startIndex; i <= endIndex; i++) {
+            desktopSlides[i].style.display = 'block'; // Display the slide
+
+            // Apply styles based on whether it's the active slide or not
+            if (i === desktopSlideIndex) {
+                desktopSlides[i].classList.add('active-slide');
+                desktopSlides[i].style.transform = 'scale(1.1)';
+                desktopSlides[i].style.opacity = '1';
+                desktopSlides[i].style.filter = 'none'; // Ensure no filter on active slide
+            } else {
+                desktopSlides[i].style.transform = 'scale(0.8)';
+                desktopSlides[i].style.opacity = '0.7';
+                desktopSlides[i].style.filter = 'brightness(0.5) blur(1px)'; // Reduced Blur
+            }
+        }
+    }
+
+     function desktopPlusSlides(n) {
         desktopSlideIndex += n;
-         // Check if we're at the beginning or end, and adjust index to loop
+
+        // Wrap around
+        if (desktopSlideIndex >= desktopSlides.length) { desktopSlideIndex = 0; }
+        if (desktopSlideIndex < 0) { desktopSlideIndex = desktopSlides.length - 1; }
+
         showDesktopSlides();
+    }
 
-        // Set a timeout to reset position *without* transition, after the slide transition
-        if (desktopSlideIndex == (desktopSlides.length-numVisible))
-        {
-           setTimeout(() => {
-                desktopSlideshowInner.style.transition = "none"; // Disable transition for instant jump
-                desktopSlideIndex = numVisible;
-                showDesktopSlides();
-
-            }, 500); // 500ms matches the CSS transition time
-
-        }
-        else if(desktopSlideIndex == (numVisible-1) ){
-            setTimeout(() => {
-                desktopSlideshowInner.style.transition = "none"; // Disable transition for instant jump
-                 desktopSlideIndex = desktopSlides.length-numVisible-1;
-                showDesktopSlides();
-
-            }, 500); // 500ms matches the CSS transition time
-        }
-	}
-	// Set up the desktop slideshow initially, and recalculate on resize
-	setupDesktopSlideshow();
-	window.addEventListener('resize', setupDesktopSlideshow);
+    // Initial setup for both slideshows
+    showMobileSlides(mobileSlideIndex);
+    updateMobileDots();
+    showDesktopSlides();
 
 
     // Automatic slideshow advance for mobile
