@@ -103,51 +103,7 @@ h2 { /* For main page headings ONLY */
     display: inline;
 }
 
-/* --- Desktop Search (Hidden on Mobile) --- */
-
-.desktop-search {
-    display: flex; /* Default for larger screens */
-    align-items: center;
-}
-
-.search-form {
-    margin-left: 5px;
-    position: relative;
-}
-
-.search-form input[type="text"] {
-    padding: 8px;
-    border: 1px solid #555;
-    background-color: #333;
-    color: white;
-    border-radius: 4px;
-    margin-right: 5px;
-    width: 150px;
-    transition: width 0.3s ease;
-    display: none; /* Initially hidden */
-}
-
-.search-form input[type="text"]:focus {
-    width: 200px;
-    border-color: #007bff;
-    background-color: #444;
-}
-
-.search-form .search-button {
-    padding: 8px 16px;
-    background-color: #007bff;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: background-color 0.3s ease;
-    display: none;
-}
-
-.search-form .search-button:hover {
-    background-color: #0056b3;
-}
-
+/* --- Search Icon (Shared) --- */
 .search-icon-button {
     background: none;
     border: none;
@@ -155,81 +111,79 @@ h2 { /* For main page headings ONLY */
     cursor: pointer;
     color: white;
     font-size: 1.2em;
-    margin-left: 5px; /*Adjusted space*/
+    margin-left: 5px; /* Space after nav links */
 }
 
 .search-icon-button i {
     pointer-events: none;
 }
 
-/* --- Mobile Search (Hidden on Desktop) --- */
+/* --- Floating Search Box (Initially Hidden) --- */
 
-.mobile-search-form {
-    display: none; /* Hidden by default */
-    align-items: center;
-    position: relative;
+.floating-search {
+    position: absolute;
+    top: 60px; /*  Below navbar. Adjust as needed. */
+    right: 20px; /*  Right alignment */
+    background-color: #222;
+    border: 1px solid #555;
+    border-radius: 5px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.6);
+    z-index: 1001; /* Above other content */
+    display: none; /* Initially hidden */
 }
 
-.mobile-search-input {
+.floating-search.active {
+    display: block; /* Shown when active */
+}
+
+.floating-search form {
+    display: flex; /* Use flexbox for layout */
+    align-items: center;
+    padding: 5px;
+}
+
+.floating-search .search-input {
     padding: 8px;
     border: 1px solid #555;
     background-color: #333;
     color: white;
     border-radius: 4px;
     margin-right: 5px;
-    width: 0; /* Initially hidden */
-    opacity: 0;
-    transition: width 0.3s ease, opacity 0.3s ease;
-    position: absolute;
-    right: 45px; /* Adjust as needed */
-    top: 50%;
-    transform: translateY(-50%);
+    width: 150px; /*  Initial width */
+    transition: width 0.3s ease;
 }
 
-.mobile-search-form.active .mobile-search-input {
-    width: 150px; /* Expand to this width when active */
-    opacity: 1;
-}
-.mobile-search-input:focus{
+.floating-search .search-input:focus {
+    width: 200px; /* Wider on focus */
     border-color: #007bff;
     background-color: #444;
 }
-.mobile-search-button {
-    background: none;
+
+.floating-search .search-button {
+    background: none; /*  No background */
     border: none;
     color: white;
     cursor: pointer;
-    position: absolute;
-    right: 10px; /* Position to the right edge */
-    top: 50%;
-    transform: translateY(-50%);
-    font-size: 1.2em; /* Adjust as needed */
-     padding: 8px;
+    font-size: 1.2em;
+    padding: 8px;
+}
+.floating-search .search-button:hover{
+     background-color: #0056b3;
 }
 
-
-/* --- Media Queries for Navbar (Mobile/Desktop Switch) --- */
-
+/* --- Media Queries for Navbar --- */
+/* No changes needed here, we use the same search icon */
+/* Removed .desktop-search and .mobile-search-form specific rules */
 @media (max-width: 768px) {
-    .nav-link .link-text {
-        display: none;
-    }
-
-    .nav-links {
-        margin: 0;
-    }
-
-    .brand-text {
-        font-size: 1em;
-    }
-
-    .desktop-search {
-        display: none !important; /* Hide desktop search on mobile */
-    }
-
-    .mobile-search-form {
-        display: flex; /* Show mobile search on mobile */
-    }
+	.nav-link .link-text {
+		display: none;
+	}
+	.nav-links {
+		margin: 0;
+	}
+	.brand-text {
+		font-size: 1em;
+	}
 }
 
 /* --- Icons --- */
@@ -343,7 +297,7 @@ h2 { /* For main page headings ONLY */
     padding: 10px 15px;
     border-radius: 5px;
     text-decoration: none;
-    transition: background-color 0.3s ease;
+    transition: background-color: 0.3s ease;
     width: calc(20% - 12px);  /*Five Columns*/
     box-sizing: border-box;
     text-align: center;
@@ -504,7 +458,7 @@ h2 { /* For main page headings ONLY */
 
 .mobile-slideshow .slideshow-inner {
     display: flex;
-    overflow-x: hidden;  /* Hide scrollbar */
+    overflow-x: hidden;  /* Hide horizontal scrollbar */
     scroll-snap-type: x mandatory;
     scroll-behavior: smooth;
     -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
@@ -512,16 +466,19 @@ h2 { /* For main page headings ONLY */
     justify-content: center; /* Center the slides */
 }
 
+/* Hide scrollbar for Chrome, Safari, and Opera */
 .mobile-slideshow .slideshow-inner::-webkit-scrollbar {
-    display: none;  /* Hide scrollbar in WebKit browsers */
+    display: none;
 }
+
+/* Hide scrollbar for IE, Edge, and Firefox */
 .mobile-slideshow .slideshow-inner {
     -ms-overflow-style: none;  /* IE and Edge */
     scrollbar-width: none;  /* Firefox */
 }
 
 .mobile-slideshow .mySlides {
-    flex: 0 0 90vw; /*  90% viewport width */
+    flex: 0 0 90vw; /* Each slide takes 90% of viewport width */
     scroll-snap-align: center;
     margin: 0 5vw; /* 5% viewport width margin on each side */
     position: relative;  /*For Caption*/
@@ -617,7 +574,7 @@ h2 { /* For main page headings ONLY */
     background-color: #bbb;
     border-radius: 50%;
     display: inline-block;
-    transition: background-color: 0.6s ease;
+    transition: background-color 0.6s ease;
     cursor: pointer;
 }
 
@@ -730,7 +687,6 @@ h2 { /* For main page headings ONLY */
     .mobile-slideshow {
         display: block; /* Ensure mobile slideshow is visible */
     }
-
 }
    /* Between 992px and 1199px wide: Four columns */
     @media (min-width: 992px) and (max-width: 1199px) {
@@ -760,6 +716,7 @@ h2 { /* For main page headings ONLY */
             display:block;
          }
     }
+
 /* --- PART 2 END --- */
 /* --- tv_app/static/style.css --- */
 /* --- PART 3 START --- */
