@@ -334,4 +334,116 @@ h1 {
     font-size: 24px;
     font-weight: bold;
     color: white;
-    background: rgba(0, 0, 0, 0.5
+    background: rgba(0, 0, 0, 0.5); /* Semi-transparent background */
+    padding: 15px;
+    cursor: pointer;
+    z-index: 3; /* Above the image and caption */
+    transition: background-color 0.3s ease;
+    user-select: none; /* Prevent text selection */
+    border: none; /* Remove default button border */
+}
+
+.prev {
+    left: 0;
+    border-radius: 0 8px 8px 0; /* Rounded corners on the right */
+}
+
+.next {
+    right: 0;
+    border-radius: 8px 0 0 8px; /* Rounded corners on the left */
+}
+
+.prev:hover, .next:hover {
+    background-color: rgba(0, 0, 0, 0.8); /* Darker on hover */
+}
+
+.dot-container {
+    text-align: center;
+    padding: 20px;
+    position: relative;
+    z-index: 3;
+}
+
+.dot {
+    height: 12px;
+    width: 12px;
+    margin: 0 4px;
+    background-color: #bbb;
+    border-radius: 50%;
+    display: inline-block;
+    transition: background-color 0.6s ease;
+    cursor: pointer;
+}
+
+.active, .dot:hover {
+    background-color: #717171;
+}
+/* Responsive Styles */
+
+@media (max-width: 768px) {
+    .nav-links {
+        margin: 0; /* Remove margin */
+    }
+    .nav-link .link-text {
+        display: none; /* Hide link text on small screens */
+    }
+   .search-form input[type="text"]{
+     display: none;
+   }
+   .search-form .search-button{
+    display: none;
+   }
+    .search-icon-button {
+        display: inline-block; /* Show icon button */
+    }
+
+    .card {
+        width: calc(50% - 10px); /* Two cards per row on smaller screens */
+    }
+     .mySlides img{
+       max-height: 200px; /* Limit image height */
+    }
+      .slide-caption{
+        font-size: 1em;
+        padding: 5px 10px;
+        bottom: 5px;
+    }
+     .prev,
+    .next {
+        font-size: 16px; /* Smaller arrows */
+        padding: 10px; /* Smaller padding */
+        margin-top: -16px;
+    }
+}
+
+@media (max-width: 480px) {
+	 .navbar-brand .brand-text {
+        display: none; /* Hide brand text on very small screens */
+    }
+    .card {
+        width: 95%; /* One card per row on very small screens */
+    }
+      .mySlides img{
+       max-height: 150px; /* Limit image height */
+    }
+    .slide-caption{
+        font-size: 0.8em;/*Reduce font size*/
+        padding: 5px 10px; /* Reduce padding*/
+        bottom: 2px;/*Adjust position*/
+    }
+    .prev,
+   .next {
+       font-size: 14px; /* Smaller arrows */
+       padding: 8px; /* Smaller padding */
+       margin-top: -14px;
+   }
+   .dot-container {
+       padding: 10px; /* Reduce padding */
+   }
+
+   .dot {
+       height: 8px; /* Smaller dots */
+       width: 8px;
+       margin: 0 1px; /* Less margin */
+   }
+}
