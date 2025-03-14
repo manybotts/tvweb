@@ -15,7 +15,7 @@
              <div class="desktop-slideshow">
                 <div class="slideshow-inner">
                 {% for show in trending_shows %}
-                    <div class="mySlides slideshow-item">  </div>
+                    <div class="mySlides slideshow-item">
                         <a href="{{ url_for('show_details', show_id=show.id) }}">
                             {% if show.poster_path %}
                                 <img src="{{ show.poster_path }}" alt="{{ show.show_name }}" class="slideshow-image">
@@ -24,7 +24,6 @@
                             {% endif %}
                              <div class="slide-caption">{{ show.show_name }}</div>
                         </a>
-
                     </div>
                 {% endfor %}
                 </div>
@@ -41,7 +40,6 @@
                             {% endif %}
                              <div class="slide-caption">{{ show.show_name }}</div>
                         </a>
-
                     </div>
                 {% endfor %}
                  </div>
@@ -69,7 +67,7 @@
 						<div class="telegram-loader"></div>
 						{% endif %}
 						<h3>{{ show.show_name }}</h3>
-						<p>{{ show.episode_title }}</p>
+						<p class = "episode-title">{{ show.episode_title }}</p>
 					</a>
 				</div>
 			{% endfor %}
@@ -87,7 +85,7 @@
 							<div class="telegram-loader"></div>
 							{% endif %}
 							<h3>{{ show.show_name }}</h3>
-							<p>{{ show.episode_title }}</p>
+							<p class = "episode-title">{{ show.episode_title }}</p>
 						</a>
 					</div>
 				{% endfor %}
