@@ -10,7 +10,7 @@
             <div class="slideshow-inner" id="slideshowInner">
             {% for show in trending_shows %}
                 <div class="mySlides {% if loop.index0 == 0 %}active-slide{% endif %}" data-index="{{ loop.index0 }}">
-                    <a href="{{ url_for('show_details', message_id=show.message_id) }}">
+                    <a href="{{ url_for('show_details', show_id=show.id) }}">  {# Use show.id #}
                         {% if show.poster_path %}
                             <img src="{{ show.poster_path }}" alt="{{ show.show_name }}" >
                         {% else %}
@@ -39,9 +39,9 @@
     {% if not search_query %}
         <h2><span class="blinking-dot"></span>Newly Added</h2>
         <div class="tv-shows">
-            {% for show in tv_shows %}
+            {% for show in shows.items %}  {# Iterate over shows.items #}
                 <div class="card">
-                    <a href="{{ url_for('show_details', message_id=show.message_id) }}">
+                    <a href="{{ url_for('show_details', show_id=show.id) }}">  {# Use show.id #}
                         {% if show.poster_path %}
                             <img src="{{ show.poster_path }}" alt="{{ show.show_name }}" loading="lazy">
                         {% else %}
@@ -60,10 +60,10 @@
         {# Optional: Add a heading for search results #}
         <h2>Search Results for "{{ search_query }}"</h2>
         <div class="tv-shows">
-            {% if tv_shows %}
-                {% for show in tv_shows %}
+            {% if shows.items %} {# Check shows.items #}
+                {% for show in shows.items %}  {# Iterate over shows.items #}
                     <div class="card">
-                        <a href="{{ url_for('show_details', message_id=show.message_id) }}">
+                         <a href="{{ url_for('show_details', show_id=show.id) }}">  {# Use show.id #}
                             {% if show.poster_path %}
                                 <img src="{{ show.poster_path }}" alt="{{ show.show_name }}" loading="lazy">
                             {% else %}
@@ -85,37 +85,30 @@
 
 
     <div class="pagination">
-        {% if page > 1 %}
-            <a href="{{ url_for('index', page=1, search=search_query) }}">First</a>
-            <a href="{{ url_for('index', page=page-1, search=search_query) }}">Previous</a>
+      {% if shows.has_prev %}
+          <a href="{{ url_for('index', page=shows.prev_num, search=search_query) }}">Previous</a>
+      {% else %}
+          <span class="disabled">Previous</span>
+      {% endif %}
+
+      {% for page_num in shows.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+        {% if page_num %}
+          {% if shows.page == page_num %}
+            <span class="current-page">{{ page_num }}</span>
+          {% else %}
+            <a href="{{ url_for('index', page=page_num, search=search_query) }}">{{ page_num }}</a>
+          {% endif %}
+        {% else %}
+          <span class="ellipsis">…</span>
         {% endif %}
+      {% endfor %}
 
-        {% set window_size = 5 %}
-        {% set start_page = [page - (window_size // 2), 1] | max %}
-        {% set end_page = [start_page + window_size - 1, total_pages] | min %}
 
-        {% if start_page > 1 %}
-            <span>...</span>
-        {% endif %}
-
-        {% for p in range(start_page, end_page + 1) %}
-            {% if p == page %}
-                <span class="current-page">{{ p }}</span>
-            {% else %}
-                <a href="{{ url_for('index', page=p, search=search_query) }}">{{ p }}</a>
-            {% endif %}
-        {% endfor %}
-
-        {% if end_page < total_pages %}
-            <span>...</span>
-        {% endif %}
-
-        {% if page < total_pages %}
-            <a href="{{ url_for('index', page=page+1, search=search_query) }}">Next</a>
-            {% if page != total_pages -1 and total_pages > window_size %}
-              <a href="{{ url_for('index', page=total_pages, search=search_query) }}">Last</a>
-            {% endif %}
-        {% endif %}
+      {% if shows.has_next %}
+          <a href="{{ url_for('index', page=shows.next_num, search=search_query) }}">Next</a>
+      {% else %}
+          <span class="disabled">Next</span>
+      {% endif %}
     </div>
 
     <script>
