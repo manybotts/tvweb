@@ -21,12 +21,13 @@
                  <button type="button" class="search-icon-button">
                     <i class="fas fa-search"></i>
                 </button>
+                <form action="{{ url_for('index') }}" method="GET" class="search-form">
+                    <input type="text" name="search" placeholder="Search for shows..." class="search-input">
+                    <button type="submit" class="search-button">Search</button>
+                </form>
             </div>
             <span class="brand-text">iBOX TV</span>
-            <form action="{{ url_for('index') }}" method="GET" class="search-form">
-                <input type="text" name="search" placeholder="Search for shows..." class="search-input">
-                <button type="submit" class="search-button">Search</button>
-            </form>
+
         </div>
     </nav>
 
