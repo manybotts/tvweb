@@ -70,7 +70,7 @@ h2 { /* For main page headings ONLY */
 .nav-links {
     display: flex;
     align-items: center;
-    margin-right: auto;
+    margin-right: auto; /* Push iBOX TV and search to the right */
     margin-left: 20px;
 }
 
@@ -94,14 +94,24 @@ h2 { /* For main page headings ONLY */
     background-color: rgba(255, 255, 255, 0.1);
 }
 
+/* --- iBOX TV Styling --- */
 .brand-text {
-    color: white;
     font-weight: bold;
-    font-size: 1em; /* Same as .nav-link */
+    font-size: 1em;  /* Keep it small */
     font-family: 'Panton Rust', 'Helvetica Neue', Helvetica, Arial, sans-serif;
-    margin-right: 20px; /* Add right margin */
-    display: inline;
+    margin-right: 20px; /* Space before search icon */
+    white-space: nowrap; /* Prevent line break */
 }
+
+.ibox-text {
+    color: #d4b75c;  /* Pale Golden Yellow */
+    margin-right: 0px;
+}
+
+.tv-text {
+    color: #fff; /* White */
+}
+
 
 /* --- Search Icon (Shared) --- */
 .search-icon-button {
@@ -111,7 +121,7 @@ h2 { /* For main page headings ONLY */
     cursor: pointer;
     color: white;
     font-size: 1.2em;
-    margin-left: 5px; /* Space after nav links */
+     /* Space after nav links */
 }
 
 .search-icon-button i {
@@ -178,12 +188,11 @@ h2 { /* For main page headings ONLY */
 	.nav-link .link-text {
 		display: none;
 	}
-	.nav-links {
-		margin: 0;
-	}
-	.brand-text {
-		font-size: 1em;
-	}
+    /* Align iBOX TV and search to the right, even on mobile */
+    .nav-links {
+       margin-right: 0;
+    }
+
 }
 
 /* --- Icons --- */
@@ -574,7 +583,7 @@ h2 { /* For main page headings ONLY */
     background-color: #bbb;
     border-radius: 50%;
     display: inline-block;
-    transition: background-color 0.6s ease;
+    transition: background-color: 0.6s ease;
     cursor: pointer;
 }
 
@@ -597,6 +606,7 @@ h2 { /* For main page headings ONLY */
     width: 100%;
     height: 100%;
     align-items: center; /* Center items vertically */
+     transition: transform 0.5s ease; /* Add the transition here */
 }
 
 .desktop-slideshow .mySlides {
