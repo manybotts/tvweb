@@ -97,9 +97,9 @@ h2 { /* For main page headings ONLY */
 .brand-text {
     color: white;
     font-weight: bold;
-    font-size: 1.2em;
+    font-size: 1em; /* Same as .nav-link */
     font-family: 'Panton Rust', 'Helvetica Neue', Helvetica, Arial, sans-serif;
-    margin-right: 20px;
+    margin-right: 20px; /* Add right margin */
     display: inline;
 }
 
@@ -200,12 +200,13 @@ h2 { /* For main page headings ONLY */
     color: white;
     cursor: pointer;
     position: absolute;
-    right: 0;
+    right: 10px; /* Position to the right edge */
     top: 50%;
     transform: translateY(-50%);
     font-size: 1.2em; /* Adjust as needed */
      padding: 8px;
 }
+
 
 /* --- Media Queries for Navbar (Mobile/Desktop Switch) --- */
 
@@ -342,7 +343,7 @@ h2 { /* For main page headings ONLY */
     padding: 10px 15px;
     border-radius: 5px;
     text-decoration: none;
-    transition: background-color: 0.3s ease;
+    transition: background-color 0.3s ease;
     width: calc(20% - 12px);  /*Five Columns*/
     box-sizing: border-box;
     text-align: center;
@@ -616,7 +617,7 @@ h2 { /* For main page headings ONLY */
     background-color: #bbb;
     border-radius: 50%;
     display: inline-block;
-    transition: background-color 0.6s ease;
+    transition: background-color: 0.6s ease;
     cursor: pointer;
 }
 
