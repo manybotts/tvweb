@@ -5,37 +5,34 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}{% endblock %} - TV Show Tracker</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" integrity="sha512-9usAa10IRO0HhonpyAIVpjrylPvoDwiPUiKdWk5t3PyolY1cOd4DSE0Ga+ri4AuTroPR5aQvXU9xC6qOPnzFeg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
-    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
+     <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v={{ range(1, 10000) | random }}">
     <script src="{{ url_for('static', filename='script.js') }}?v={{ range(1, 10000) | random }}"></script>
+
 </head>
 <body>
     <nav class="navbar">
-        <div class="logo-container">
-          <a href="{{ url_for('index') }}">
-            <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" class="logo">
-              <span class = "brand-text">iBOX TV </span>
-          </a>
+        <div class="navbar-container">
+            <a href="{{ url_for('index') }}" class="navbar-brand">
+                <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" class="logo">
+                <span class="brand-text">iBOX TV</span>
+            </a>
             <div class="nav-links">
                 <a href="{{ url_for('index') }}" class="nav-link"><i class="fas fa-home"></i><span class="link-text">Home</span></a>
                 <a href="{{ url_for('list_shows') }}" class="nav-link"><i class="fas fa-tv"></i><span class="link-text">Shows</span></a>
             </div>
+            <form action="{{ url_for('index') }}" method="GET" class="search-form">
+                <input type="text" name="search" placeholder="Search for shows..." class="search-input">
+                <button type="submit" class="search-button">Search</button>
+                <button type="button" class="search-icon-button">
+                    <i class="fas fa-search"></i>
+                </button>
+            </form>
         </div>
-
-       <form action="{{ url_for('index') }}" method="GET" class="search-form">
-            <input type="text" name="search" placeholder="Search for shows..." class="search-input">
-            <button type="submit" class="search-button">
-               Search
-            </button>
-             <button type="button" class="search-icon-button">
-                <i class="fas fa-search"></i>
-            </button>
-        </form>
     </nav>
 
     <div class="container">
         {% block content %}{% endblock %}
     </div>
-
 </body>
 </html>
