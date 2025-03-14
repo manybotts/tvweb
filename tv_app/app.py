@@ -81,3 +81,12 @@ def delete_all_shows():
     except Exception as e:
         db.session.rollback()
         return jsonify({'message': f'Error deleting shows: {str(e)}'}), 500
+
+# --- Health Check and Update Trigger ---
+
+@app.route('/health')
+def health_check():
+    """Health check endpoint, also triggers the update task."""
+    with app.app_context():  # Create an application context
+        update_tv_shows.delay()  # Enqueue the task
+    return "OK", 200
