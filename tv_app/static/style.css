@@ -182,10 +182,8 @@ h2 {
 .eye-icon::before {
     font-family: "Font Awesome 6 Free";
     content: "\f06e";
-    /* Eye icon */
     margin-right: 8px;
     color: #e50914;
-    /* Netflix red */
     display: inline-block;
     font-weight: 900;
     font-size: 0.8em;
@@ -194,10 +192,8 @@ h2 {
 .new-icon::before {
     font-family: "Font Awesome 6 Free";
     content: "\f058";
-    /* Check circle icon */
     margin-right: 8px;
     color: #90ee90;
-    /* Light green */
     display: inline-block;
     font-weight: 900;
     font-size: 0.8em;
@@ -341,7 +337,7 @@ h2 {
     color: white;
     text-decoration: none;
     border-radius: 5px;
-    transition: background-color 0.3s ease;
+    transition: background-color: 0.3s ease;
     margin-top: 10px;
     border: none;
 }
@@ -673,9 +669,6 @@ h2 {
     font-weight: 900;
     font-size: 0.8em;
 }
-/* --- PART 2 END --- */
-/* --- tv_app/static/style.css --- */
-/* --- PART 3 START --- */
 
 /* Responsive adjustments for shows.html*/
 @media (max-width: 768px) {
@@ -683,6 +676,9 @@ h2 {
         width: calc(50% - 10px);
     }
 }
+/* --- PART 2 END --- */
+/* --- tv_app/static/style.css --- */
+/* --- PART 3 START --- */
 
 @media (max-width: 480px) {
     .show-item {
@@ -768,7 +764,29 @@ h2 {
 }
 
 /*Adjust card layout for large screens */
-@media (min-width: 992px) {
+@media (min-width: 992px) and (max-width: 1199px) {
+    /* New media query for this specific range */
+    .card {
+        width: calc(25% - 15px);
+        /* Four columns with gaps in this range */
+    }
+
+    .mobile-slideshow {
+        display: none;
+    }
+
+    .desktop-slideshow {
+        display: block;
+    }
+
+    .desktop-slideshow .mySlides {
+        width: calc((100% / 4) - 20px);
+        /* Four slides visible */
+    }
+}
+
+@media (min-width: 1200px) {
+    /* For larger screens, keep five columns */
     .card {
         width: calc(20% - 12px);
     }
@@ -783,6 +801,7 @@ h2 {
 
     .desktop-slideshow .mySlides {
         width: calc((100% / 5) - 20px);
+
     }
 }
 
@@ -792,4 +811,5 @@ h2 {
         display: none;
     }
 }
+
 /* --- PART 3 END --- */
