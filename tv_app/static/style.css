@@ -218,12 +218,22 @@ h2 {
     box-sizing: border-box;
     border-radius: 8px;
     overflow: hidden;
+     display: flex; /* Use flexbox for internal layout */
+    flex-direction: column; /* Stack content vertically */
 }
 
 .card:hover {
     transform: translateY(-7px);
 }
 
+.card a {
+    text-decoration: none;
+    color: inherit;
+    display: block;
+     flex-grow: 1; /* Allow the link to fill the card */
+     display: flex;
+     flex-direction: column;
+}
 .card img {
     max-width: 100%;
     height: auto;
@@ -233,24 +243,19 @@ h2 {
     object-fit: cover;
 }
 
-.card a {
-    text-decoration: none;
-    color: inherit;
-    display: block;
-}
-
 .card h2 {
     font-size: 1.2em;
     margin-bottom: 5px;
     color: #e50914;
     font-family: 'Netflix Sans', sans-serif;
     text-align: center;
+     margin-top: auto;
 }
-
 .card p {
     font-size: 0.9em;
     color: #aaa;
     margin-bottom: 0;
+    margin-top: auto;
 }
 
 .telegram-loader {
@@ -345,12 +350,42 @@ h2 {
 .download-button:hover {
     background-color: #0056b3;
 }
+  .show-label-icon::before {
+    font-family: "Font Awesome 6 Free";
+    content: "\f039";
+    margin-right: 8px;
+    display: inline-block;
+    font-weight: 900;
+    font-size: 0.8em;
+}
+ .show-list{
+     display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    gap: 15px;
+    padding: 20px;
+}
+ .show-item {
+     background-color: #222;
+    color: #fff;
+    padding: 10px 15px;
+    border-radius: 5px;
+    text-decoration: none;
+    transition: background-color 0.3s ease;
+    width: calc(20% - 12px);  /*Five Columns*/
+    box-sizing: border-box;
+    text-align: center;
+}
 /* --- PART 1 END --- */
 /* --- tv_app/static/style.css --- */
 /* --- PART 2 START --- */
 
+.show-item:hover {
+    background-color: #333;
+}
+
 /* --- Slideshow --- */
-/* General Slideshow Container */
+
 .slideshow-container {
     position: relative;
     width: 100%;
@@ -360,9 +395,9 @@ h2 {
     margin-bottom: 30px;
 }
 
-/* Mobile Slideshow Styles */
+/* --- Mobile Slideshow --- */
 .mobile-slideshow {
-    height: 200px;
+    height: auto; /*  Allow height to adjust dynamically */
 }
 
 .mobile-slideshow .slideshow-inner {
@@ -376,29 +411,28 @@ h2 {
     justify-content: center;
     align-items: center;
 }
-
+/* Hide the scrollbar */
 .mobile-slideshow .slideshow-inner::-webkit-scrollbar {
     display: none;
 }
 
 .mobile-slideshow .slideshow-inner {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
 }
 
 .mobile-slideshow .mySlides {
-    flex: 0 0 auto;
+     flex: 0 0 auto;
     scroll-snap-align: center;
     margin: 0;
     opacity: 0.7;
     transition: opacity 0.4s ease, transform 0.4s ease;
     position: relative;
-    width: calc(50% - 20px);
-    /* Two slides visible */
+    width: calc(50% - 20px); /* Two slides visible */
     border-radius: 8px;
     overflow: hidden;
-    height: 100%;
-    display: none;
+    height: 100%; /* Fill the container height */
+    display: none; /* Hide initially */
 }
 
 .mobile-slideshow .mySlides.active-slide {
@@ -419,16 +453,16 @@ h2 {
     object-fit: cover;
     display: block;
 }
-
+/* Styling the caption */
 .mobile-slideshow .slide-caption {
     position: absolute;
-    bottom: 10px;
-    left: 50%;
-    transform: translateX(-50%);
+    bottom: 0; /* Position at the bottom */
+    left: 0;
+    right: 0; /* Span full width */
     background-color: rgba(0, 0, 0, 0.7);
     color: white;
-    padding: 5px 10px;
-    border-radius: 5px;
+    padding: 10px; /* Add padding */
+    border-radius: 0 0 8px 8px; /* Match image corners */
     font-size: 0.9em;
     font-weight: bold;
     text-align: center;
@@ -437,7 +471,8 @@ h2 {
     z-index: 3;
 }
 
-/* Mobile Navigation Arrows */
+/* --- Mobile Navigation Arrows --- */
+
 .mobile-slideshow .prev,
 .mobile-slideshow .next {
     cursor: pointer;
@@ -472,7 +507,8 @@ h2 {
     background-color: rgba(0, 0, 0, 0.8);
 }
 
-/* Mobile Slideshow Dots */
+/* --- Mobile Slideshow Dots --- */
+
 .mobile-slideshow .slideshow-dots {
     text-align: center;
     margin-top: 10px;
@@ -493,7 +529,7 @@ h2 {
     background-color: #e50914;
 }
 
-/* Desktop Slideshow Styles */
+/* --- Desktop Slideshow --- */
 
 .desktop-slideshow {
     height: 250px;
@@ -509,7 +545,7 @@ h2 {
 
 .desktop-slideshow .mySlides {
     flex: 0 0 auto;
-    width: calc((100% / 5) - 20px);
+    width: calc((100% / 5) - 20px);  /*Five columns*/
     margin: 0 10px;
     height: 90%;
     display: none;
@@ -555,7 +591,8 @@ h2 {
     z-index: 3;
 }
 
-/* Navigation Arrows */
+/* --- Desktop Navigation Arrows --- */
+
 .desktop-slideshow .prev,
 .desktop-slideshow .next {
     cursor: pointer;
@@ -590,104 +627,107 @@ h2 {
     background-color: rgba(0, 0, 0, 0.8);
 }
 
-/* Responsive adjustments */
+/* --- Slideshow Image Styling (Applies to Both) --- */
+.slideshow-image {
+    width: 100%;
+    height: 100%; /* Take up full slide height */
+    object-fit: cover; /* Cover the entire area */
+    border-radius: 8px; /* Rounded corners */
+    display: block;
+}
+
+/* --- General Responsive Adjustments --- */
+
 @media (max-width: 768px) {
+
     .desktop-slideshow {
-        display: none;
+        display: none; /* Hide desktop slideshow */
+    }
+     .mobile-slideshow {
+        display: block; /* Ensure mobile slideshow is shown */
     }
 
     .card {
-        width: calc(50% - 10px);
+        width: calc(50% - 15px); /* Two columns on smaller screens */
     }
-
-    .mySlides {
+      /* Adjust mobile slide width */
+      .mobile-slideshow .mySlides {
         width: calc(50% - 15px);
     }
-
-    .mySlides.active-slide {
-        margin: 0 10px;
+      .mobile-slideshow .mySlides.active-slide {
+        margin: 0 5px; /* Adjust active slide margin */
+    }
+     .show-item {
+        width: calc(50% - 10px); /*Two Columns*/
     }
 }
 
 @media (max-width: 480px) {
-    .mobile-slideshow {
-        display: block;
-    }
-
     .card {
-        width: 95%;
+        width: 95%; /* One column on very small screens */
     }
-
-    .mySlides {
+     /* Further adjust mobile slide width */
+    .mobile-slideshow .mySlides {
         width: 90%;
+         margin: 0 5px;
     }
 
-    .mySlides.active-slide {
-        margin: 0 5px;
+    .mobile-slideshow .mySlides.active-slide {
+        margin: 0 ; /* Adjust active slide margin */
     }
 
     .slideshow-container {
-        height: 180px;
+        height: auto; /* Let height be dynamic */
+    }
+     .show-item {
+        width: 100%; /* One column on very small screens*/
     }
 }
+    /* --- Desktop Layout Adjustments --- */
 
-/* styles for shows.html */
-.show-list {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: flex-start;
-    gap: 15px;
-    padding: 20px;
-}
-
-.show-item {
-    background-color: #222;
-    color: #fff;
-    padding: 10px 15px;
-    border-radius: 5px;
-    text-decoration: none;
-    transition: background-color 0.3s ease;
-    width: calc(20% - 12px);
-    box-sizing: border-box;
-    text-align: center;
-}
-
-.show-item:hover {
-    background-color: #333;
-}
-
-/* Add an icon next to the Available TV Shows */
-.show-label-icon {
-    margin-right: 8px;
-}
-
-.show-label-icon::before {
-    font-family: "Font Awesome 6 Free";
-    content: "\f039";
-    /* Example: List icon */
-    display: inline-block;
-    font-weight: 900;
-    font-size: 0.8em;
-}
-
-/* Responsive adjustments for shows.html*/
-@media (max-width: 768px) {
-    .show-item {
-        width: calc(50% - 10px);
+    /* Between 992px and 1199px wide: Four columns */
+    @media (min-width: 992px) and (max-width: 1199px) {
+        .card {
+            width: calc(25% - 15px);
+        }
+        .desktop-slideshow .mySlides {
+           width: calc((100% / 4) - 20px);/* Four Slides */
+        }
+         .mobile-slideshow{
+            display:none
+         }
+         .desktop-slideshow{
+            display:block;
+         }
     }
-}
+
+    /* 1200px and wider: Five columns */
+    @media (min-width: 1200px) {
+        .card {
+            width: calc(20% - 12px);
+        }
+          .desktop-slideshow .mySlides {
+           width: calc((100% / 5) - 20px);/* Five Slides */
+        }
+         .mobile-slideshow{
+            display:none
+         }
+         .desktop-slideshow{
+            display:block;
+         }
+    }
+
+    /* Hide desktop slideshow on smaller screens (redundant but good for safety) */
+    @media (max-width: 991px) {
+        .desktop-slideshow {
+            display: none;
+        }
+    }
+
+/* --- Styles for show_details.html --- */
 /* --- PART 2 END --- */
 /* --- tv_app/static/style.css --- */
 /* --- PART 3 START --- */
-
-@media (max-width: 480px) {
-    .show-item {
-        width: 100%;
-    }
-}
-
-/* --- show_details.html styles --- */
-
 .show-details-container {
     padding: 20px;
 }
@@ -763,53 +803,70 @@ h2 {
     }
 }
 
-/*Adjust card layout for large screens */
-@media (min-width: 992px) and (max-width: 1199px) {
-    /* New media query for this specific range */
-    .card {
-        width: calc(25% - 15px);
-        /* Four columns with gaps in this range */
-    }
 
-    .mobile-slideshow {
-        display: none;
-    }
+/* --- Desktop Search (Hidden on Mobile) --- */
 
-    .desktop-slideshow {
-        display: block;
-    }
+.desktop-search {
+    display: flex !important; /* Ensure it's flex by default */
+    align-items: center;
+}
+/* --- Mobile Search (Hidden on Desktop) --- */
 
-    .desktop-slideshow .mySlides {
-        width: calc((100% / 4) - 20px);
-        /* Four slides visible */
-    }
+.mobile-search-form {
+    display: none; /* Hidden by default (shown on mobile via media query) */
+    align-items: center;
+    position: relative;
 }
 
-@media (min-width: 1200px) {
-    /* For larger screens, keep five columns */
-    .card {
-        width: calc(20% - 12px);
-    }
-
-    .mobile-slideshow {
-        display: none;
-    }
-
-    .desktop-slideshow {
-        display: block;
-    }
-
-    .desktop-slideshow .mySlides {
-        width: calc((100% / 5) - 20px);
-
-    }
+.mobile-search-input {
+    padding: 8px;
+    border: 1px solid #555;
+    background-color: #333;
+    color: white;
+    border-radius: 4px;
+    margin-right: 5px; /* Space between input and button */
+    width: 0; /* Initially hidden */
+    opacity: 0;
+    transition: width 0.3s ease, opacity 0.3s ease;
+     position: absolute; /* Position absolutely within the form */
+    right: 45px; /* Adjust as needed for positioning */
+    top: 50%;
+    transform: translateY(-50%);
+}
+.mobile-search-input:focus{
+      border-color: #007bff;
+      background-color: #444;
 }
 
-/* Hide desktop slideshow on smaller screens */
-@media (max-width: 991px) {
-    .desktop-slideshow {
-        display: none;
-    }
+.mobile-search-form.active .mobile-search-input {
+    width: 150px; /* Expand to this width when active */
+    opacity: 1;
 }
 
+.mobile-search-button {
+    background: none;
+    border: none;
+    color: white;
+    cursor: pointer;
+     position: absolute;
+    right: 10px; /* Position to the right edge */
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 1.2em; /* Adjust as needed */
+     padding: 8px;
+}
+
+.mobile-search-icon-button {
+    background: none;
+    border: none;
+    padding: 8px;
+    cursor: pointer;
+    color: white;
+    font-size: 1.2em;
+   /* margin-left: auto;  Push to the right */
+}
+
+.mobile-search-icon-button i {
+    pointer-events: none;
+}
 /* --- PART 3 END --- */
