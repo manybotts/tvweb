@@ -57,7 +57,7 @@ body {
     padding: 8px 15px; /* More padding */
     margin: 0 5px; /* less horizontal margin */
     border-radius: 5px;
-    transition: background-color 0.3s ease;
+    transition: background-color: 0.3s ease;
     font-size: 1em; /* Larger font */
     display: flex; /* Use flex for alignment */
     align-items: center; /* Center icon and text */
@@ -184,29 +184,36 @@ body {
 	box-sizing: border-box;
 }
 
-h2 {  /* Style both h1 and h2 */
-    text-align: left; /* Left-align headings */
-    margin-bottom: 20px;
-    color: #fff; /* White text */
-    font-family: 'Netflix Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif;
-    font-size: 1.8em; /* Slightly smaller font size */
-    display: flex; /* Use flexbox for alignment */
-    align-items: center; /* Vertically center with the dot */
+h1 {
+	text-align: center;
+	margin-bottom: 30px;
+	color: #e50914;
+	/* Netflix red */
+	font-family: 'Netflix Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+	/* Netflix font */
+	font-size: 2em;
+	display: flex;
+	align-items: center;
+	justify-content: center;
 }
 
 .blinking-dot {
-    width: 10px;
-    height: 10px;
-    background-color: #2ecc71; /* Green */
-    border-radius: 50%;
-    margin-right: 8px;
-    animation: blink 1s steps(5, start) infinite;
-    display: inline-block;  /* Ensure dot and text are inline */
+	width: 10px;
+	height: 10px;
+	background-color: #2ecc71;
+	/* Green */
+	border-radius: 50%;
+	margin-right: 8px;
+	animation: blink 1s steps(5, start) infinite;
+	display: inline-block;
+	/* Ensure dot and text are inline */
 }
 
 /* Blinking animation */
 @keyframes blink {
-    to { visibility: hidden; }
+	to {
+		visibility: hidden;
+	}
 }
 
 .tv-shows {
@@ -261,7 +268,7 @@ h2 {  /* Style both h1 and h2 */
 }
 
 .card h2 {
-	font-size: 1em;
+	font-size: 1.2em;
 	margin-bottom: 5px;
 	color: #e50914;
 	/* Netflix red */
@@ -299,4 +306,217 @@ h2 {  /* Style both h1 and h2 */
 }
 
 .telegram-loader::after {
-	border-color
+	border-color: #007bff;
+	animation-delay: 1s;
+}
+
+@keyframes rotate {
+	0% {
+		transform: rotate(0deg)
+	}
+
+	100% {
+		transform: rotate(360deg)
+	}
+}
+
+@keyframes pulse {
+
+	0%,
+	100% {
+		transform: scale(0);
+		opacity: 1;
+	}
+
+	50% {
+		transform: scale(1);
+		opacity: 0.5;
+	}
+}
+
+.pagination {
+	text-align: center;
+	margin-top: 20px;
+	clear: both;
+}
+
+.pagination a {
+	padding: 5px 10px;
+	text-decoration: none;
+	color: #007bff;
+	border: 1px solid #333;
+	margin: 0 3px;
+	border-radius: 5px;
+}
+
+.pagination a:hover {
+	background-color: rgba(255, 255, 255, 0.1);
+	/* Lighter hover effect */
+	color: white;
+}
+
+.pagination .current-page {
+	padding: 5px 10px;
+	margin: 0 3px;
+	border-radius: 5px;
+	background-color: #007bff;
+	color: white;
+	border: 1px solid #007bff;
+}
+
+.download-button {
+	display: inline-block;
+	padding: 10px 20px;
+	font-size: 1.1em;
+	background-color: #007bff;
+	color: white;
+	text-decoration: none;
+	border-radius: 5px;
+	transition: background-color: 0.3s ease;
+	margin-top: 10px;
+	border: none;
+}
+
+.download-button:hover {
+	background-color: #0056b3;
+}
+/* --- tv_app/static/style.css --- */
+/* --- Continued (Part 2) --- */
+
+.slideshow-container {
+    position: relative;
+    width: 100%;
+    overflow: hidden;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.6);
+    margin-bottom: 30px;
+    height: 250px; /* Reduced height */
+}
+
+.slideshow-inner {
+    display: flex;
+    width: 300%;       /* 300% to show prev, current, next */
+    transition: transform 0.6s ease-in-out; /* Smooth transition */
+}
+/* Hide scrollbar */
+.slideshow-inner::-webkit-scrollbar {
+    display: none;  /* Chrome, Safari, Opera*/
+}
+
+.slideshow-inner {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+}
+.mySlides {
+    flex: 0 0 33.3333%; /* Each slide takes 1/3 of the inner container */
+    position: relative;
+    display: flex; /* Make it a flex container */
+    justify-content: center; /* Center the card horizontally */
+    align-items: center;
+	border-radius: 8px;
+
+}
+
+.mySlides.card {
+	width: 70%;
+	height: 200px;
+	box-shadow: 0 4px 8px rgba(0, 0, 0, 0.6);
+	/*transition: transform 0.6s ease-out;*/
+	margin-bottom: 0;
+	position: relative;
+}
+
+.mySlides.card img{
+	border: none;
+}
+.mySlides:not(.active-slide){
+	filter: blur(4px);
+}
+
+.mySlides:not(.active-slide) .card {
+    opacity: 0.6;  /* Dim non-active slides */
+    transform: scale(0.8); /* Shrink non-active slides */
+}
+
+.mySlides.active-slide .card {
+    transform: scale(1); /* Normal scale for active slide */
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.8); /* Larger shadow for active */
+
+}
+
+/* Navigation Arrows */
+.slideshow-controls {
+    position: absolute;
+    top: 50%;
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    transform: translateY(-50%);
+    z-index: 3; /* Above the slides */
+}
+.prev,
+.next {
+    cursor: pointer;
+    padding: 16px;
+    color: white;
+    font-weight: bold;
+    font-size: 20px;
+    transition: 0.6s ease;
+    user-select: none;
+    background: rgba(0, 0, 0, 0.4);  /* Semi-transparent background */
+    border: none;
+    border-radius: 5px;
+     z-index: 3;
+}
+
+.next {
+    right: 0;
+	border-radius: 5px 0 0 5px;
+
+}
+.prev{
+	border-radius: 0 5px 5px 0;
+}
+.prev:hover,
+.next:hover {
+    background-color: rgba(0, 0, 0, 0.8);
+}
+
+/* Responsive Styles */
+
+@media (max-width: 768px) {
+    .card {
+        width: calc(50% - 15px); /* Two columns on smaller screens */
+    }
+    .mySlides.card{
+        height: 180px;
+    }
+}
+
+@media (max-width: 480px) {
+	.mySlides.card {
+		height: 150px;
+	}
+    .card {
+        width: 95%; /* One column on very small screens */
+    }
+	.slideshow-container {
+		height: 200px;
+		/* Reduce height */
+	}
+}
+ .text {
+	 color: #fff;
+	 font-size: 1.2em;
+	 font-weight: bold;
+	 padding: 8px 12px;
+	 position: absolute;
+	 bottom: 8px;
+	 width: 100%;
+	 text-align: center;
+	 z-index: 3;
+	 text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7);
+	 background-color: rgba(0, 0, 0, 0.3);
+	 border-radius: 5px;
+     font-family: 'Netflix Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+ }
