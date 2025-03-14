@@ -20,5 +20,5 @@
         <p><strong>Rating:</strong> {{ show.vote_average }}/10</p>
     {% endif %}
 
-    <a href="{{ url_for('redirect_to_download', message_id=show.message_id) }}" class="download-button">Download</a>
+    <a href="{{ url_for('redirect_to_download', show_id=show.id) }}" class="download-button">Download</a>
 {% endblock %}
