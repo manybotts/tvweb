@@ -10,12 +10,12 @@ body {
 }
 
 .navbar {
-    background-color: #141414; /* Dark background */
+    background-color: #141414;
     color: white;
     padding: 10px 20px;
     display: flex;
     align-items: center;
-    justify-content: space-between; /* Distribute space */
+    justify-content: space-between;
     position: fixed;
     top: 0;
     left: 0;
@@ -23,122 +23,139 @@ body {
     z-index: 1000;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
 }
+
+/* Container for navbar elements */
+.navbar-container {
+    display: flex;
+    align-items: center;
+    justify-content: space-between; /* Distribute space evenly */
+    width: 100%; /* Ensure it spans the entire navbar */
+}
+
+/* Logo and Brand */
 .logo-container {
     display: flex;
     align-items: center;
 }
 
 .logo {
-    width: 40px; /* Slightly larger logo */
+    width: 40px;
     height: auto;
     margin-right: 10px;
     border-radius: 50%;
 }
 
+.navbar-brand {
+    color: #e50914; /* Netflix Red */
+    font-size: 1.4em;
+    font-weight: bold;
+    text-decoration: none;
+    display: flex; /* Use flex to align logo and text */
+    align-items: center; /* Vertically center */
+    font-family: 'Netflix Sans','Helvetica Neue',Helvetica,Arial,sans-serif; /* Use a bold font */
+
+}
+
+/* Style for the brand text (iBOX TV) */
+.navbar-brand .brand-text {
+    color: gold; /* Gold color for iBOX TV */
+    font-weight: bold;
+    font-size: 1.7em; /* Adjust as needed */
+
+}
+/* Navigation Links */
 .nav-links {
     display: flex;
     align-items: center;
+    margin-right: auto; /* Push nav links to the left */
     margin-left: 20px; /* Add some margin */
 }
 
 .nav-link {
     color: white;
     text-decoration: none;
-    padding: 8px 15px; /* More padding */
-    margin: 0 5px; /* Less horizontal margin */
+    padding: 8px 15px;
+    margin: 0 5px;
     border-radius: 5px;
     transition: background-color 0.3s ease;
-    font-size: 1em; /* Larger font */
+    font-size: 1em;
     display: flex; /* Use flex for alignment */
     align-items: center; /* Center icon and text */
 }
-
+.nav-link:hover{
+    background-color: rgba(255, 255, 255, 0.1);
+}
 .nav-link i {
     margin-right: 5px; /* Space between icon and text */
 }
+
 /* Hide link text on small screens */
 @media (max-width: 768px) {
     .nav-link .link-text {
         display: none;
     }
 }
- .navbar a:hover {
-	 background-color: rgba(255, 255, 255, 0.1);
-}
-.navbar-brand{
-    color: #e50914;
-    font-size: 1.4em;
-    font-weight: bold;
-    text-decoration: none;
+
+/* Search Form */
+.search-form {
     display: flex;
     align-items: center;
-    font-family: 'Netflix Sans','Helvetica Neue',Helvetica,Arial,sans-serif;
-
-}
-/* Style for the brand text (iBOX TV) */
-.navbar-brand .brand-text {
-    color: gold; /* Gold color for iBOX TV */
-    font-weight: bold;
-    font-size: 1.7em; /* Adjust as needed */
-    font-family: 'Netflix Sans','Helvetica Neue',Helvetica,Arial,sans-serif; /* Use a bold font */
+    position: relative; /* For absolute positioning of icon */
 }
 
-.search-form {
-	margin-left: auto;
-	display: flex;
-	align-items: center;
-	position: relative;
-}
 .search-form input[type="text"] {
-	padding: 8px;
-	border: 1px solid #555;
-	background-color: #333;
-	color: white;
-	border-radius: 4px;
-	margin-right: 5px;
-	width: 150px;
-	transition: width 0.3s ease;
+    padding: 8px;
+    border: 1px solid #555;
+    background-color: #333;
+    color: white;
+    border-radius: 4px;
+    margin-right: 5px;
+    width: 150px;
+    transition: width 0.3s ease;
 }
+
 .search-form input[type="text"]:focus {
-	width: 200px;
-	border-color: #007bff;
-	background-color: #444;
+    width: 200px;
+    border-color: #007bff;
+    background-color: #444;
 }
 
 /* Style for the regular search button (visible on larger screens) */
 .search-form .search-button {
-    padding: 8px 16px;
-    background-color: #007bff;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    white-space: nowrap;
-    transition: background-color 0.3s ease;
+	padding: 8px 16px;
+	background-color: #007bff;
+	color: white;
+	border: none;
+	border-radius: 4px;
+	cursor: pointer;
+	white-space: nowrap; /* Prevent text wrapping */
+	transition: background-color 0.3s ease;
 }
-
 .search-form .search-button:hover {
-    background-color: #0056b3;
+      background-color: #0056b3;
 }
 
-/* Style for the search icon button (visible on smaller screens) */
+/* Search icon button style */
 .search-icon-button {
     background: none;
     border: none;
-    padding: 8px; /* Add some padding */
+    padding: 8px; /* Add padding to make it easier to click */
     cursor: pointer;
     color: white;
     font-size: 1.2em;
     display: none; /* Hidden by default */
 }
- .search-icon-button i{
-   pointer-events: none; /*To avoid click events*/
+
+/* Remove pointer events from the icon itself */
+.search-icon-button i {
+    pointer-events: none;
 }
 
 /* Media query to show/hide search elements */
 @media (max-width: 768px) {
+
     .search-form .search-button,
-    .search-form .search-input {
+    .search-form input[type="text"] {
         display: none; /* Hide text input and button on small screens */
     }
 
@@ -150,27 +167,25 @@ body {
     }
 }
 
+
 .container {
-	max-width: 1200px;
-	margin: auto;
-	overflow: hidden;
-	padding: 20px;
-	padding-top: 80px;  /* Adjust top padding to account for fixed navbar */
-	box-sizing: border-box;
+    max-width: 1200px;
+    margin: auto;
+    overflow: hidden;
+    padding: 20px;
+    padding-top: 80px;  /* Adjust top padding to account for fixed navbar */
+    box-sizing: border-box;
 }
-
 h1 {
-    text-align: center;
-    margin-bottom: 30px;
-    color: #e50914; /* Netflix red */
-    font-family: 'Netflix Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif; /* Netflix font */
-    font-size: 2em;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+	text-align: center;
+	margin-bottom: 30px;
+	color: #e50914;
+	font-family: 'Netflix Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+	font-size: 2em;
+	display: flex;
+	align-items: center;
+	justify-content: center;
 }
-
-/* Blinking dot for "Newly Added" heading */
 .blinking-dot {
     width: 10px;
     height: 10px;
@@ -185,30 +200,29 @@ h1 {
 @keyframes blink {
     to { visibility: hidden; }
 }
-
 .tv-shows {
     display: flex;
     flex-wrap: wrap;
-    justify-content: flex-start; /* Changed justify-content */
-    gap: 15px; /* Consistent gap */
+  justify-content: flex-start; /*Keep this as flex start*/
+    gap: 15px;
 }
 
 .card {
-    border: 1px solid #333; /* Darker border */
+    border: 1px solid #333;
     padding: 15px;
     margin-bottom: 20px;
-    width: calc(25% - 20px); /* Adjust width for spacing */
+    width: calc(25% - 20px); /* Adjust as needed */
     text-align: center;
-    background-color: #222; /* Dark background for cards */
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.6); /* Stronger shadow */
+    background-color: #222;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.6);
     transition: transform 0.3s ease;
     box-sizing: border-box;
-    border-radius: 8px; /* Rounded corners */
-    overflow: hidden; /* Prevent image overflow */
+    border-radius: 8px;
+    overflow: hidden;
 }
 
 .card:hover {
-    transform: translateY(-7px); /* More pronounced hover effect */
+    transform: translateY(-7px);
 }
 
 .card img {
@@ -216,61 +230,78 @@ h1 {
     height: auto;
     border-bottom: 1px solid #333;
     margin-bottom: 10px;
-    border-radius: 4px; /* Slightly rounded corners */
+    border-radius: 4px;
 }
 
 .card a {
     text-decoration: none;
-    color: inherit; /* Inherit text color from parent */
-    display: block; /* Make the link occupy full card space */
+    color: inherit;
+    display: block;
 }
 
 .card h2 {
-    font-size: 1.2em;
-    margin-bottom: 5px;
-    color: #e50914; /* Netflix red */
-    font-family: 'Netflix Sans', sans-serif; /* Netflix font */
+	font-size: 1.2em;
+	margin-bottom: 5px;
+	color: #e50914;
+	font-family: 'Netflix Sans', sans-serif;
 }
 
 .card p {
     font-size: 0.9em;
-    color: #aaa; /* Slightly muted color for better contrast */
-    margin-bottom: 0; /* Remove default bottom margin */
+    color: #aaa;
+    margin-bottom: 0;
 }
 .telegram-loader {
-    width: 48px; /* Adjust as needed */
-    height: 48px; /* Adjust as needed */
-    border-radius: 50%;
-    position: relative;
-    animation: rotate 1s linear infinite;
-  }
-  .telegram-loader::before , .telegram-loader::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    border-radius: 50%;
-    border: 5px solid #fff;  /*  color */
-    animation: pulse 1.5s ease-out infinite;
-  }
-  .telegram-loader::after {
-    border-color: #007bff; /*  color */
-    animation-delay: 1s;
-  }
+	width: 48px;
+	height: 48px;
+	border-radius: 50%;
+	position: relative;
+	animation: rotate 1s linear infinite;
+}
 
-  @keyframes rotate {
-    0%   {transform: rotate(0deg)}
-    100%   {transform: rotate(360deg)}
-  }
+.telegram-loader::before,
+.telegram-loader::after {
+	content: "";
+	position: absolute;
+	inset: 0;
+	border-radius: 50%;
+	border: 5px solid #fff;
+	animation: pulse 1.5s ease-out infinite;
+}
 
-  @keyframes pulse {
-    0%, 100% {transform: scale(0);opacity: 1;}
-    50%      {transform: scale(1);opacity: 0.5;}
-  }
+.telegram-loader::after {
+	border-color: #007bff;
+	animation-delay: 1s;
+}
+
+@keyframes rotate {
+	0% {
+		transform: rotate(0deg)
+	}
+
+	100% {
+		transform: rotate(360deg)
+	}
+}
+
+@keyframes pulse {
+
+	0%,
+	100% {
+		transform: scale(0);
+		opacity: 1;
+	}
+
+	50% {
+		transform: scale(1);
+		opacity: 0.5;
+	}
+}
 
 .pagination {
     text-align: center;
     margin-top: 20px;
-	 clear: both;
+     clear: both;
 }
 
 .pagination a {
@@ -287,12 +318,12 @@ h1 {
     color: white;
 }
 .pagination .current-page {
-    padding: 5px 10px;
-    margin: 0 3px;
-    border-radius: 5px;
-    background-color: #007bff;
-    color: white;
-    border: 1px solid #007bff;
+   padding: 5px 10px;
+   margin: 0 3px;
+   border-radius: 5px;
+   background-color: #007bff;
+   color: white;
+   border: 1px solid #007bff;
 }
 .download-button {
     display: inline-block;
@@ -320,31 +351,35 @@ h1 {
 }
 
 .slideshow-inner {
-  height: 350px; /* Default height, adjust as needed */
-  display: flex; /* Use flexbox for centering */
-  align-items: center; /* Vertical centering */
-  justify-content: center; /* Horizontal centering */
-  position: relative;
-    width: 100%;
+    display: flex;
+    overflow: hidden;
+    width: 300%; /* Initial width for potential transitions */
+    transition: transform 0.5s ease-in-out; /* Smooth transition for sliding */
 }
 
- .mySlides {
+.mySlides {
     position: relative;
-    display: none; /* Hide all slides initially */
-    width: 100%;
-    text-align: center; /* Center content horizontally */
+    flex: 0 0 33.3333%; /* Each slide takes 1/3 of the inner width */
+    box-sizing: border-box;
+    display: none; /* Initially hide all slides */
+    align-items: center;
+    justify-content: center;
 }
+
+.mySlides.active-slide{
+   display: block;
+}
+
 .mySlides img {
-    max-height: 350px; /* Limit image height */
-    width:  auto;
-    max-width: 100%;
-    vertical-align: middle;
-	border-radius: 8px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3); /* Shadow for depth */
+    max-width: 100%; /* Ensure image fits within container */
+    max-height: 350px; /* Limit height, maintain aspect ratio */
+    display: block;
+    border-radius: 8px; /* Apply to the images themselves */
+     margin: 0 auto;
 }
- .slide-caption {
+.slide-caption {
     position: absolute;
-    top: 50%;
+    top: 70%;
     left: 50%;
     transform: translate(-50%, -50%);
     background-color: rgba(0, 0, 0, 0.7); /* Semi-transparent black */
