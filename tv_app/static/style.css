@@ -102,11 +102,11 @@ body {
 }
 
 .container {
-            max-width: 1200px;
-            margin: auto;
-            overflow: hidden;
-            padding: 20px;
-            padding-top: 70px;  /* Add this line */
+	max-width: 1200px;
+	margin: auto;
+	overflow: hidden;
+	padding: 20px;
+	padding-top: 70px;  /* Add this line */
 }
 
 h1 {
@@ -452,7 +452,19 @@ ul li a {
     background-color: #717171;
 }
 
-@media (max-width: 768px){
+/* Media Query for Small Screens */
+@media (max-width: 768px) {
+    .search-input, .search-text {
+        display: none; /* Hide the input and text on small screens */
+    }
+
+    .search-icon {
+        display: inline-block; /* Show the icon on small screens */
+		font-size: 1.4em;
+    }
+    .search-form button {
+	    padding: 5px 6px; /*Reduce padding for small screen devices*/
+    }
     .slideshow-inner {
         height: 250px;
     }
@@ -478,12 +490,7 @@ ul li a {
         width: 10px;
     }
     .search-form input[type="text"] {
-        width: 60px;
-    }
-
-    .card {
-        width: calc(50% - 10px);
-    }
+        width: 60px;}
 }
 
 @media (max-width: 480px) {
