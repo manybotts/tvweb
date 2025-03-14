@@ -3,166 +3,114 @@
 {% block title %}TV Show Updates{% endblock %}
 
 {% block content %}
-    <h2>Most Watched Today</h2>
-    <div class="slideshow-container">
-        <div class="slideshow-inner" id="slideshowInner">
-        {% for show in trending_shows %}
-            <div class="mySlides {% if loop.index0 == 0 %}active-slide{% endif %}" data-index="{{ loop.index0 }}">
-                <a href="{{ url_for('show_details', message_id=show.message_id) }}">
-                    {% if show.poster_path %}
-                         <div class="background-image" style="background-image: url('{{ show.poster_path }}');"></div>
-                        <img src="{{ show.poster_path }}" alt="{{ show.show_name }}" >
-                    {% else %}
-                        <div class="telegram-loader">
-                            <div class="plane"></div>
-                            <div class="circle"></div>
-                        </div>
-                    {% endif %}
-                </a>
-                <div class="text">{{ show.show_name }} - {{ show.episode_title }}</div>
-            </div>
-        {% endfor %}
-
-        <a class="prev" onclick="plusSlides(-1)">&#10094;</a>
-        <a class="next" onclick="plusSlides(1)">&#10095;</a>
-     </div>
-     <div style="text-align:center">
-     {% for show in trending_shows %}
-          <span class="dot" onclick="currentSlide({{ loop.index }})"></span>
-        {% endfor %}
-    </div>
-    </div>
-
-    <h2><span class="blinking-dot"></span>Newly Added</h2>
-    <div class="tv-shows">
-      {% if tv_shows %}
-        {% for show in tv_shows %}
-            <div class="card">
-                <a href="{{ url_for('show_details', message_id=show.message_id) }}">
-                    {% if show.poster_path %}
-                        <img src="{{ show.poster_path }}" alt="{{ show.show_name }}" loading="lazy">
-                    {% else %}
-                        <div class="telegram-loader">
-                            <div class="plane"></div>
-                            <div class="circle"></div>
-                        </div>
-                    {% endif %}
-                    <h2>{{ show.show_name }}</h2>
-                    <p>{{ show.episode_title }}</p>
-                </a>
-            </div>
-        {% endfor %}
-    {% else %}
-        <p>No TV shows found.</p>
+    {% if message %}
+        <div class="alert alert-warning" role="alert">
+            {{ message }}
+        </div>
     {% endif %}
-    </div>
+    {% if not search_query %}
+        <h2>Most Watched Today</h2>
+        <div class="slideshow-container">
+            <div class="slideshow-inner">
+            {% for show in trending_shows %}
+                <div class="mySlides card">
+                    <a href="{{ url_for('show_details', show_id=show.id) }}">
+                        {% if show.poster_path %}
+                            <img src="{{ show.poster_path }}" alt="{{ show.show_name }}">
+                        {% else %}
+                            <div class="telegram-loader"></div>
+                        {% endif %}
+                        <h2>{{ show.show_name }}</h2>
+                        <p>{{ show.episode_title }}</p>
+                    </a>
+                </div>
+            {% endfor %}
+            </div>
+
+            <a class="prev" onclick="plusSlides(-1)">&#10094;</a>
+            <a class="next" onclick="plusSlides(1)">&#10095;</a>
+             <div class="dot-container">
+            {% for show in trending_shows %}
+              <span class="dot" onclick="currentSlide({{ loop.index }})"></span>
+            {% endfor %}
+            </div>
+        </div>
+    {% endif %}
+
+    {# --- Conditionally display either "Newly Added" or search results --- #}
+    {% if not search_query %}
+        <h2><span class="blinking-dot"></span>Newly Added</h2>
+        <div class="tv-shows">
+            {% for show in shows.items %}  {# Iterate over shows.items #}
+                <div class="card">
+                    <a href="{{ url_for('show_details', show_id=show.id) }}">  {# Use show.id #}
+                        {% if show.poster_path %}
+                            <img src="{{ show.poster_path }}" alt="{{ show.show_name }}" loading="lazy">
+                        {% else %}
+                        <div class="telegram-loader"></div>
+                        {% endif %}
+                        <h2>{{ show.show_name }}</h2>
+                        <p>{{ show.episode_title }}</p>
+                    </a>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}  {# --- Display search results --- #}
+        {# Optional: Add a heading for search results #}
+        <h2>Search Results for "{{ search_query }}"</h2>
+        <div class="tv-shows">
+            {% if shows.items %} {# Check shows.items #}
+                {% for show in shows.items %}  {# Iterate over shows.items #}
+                    <div class="card">
+                         <a href="{{ url_for('show_details', show_id=show.id) }}">  {# Use show.id #}
+                            {% if show.poster_path %}
+                                <img src="{{ show.poster_path }}" alt="{{ show.show_name }}" loading="lazy">
+                            {% else %}
+                             <div class="telegram-loader"></div>
+                            {% endif %}
+                            <h2>{{ show.show_name }}</h2>
+                            <p>{{ show.episode_title }}</p>
+                        </a>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <p>No TV shows found.</p>
+            {% endif %}
+        </div>
+    {% endif %}
+
 
     <div class="pagination">
-        {% if page > 1 %}
-            <a href="{{ url_for('index', page=1, search=search_query) }}">First</a>
-            <a href="{{ url_for('index', page=page-1, search=search_query) }}">Previous</a>
+      {% if shows.has_prev %}
+          <a href="{{ url_for('index', page=shows.prev_num, search=search_query) }}">Previous</a>
+      {% else %}
+          <span class="disabled">Previous</span>
+      {% endif %}
+
+      {% for page_num in shows.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+        {% if page_num %}
+          {% if shows.page == page_num %}
+            <span class="current-page">{{ page_num }}</span>
+          {% else %}
+            <a href="{{ url_for('index', page=page_num, search=search_query) }}">{{ page_num }}</a>
+          {% endif %}
+        {% else %}
+          <span class="ellipsis">…</span>
         {% endif %}
+      {% endfor %}
 
-        {% set window_size = 5 %}
-        {% set start_page = [page - (window_size // 2), 1] | max %}
-        {% set end_page = [start_page + window_size - 1, total_pages] | min %}
 
-        {% if start_page > 1 %}
-            <span>...</span>
-        {% endif %}
-
-        {% for p in range(start_page, end_page + 1) %}
-            {% if p == page %}
-                <span class="current-page">{{ p }}</span>
-            {% else %}
-                <a href="{{ url_for('index', page=p, search=search_query) }}">{{ p }}</a>
-            {% endif %}
-        {% endfor %}
-
-        {% if end_page < total_pages %}
-            <span>...</span>
-        {% endif %}
-
-        {% if page < total_pages %}
-            <a href="{{ url_for('index', page=page+1, search=search_query) }}">Next</a>
-            {% if page != total_pages -1 and total_pages > window_size %}
-              <a href="{{ url_for('index', page=total_pages, search=search_query) }}">Last</a>
-            {% endif %}
-        {% endif %}
+      {% if shows.has_next %}
+          <a href="{{ url_for('index', page=shows.next_num, search=search_query) }}">Next</a>
+      {% else %}
+          <span class="disabled">Next</span>
+      {% endif %}
     </div>
-  <script>
-    let slideIndex = 0;
-    showSlides(slideIndex);
-
-    function plusSlides(n) {
-        const slides = document.getElementsByClassName("mySlides");
-        slideIndex += n;
-
-        if (slideIndex >= slides.length) { slideIndex = 0; }
-        if (slideIndex < 0) { slideIndex = slides.length - 1; }
-
-        showSlides(slideIndex);
-    }
-     function currentSlide(n) {
-      showSlides(slideIndex = n-1);
-      }
-
-
-    function showSlides(n) {
-        const slides = document.getElementsByClassName("mySlides");
-        const dots = document.getElementsByClassName("dot");
-
-        for (let i = 0; i < slides.length; i++) {
-            slides[i].style.display = "none";
-            if (dots.length > 0) {
-            dots[i].classList.remove("active");
-            }
-        }
-
-        if (slides.length > 0) {
-            slides[n].style.display = "block";
-        }
-
-        if (dots.length > 0) {
-            dots[n].classList.add("active");
-        }
-        setSlideBackgrounds();
-    }
-
-
-    function setSlideBackgrounds() {
-      const slides = document.getElementsByClassName("mySlides");
-      const slideshowInner = document.getElementById("slideshowInner");
-
-      if (slides.length > 0) {
-        const prevIndex = (slideIndex - 1 + slides.length) % slides.length;
-        const nextIndex = (slideIndex + 1) % slides.length;
-
-        const currentImg = slides[slideIndex].querySelector('img')?.src || '';
-        const prevImg = slides[prevIndex].querySelector('img')?.src || '';
-        const nextImg = slides[nextIndex].querySelector('img')?.src || '';
-
-        slideshowInner.style.setProperty('--prev-bg', `url('${prevImg}')`);
-        slideshowInner.style.setProperty('--next-bg', `url('${nextImg}')`);
-        slideshowInner.style.setProperty('--current-bg', `url('${currentImg}')`);
-
-        slideshowInner.classList.remove('prev-active', 'next-active');
-        if (prevImg) {
-            slideshowInner.classList.add('prev-active');
-        }
-        if (nextImg) {
-            slideshowInner.classList.add('next-active');
-        }
-
-      }
-    }
-
-
-    let slideInterval = setInterval(() => { plusSlides(1); }, 5000);
-
-    let slideshowContainer = document.querySelector('.slideshow-container');
-    slideshowContainer.addEventListener('mouseover', () => { clearInterval(slideInterval); });
-    slideshowContainer.addEventListener('mouseout', () => { slideInterval = setInterval(() => { plusSlides(1) }, 5000); });
-
-    </script>
+     {% if not search_query and shows.items %}
+        <div></div>
+    {% else %}
+        {%if not shows.items%}
+          <p>No TV shows found matching your query.</p>
+        {%endif%}
+    {% endif %}
 {% endblock %}
