@@ -15,11 +15,11 @@ body {
     padding: 5px 10px;
     display: flex;
     align-items: center;
-    position: fixed;  /* KEY CHANGE: Fixed positioning */
-    top: 0;           /* Stick to the top of the viewport */
-    left: 0;          /* Start at the left edge */
-    width: 100%;      /* Full width */
-    z-index: 1000;    /* Ensure it's above other content */
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    z-index: 1000;
 }
 
 .logo-container {
@@ -99,6 +99,28 @@ body {
 .search-form button:hover {
     background-color: #007bff;
     color: white;
+}
+/* Hide the regular search button on small screens */
+@media (max-width: 768px) {
+    .search-form .search-button {
+        display: none;
+    }
+}
+
+/* Style the search icon button */
+.search-icon-button {
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    color: white; /* Or any color that matches your design */
+    font-size: 1.2em; /* Adjust size as needed */
+}
+/* Hide the icon button by default on large screens*/
+@media (min-width: 768px) {
+.search-icon-button{
+    display: none;
+  }
 }
 
 .container {
@@ -381,142 +403,95 @@ ul li a {
     display: block;
 }
 .mySlides img {
+    max-height: 300px; /* Adjust as needed */
+    width: auto;
     max-width: 100%;
-    object-fit: contain;
-    display: block;
-    margin: 0 auto;
-    height: auto;
+    vertical-align: middle;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
 }
 
-.prev, .next {
-  cursor: pointer;
-  position: absolute;
-  top: 50%;
-  width: auto;
-  padding: 16px;
-  color: white;
-  font-weight: bold;
-  font-size: 18px;
-  transition: 0.6s ease;
-  border-radius: 0 3px 3px 0;
-  user-select: none;
-  z-index: 3;
-}
+.slide-content {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    color: white;
+    padding: 10px;
+    box-sizing: border-box;
+    text-align: center;
+    transition: transform 0.5s ease;
 
-.next {
-    right: 0;
-    border-radius: 3px 0 0 3px;
 }
-.prev {
-    left:0;
-}
-
-.prev:hover, .next:hover {
-    background-color: rgba(0,0,0,0.8);
-}
-.dot-container {
-  text-align: center;
-  margin-top: 10px;
-  position: static;
-}
-
-.text {
+.slide-content h2 {
+    font-size: 1.4em; /* Larger font size */
+    margin-bottom: 5px;
     color: #fff;
-    font-size: 1.2em;
-    font-weight: bold;
-    padding: 8px 12px;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8); /* Text shadow for readability */
+}
+
+.slide-content p {
+    font-size: 1em;
+    margin: 0;
+    color: #ddd; /* Slightly muted color for better contrast */
+  text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8); /* Text shadow */
+
+}
+
+.slideshow-controls {
     position: absolute;
     top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: auto;
-    text-align: center;
+    left: 0;
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    transform: translateY(-50%);
     z-index: 3;
-    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7);
-    background-color: rgba(0, 0, 0, 0.3);
-    border-radius: 5px;
+    box-sizing: border-box;
+    padding: 0 15px;
+
 }
 
-.dot {
+.slideshow-controls button {
+    background: rgba(0, 0, 0, 0.5);
+    color: white;
+    border: none;
+    padding: 5px 10px;
     cursor: pointer;
-    height: 15px;
-    width: 15px;
-    margin: 0 2px;
-    background-color: #bbb;
+    font-size: 24px; /* Larger arrows */
+    transition: background 0.3s;
     border-radius: 50%;
-    display: inline-block;
-    transition: background-color: 0.6s ease;
+    line-height: 1;
 }
 
-.active, .dot:hover {
-    background-color: #717171;
+.slideshow-controls button:hover {
+    background: rgba(0, 0, 0, 0.8); /* Darker background on hover */
+}
+.slideshow-controls .prev,
+.slideshow-controls .next {
+    display: block;
+    width: 35px;
+    height: 35px;
+    border-radius: 50%;
+    background-color: rgba(0, 0, 0, 0.4); /* Semi-transparent background */
+    color: #fff;
+    text-align: center;
+    line-height: 28px; /* Center the icon vertically */
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    border:none;
+}
+.slideshow-controls .prev:hover,
+.slideshow-controls .next:hover {
+    background-color: rgba(0, 0, 0, 0.7);
 }
 
-/* Media Query for Small Screens */
 @media (max-width: 768px) {
-    .search-input, .search-text {
-        display: none; /* Hide the input and text on small screens */
-    }
-
-    .search-icon {
-        display: inline-block; /* Show the icon on small screens */
-		font-size: 1.4em;
-    }
-    .search-form button {
-	    padding: 5px 6px; /*Reduce padding for small screen devices*/
-    }
     .slideshow-inner {
-        height: 250px;
+        height: 200px;
     }
 
-      .mySlides img{
-        max-height: none;
-      }
-
-    .prev, .next {
-        padding: 10px;
-        font-size: 14px;
+     .mySlides img {
+        max-height: 180px;
     }
-    .text {
-        font-size: 1em;
-        top: 50%;
-        transform: translate(-50%, -50%);
-        bottom: auto;
-
-    }
-
-    .dot {
-        height: 10px;
-        width: 10px;
-    }
-    .search-form input[type="text"] {
-        width: 60px;}
-}
-
-@media (max-width: 480px) {
-    .slideshow-inner {
-            height: 200px; /* Even smaller height */
-        }
-
-     .mySlides img{
-          max-height: none;
-      }
-      .prev, .next {
-        padding: 8px;
-        font-size: 12px;
-    }
-      .text {
-        font-size: 0.9em;
-        top: 50%;
-        transform: translate(-50%, -50%);
-        bottom: auto;
-      }
-     .dot {
-        height: 8px;
-        width: 8px;
-    }
-    .card {
-        width: calc(50% - 10px);
-    }
-
 }
