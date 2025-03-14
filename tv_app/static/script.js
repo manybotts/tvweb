@@ -48,8 +48,10 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     window.addEventListener('resize', handleResize);
+	// Initialize slideshow
+    showSlides(slideIndex);
 
-    let slideIndex = 0;
+    let slideIndex = 0; // Moved outside DOMContentLoaded
 
     function plusSlides(n) {
         showSlides(slideIndex += n);
@@ -58,7 +60,6 @@ document.addEventListener('DOMContentLoaded', function() {
     function currentSlide(n) {
         showSlides(slideIndex = n - 1);
     }
-
 
     function showSlides(n) {
         let i;
@@ -75,20 +76,41 @@ document.addEventListener('DOMContentLoaded', function() {
             dots[i].className = dots[i].className.replace(" active", "");
         }
 
+        // Check if slides exist before trying to access them
         if (slides.length > 0) {
             slides[slideIndex].style.display = "block";
+             slides[slideIndex].classList.add('active-slide'); // Add this line
+
+            // Check if dots exist before trying to access them
             if (dots.length > 0) {
                 dots[slideIndex].className += " active";
             }
         }
+		setSlideBackgrounds(); // Set Slides backgrounds
     }
 
+    // Function to set background images
+    function setSlideBackgrounds() {
+        const slides = document.getElementsByClassName("mySlides");
+        const slideshowInner = document.querySelector('.slideshow-inner');
 
-    // Set initial background images for prev/next (assuming you have at least 3 slides)
+        if (slides.length > 0) {
+             const prevIndex = (slideIndex - 1 + slides.length) % slides.length;
+            const nextIndex = (slideIndex + 1) % slides.length;
 
-    let slideInterval = setInterval(() => { plusSlides(1) }, 5000);
-    showSlides(slideIndex);
+            // Ensure that we only try to access images if the slides exist
+            const currentImg = slides[slideIndex].querySelector('img') ? slides[slideIndex].querySelector('img').src : '';
+            const prevImg = slides[prevIndex].querySelector('img') ? slides[prevIndex].querySelector('img').src : '';
+            const nextImg = slides[nextIndex].querySelector('img') ? slides[nextIndex].querySelector('img').src : '';
 
+            slideshowInner.style.backgroundImage = `linear-gradient(to right, rgba(0,0,0,0.8) 20%, rgba(0,0,0,0.2) 40%, rgba(0,0,0,0.2) 60%, rgba(0,0,0,0.8) 80%), url('${prevImg}'), url('${nextImg}'), url('${currentImg}')`;
+
+        }
+    }
+    // Automatic slideshow advance
+    let slideInterval = setInterval(() => { plusSlides(1); }, 5000);
+
+     // Pause slideshow on hover
     const slideshowContainer = document.querySelector(".slideshow-container");
 
     if(slideshowContainer){
