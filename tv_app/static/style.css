@@ -83,7 +83,7 @@ body {
     font-weight: bold;
     font-size: 1.2em; /* Adjust as needed */
     font-family: 'Panton Rust', 'Helvetica Neue', Helvetica, Arial, sans-serif;
-    margin-left: auto; /* Push to the right */
+     margin-right: 20px; /* Add space on the Right */
     display: inline; /* Always visible */
 }
 
@@ -134,8 +134,7 @@ body {
 	cursor: pointer;
 	color: white;
 	font-size: 1.2em;
-	/*display: inline-block;  Always visible */
-	margin-left: 5px;       /*Remove the auto margin on small screens! */
+	margin-left: 5px;
 }
 
 
@@ -169,7 +168,7 @@ h2 {  /* Style both h1 and h2 */
     margin-bottom: 20px;
     color: #fff; /* White text */
     font-family: 'Netflix Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif;
-    font-size: 1.8em; /* Slightly smaller font size */
+    font-size: 1.1em; /* Reduce font size by about 40% */
     display: flex; /* Use flexbox for alignment */
     align-items: center; /* Vertically center with the dot */
 }
@@ -181,6 +180,7 @@ h2 {  /* Style both h1 and h2 */
     color: #e50914; /* Netflix red */
     display: inline-block;
      font-weight: 900;
+     font-size: 0.8em; /* Smaller than the h2 text */
 }
 
 .new-icon::before {
@@ -190,6 +190,7 @@ h2 {  /* Style both h1 and h2 */
     color: #90ee90; /* Light green */
     display: inline-block;
     font-weight: 900;
+    font-size: 0.8em; /* Smaller than the h2 text */
 
 }
 
@@ -340,7 +341,7 @@ h2 {  /* Style both h1 and h2 */
 	background-color: #0056b3;
 }
 /* --- Slideshow --- */
-
+/* General Slideshow Container */
 .slideshow-container {
     position: relative;
     width: 100%;
@@ -348,10 +349,14 @@ h2 {  /* Style both h1 and h2 */
     border-radius: 8px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.6);
     margin-bottom: 30px;
-    height: 200px; /* Reduced height */
 }
 
-.slideshow-inner {
+/* Mobile Slideshow Styles */
+.mobile-slideshow {
+    height: 200px; /* Reduced height for mobile */
+}
+
+.mobile-slideshow .slideshow-inner {
     display: flex;
     overflow-x: hidden; /* Hide scrollbar */
     scroll-snap-type: x mandatory;
@@ -359,55 +364,52 @@ h2 {  /* Style both h1 and h2 */
     -webkit-overflow-scrolling: touch;
     width: auto; /* Allow for centering */
     height: 100%; /* Fill container height */
-     justify-content: center; /* Center the current slide */
+    justify-content: center; /* Center the current slide */
     align-items: center; /* Vertically center the slides */
-
 }
 
-.slideshow-inner::-webkit-scrollbar {
+.mobile-slideshow .slideshow-inner::-webkit-scrollbar {
     display: none;  /* Chrome, Safari, Opera*/
 }
 
-.slideshow-inner {
+.mobile-slideshow .slideshow-inner {
     -ms-overflow-style: none;  /* IE and Edge */
     scrollbar-width: none;  /* Firefox */
 }
 
-.mySlides {
+.mobile-slideshow .mySlides {
     flex: 0 0 auto;
     scroll-snap-align: center;
-     margin: 0; /* Remove margin to allow precise centering*/
+    margin: 0;
     opacity: 0.7;
     transition: opacity 0.4s ease, transform 0.4s ease;
     position: relative;
-    width: calc(25% - 20px);
+    width: calc(50% - 20px); /* Two slides visible */
     border-radius: 8px;
     overflow: hidden;
-    height: 100%; /* Fill slideshow height */
+    height: 100%;
     display: none; /* Hide initially */
-
 }
-
-.mySlides.active-slide {
+.mobile-slideshow .mySlides.active-slide {
     opacity: 1;
     transform: scale(1.1);
     z-index: 2;
-    margin: 0 20px;
-}
-/* Style for non-active slides */
-.mySlides:not(.active-slide) {
-    filter: brightness(0.5) blur(2px); /* Darken and blur */
-    transform: scale(0.8); /* Smaller */
+    margin: 0 10px;
 }
 
-.mySlides img {
+.mobile-slideshow .mySlides:not(.active-slide) {
+    filter: brightness(0.5) blur(2px);
+    transform: scale(0.8);
+}
+
+.mobile-slideshow .mySlides img {
     width: 100%;
     height: 100%;
     object-fit: cover;
     display: block;
 }
 
-.slide-caption {
+.mobile-slideshow .slide-caption {
     position: absolute;
     bottom: 10px;
     left: 50%;
@@ -424,9 +426,9 @@ h2 {  /* Style both h1 and h2 */
     z-index: 3;
 }
 
-/* Navigation Arrows */
-.prev,
-.next {
+/* Mobile Navigation Arrows */
+.mobile-slideshow .prev,
+.mobile-slideshow .next {
     cursor: pointer;
     position: absolute;
     top: 50%;
@@ -444,45 +446,139 @@ h2 {  /* Style both h1 and h2 */
     border-radius: 5px;
 }
 
-.next {
+.mobile-slideshow .next {
     right: 0;
     border-radius: 5px 0 0 5px;
-
 }
 
-.prev {
+.mobile-slideshow .prev {
     left: 0;
     border-radius: 0 5px 5px 0;
 }
 
-.prev:hover,
-.next:hover {
+.mobile-slideshow .prev:hover,
+.mobile-slideshow .next:hover {
     background-color: rgba(0, 0, 0, 0.8);
 }
-/* Slideshow Dots */
-.slideshow-dots {
+
+/* Mobile Slideshow Dots */
+.mobile-slideshow .slideshow-dots {
     text-align: center;
     margin-top: 10px;
 }
 
-.dot {
+.mobile-slideshow .dot {
     height: 10px;
     width: 10px;
-    margin: 0 5px; /* Adjust spacing as needed */
+    margin: 0 5px;
     background-color: #bbb;
     border-radius: 50%;
     display: inline-block;
     transition: background-color 0.6s ease;
-    cursor: pointer; /* Indicate clickable */
-}
-.dot.active-dot {
-    background-color: #e50914; /* Netflix red for active dot */
+    cursor: pointer;
 }
 
-/* Responsive Styles */
+.mobile-slideshow .dot.active-dot {
+    background-color: #e50914;
+}
+/* Desktop Slideshow Styles */
+
+.desktop-slideshow{
+     height: 250px; /* Set a fixed height for the desktop slideshow */
+
+}
+.desktop-slideshow .slideshow-inner {
+  display: flex;
+  overflow: hidden; /* Changed from overflow-x: hidden; */
+  width: 100%; /* Full width */
+  height: 100%; /* Fill container height */
+  align-items: center; /* Center items vertically */
+
+}
+.desktop-slideshow .mySlides {
+  flex: 0 0 auto;  /* Don't grow or shrink, fixed size */
+  width: calc((100% / 5) - 20px);  /* Show 5 slides with some margin */
+  margin: 0 10px;  /* Spacing between slides */
+  height: 90%;
+  display: none; /* Initially hide all slides */
+  transition: transform 0.5s ease, opacity 0.5s ease, filter 0.5s ease; /* Smooth transitions */
+  position: relative;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.desktop-slideshow .mySlides.active-slide {
+    opacity: 1;
+    transform: scale(1.1);
+    z-index: 2;
+}
+/* Style for non-active slides */
+.desktop-slideshow .mySlides:not(.active-slide) {
+    filter: brightness(0.5) blur(2px); /* Darken and blur */
+    transform: scale(0.8); /* Smaller */
+}
+.desktop-slideshow .mySlides img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.desktop-slideshow .slide-caption {
+   position: absolute;
+    bottom: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: rgba(0, 0, 0, 0.7);
+    color: white;
+    padding: 5px 10px;
+    border-radius: 5px;
+    font-size: 0.9em;
+    font-weight: bold;
+    text-align: center;
+    width: auto;
+    white-space: nowrap;
+    z-index: 3;
+}
+/* Navigation Arrows */
+.desktop-slideshow .prev, .desktop-slideshow .next {
+    cursor: pointer;
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: auto;
+    padding: 16px;
+    color: white;
+     font-weight: bold;
+    font-size: 20px;
+    transition: background-color 0.6s ease; /* Smooth transition for hover effect */
+    user-select: none;
+    z-index: 3;
+    background: rgba(0, 0, 0, 0.4);
+    border: none;        /* Remove default button border */
+    border-radius: 5px; /* Rounded corners */
+}
+.desktop-slideshow .next {
+   right: 0;
+    border-radius: 5px 0 0 5px; /* Adjust border-radius for right arrow */
+}
+/* Position the "previous button" to the left */
+.desktop-slideshow .prev {
+   left: 0;
+    border-radius: 0 5px 5px 0; /* Adjust border-radius for left arrow */
+}
+/* On hover, add a black background color with a little bit see-through */
+.desktop-slideshow .prev:hover, .desktop-slideshow .next:hover {
+    background-color: rgba(0, 0, 0, 0.8); /* Darker background on hover */
+}
+
+/* Responsive adjustments */
 @media (max-width: 768px) {
+     .desktop-slideshow{
+        display: none;
+     }
     .card {
-        width: calc(50% - 10px); /* Two columns */
+        width: calc(50% - 10px); /* Two columns on smaller screens */
     }
     .mySlides {
         width: calc(50% - 15px);
@@ -492,13 +588,16 @@ h2 {  /* Style both h1 and h2 */
     }
 
 }
-@media (max-width: 480px) {
-    .card {
-        width: 95%; /* One column */
-    }
-    .mySlides {
-        width: 90%; /* Wider slides on very small screens */
 
+@media (max-width: 480px) {
+    .mobile-slideshow{
+        display: block;
+    }
+    .card {
+        width: 95%; /* One column on very small screens */
+    }
+     .mySlides {
+        width: 90%; /* One columns on very small screens */
     }
     .mySlides.active-slide{
         margin: 0 5px;
@@ -507,6 +606,7 @@ h2 {  /* Style both h1 and h2 */
         height: 180px;
     }
 }
+
 /* styles for shows.html */
 .show-list {
     display: flex;
@@ -540,6 +640,7 @@ h2 {  /* Style both h1 and h2 */
         content: "\f039"; /* Example: List icon */
         display: inline-block;
         font-weight: 900;
+        font-size: 0.8em;
 }
 /* Responsive adjustments for shows.html*/
 @media (max-width: 768px) {
@@ -634,7 +735,20 @@ h2 {  /* Style both h1 and h2 */
     .card{
         width: calc(20% - 12px); /*Five columns with gaps*/
     }
-    .mySlides{
-         width: calc(20% - 15px);
+    .mobile-slideshow{
+        display: none; /*Hide in large screens*/
+    }
+      .desktop-slideshow{
+        display: block; /* Show desktop slideshow on larger screens */
+    }
+     .desktop-slideshow .mySlides {
+        width: calc((100% / 5) - 20px); /* Show 5 slides initially */
+
+    }
+}
+/* Hide desktop slideshow on smaller screens */
+@media (max-width: 991px) {
+    .desktop-slideshow {
+        display: none;
     }
 }
