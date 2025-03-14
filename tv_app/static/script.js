@@ -48,65 +48,44 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     window.addEventListener('resize', handleResize);
-	// Initialize slideshow
-    showSlides(slideIndex);
 
-    let slideIndex = 0; // Moved outside DOMContentLoaded
+    // --- Slideshow functionality ---
+	let slideIndex = 0;
+	showSlides(slideIndex);
 
-    function plusSlides(n) {
-        showSlides(slideIndex += n);
-    }
+	function plusSlides(n) {
+		showSlides(slideIndex += n);
+	}
 
-    function currentSlide(n) {
-        showSlides(slideIndex = n - 1);
-    }
+	function currentSlide(n) {
+		showSlides(slideIndex = n - 1);
+	}
 
-    function showSlides(n) {
-        let i;
-        let slides = document.getElementsByClassName("mySlides");
+	function showSlides(n) {
+		let slides = document.getElementsByClassName("mySlides");
         let dots = document.getElementsByClassName("dot");
 
-        if (n >= slides.length) { slideIndex = 0; }
-        if (n < 0) { slideIndex = slides.length - 1; }
+		if (n >= slides.length) { slideIndex = 0 }
+		if (n < 0) { slideIndex = slides.length - 1 }
 
-        for (i = 0; i < slides.length; i++) {
-            slides[i].style.display = "none";
+        // Remove 'active-slide' class from all slides
+        for (let i = 0; i < slides.length; i++) {
+            slides[i].classList.remove("active-slide");
         }
+
+        //Add active class
+         if (slides.length > 0) {
+             slides[slideIndex].classList.add("active-slide");
+          }
+        // Ensure that dots exist before trying to access/modify them.
         for (i = 0; i < dots.length; i++) {
-            dots[i].className = dots[i].className.replace(" active", "");
-        }
-
-        // Check if slides exist before trying to access them
-        if (slides.length > 0) {
-            slides[slideIndex].style.display = "block";
-             slides[slideIndex].classList.add('active-slide'); // Add this line
-
-            // Check if dots exist before trying to access them
-            if (dots.length > 0) {
-                dots[slideIndex].className += " active";
-            }
-        }
-		setSlideBackgrounds(); // Set Slides backgrounds
-    }
-
-    // Function to set background images
-    function setSlideBackgrounds() {
-        const slides = document.getElementsByClassName("mySlides");
-        const slideshowInner = document.querySelector('.slideshow-inner');
-
-        if (slides.length > 0) {
-             const prevIndex = (slideIndex - 1 + slides.length) % slides.length;
-            const nextIndex = (slideIndex + 1) % slides.length;
-
-            // Ensure that we only try to access images if the slides exist
-            const currentImg = slides[slideIndex].querySelector('img') ? slides[slideIndex].querySelector('img').src : '';
-            const prevImg = slides[prevIndex].querySelector('img') ? slides[prevIndex].querySelector('img').src : '';
-            const nextImg = slides[nextIndex].querySelector('img') ? slides[nextIndex].querySelector('img').src : '';
-
-            slideshowInner.style.backgroundImage = `linear-gradient(to right, rgba(0,0,0,0.8) 20%, rgba(0,0,0,0.2) 40%, rgba(0,0,0,0.2) 60%, rgba(0,0,0,0.8) 80%), url('${prevImg}'), url('${nextImg}'), url('${currentImg}')`;
-
-        }
-    }
+          dots[i].className = dots[i].className.replace(" active", "");
+           }
+         // Check if dots exist before trying to access them
+        if (dots.length > 0) {
+             dots[slideIndex].className += " active";
+         }
+	}
     // Automatic slideshow advance
     let slideInterval = setInterval(() => { plusSlides(1); }, 5000);
 
