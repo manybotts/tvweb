@@ -65,13 +65,13 @@ body {
      background-color: rgba(255, 255, 255, 0.1); /* Lighter hover effect */
 }
 .navbar-center {
-	font-weight: bold;
-	font-size: 1.7em;
-	white-space: nowrap;
-	position: absolute;
-	left: 50%;
-	transform: translateX(-50%);
-	font-family: 'Netflix Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    font-weight: bold;
+    font-size: 1.7em; /* Larger font size */
+    white-space: nowrap;
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: 'Netflix Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif; /* Netflix font */
 }
 .search-form {
 	margin-left: auto;
@@ -119,37 +119,40 @@ body {
     margin-left: 5px;
      display: none; /* Hidden by default on larger screens */
 }
-
 .search-icon-button i {
 	pointer-events: none;
 }
 
+
 .container {
-	max-width: 1200px;
-	margin: auto;
-	overflow: hidden;
-	padding: 20px;
-	padding-top: 80px;
-	box-sizing: border-box;
+    max-width: 1200px;
+    margin: auto;
+    overflow: hidden;
+    padding: 20px;
+    padding-top: 80px;  /* Adjust top padding to account for fixed navbar */
+    box-sizing: border-box;
 }
+
 h1 {
-	text-align: center;
-	margin-bottom: 30px;
-	color: #e50914; /* Netflix red */
-	font-family: 'Netflix Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif; /* Netflix font */
-	font-size: 2em;
-	display: flex;
-	align-items: center;
-	justify-content: center;
+    text-align: center;
+    margin-bottom: 30px;
+    color: #e50914; /* Netflix red */
+    font-family: 'Netflix Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif; /* Netflix font */
+    font-size: 2em;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
+
+/* Blinking dot for "Newly Added" heading */
 .blinking-dot {
     width: 10px;
     height: 10px;
-    background-color: #2ecc71;  /* Green */
+    background-color: #2ecc71; /* Green */
     border-radius: 50%;
     margin-right: 8px;
     animation: blink 1s steps(5, start) infinite;
-    display: inline-block;  /* Ensure dot and text are inline */
+      display: inline-block;
 }
 
 /* Blinking animation */
@@ -161,24 +164,25 @@ h1 {
     display: flex;
     flex-wrap: wrap;
     justify-content: space-between; /* Distribute items evenly */
-    gap: 15px;
+    gap: 15px; /* Consistent gap */
 }
+
 .card {
     border: 1px solid #333; /* Darker border */
     padding: 15px;
     margin-bottom: 20px;
-    width: calc(25% - 20px);
+	 width: calc(25% - 20px);
     text-align: center;
     background-color: #222; /* Dark background for cards */
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.6);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.6); /* Stronger shadow */
     transition: transform 0.3s ease;
     box-sizing: border-box;
-    border-radius: 8px;
-    overflow: hidden;
+    border-radius: 8px; /* Rounded corners */
+    overflow: hidden; /* Prevent image overflow */
 }
 
 .card:hover {
-    transform: translateY(-7px);
+    transform: translateY(-7px); /* More pronounced hover effect */
 }
 
 .card img {
@@ -196,84 +200,150 @@ h1 {
 }
 
 .card h2 {
-	font-size: 1.2em;
-	margin-bottom: 5px;
-	color: #e50914;
-	font-family: 'Netflix Sans', sans-serif;
+    font-size: 1.2em;
+    margin-bottom: 5px;
+    color: #e50914; /* Netflix red */
+    font-family: 'Netflix Sans', sans-serif; /* Netflix font */
 }
 
 .card p {
     font-size: 0.9em;
-    color: #aaa;
-    margin-bottom: 0;
+    color: #aaa; /* Slightly muted color for better contrast */
+    margin-bottom: 0; /* Remove default bottom margin */
 }
 
+/* Placeholder styles (replace with your actual styles) */
 .telegram-loader {
-	width: 40px;
-	height: 40px;
-	margin: 30px auto;
-	position: relative;
+    width: 40px;
+    height: 40px;
+    margin: 30px auto;
+    position: relative;
 }
 
 .telegram-loader .plane {
-	width: 0;
-	height: 0;
-	border-top: 20px solid #007bff;
-	border-left: 12px solid transparent;
-	border-right: 12px solid transparent;
-	position: absolute;
-	top: 50%;
-	left: 50%;
-	transform-origin: 50% 0%;
-	animation: fly 1.5s linear infinite;
+    width: 0;
+    height: 0;
+    border-top: 20px solid #007bff;  /*  color */
+    border-left: 12px solid transparent;
+    border-right: 12px solid transparent;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform-origin: 50% 0%;
+    animation: fly 1.5s linear infinite;
 }
-/* Custom styles for slideshow */
+
+.telegram-loader .circle {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: 2px solid rgba(255, 255, 255, 0.3); /*  color with transparency */
+    position: absolute;
+    top: 0;
+    left: 0;
+    animation: rotate 2s linear infinite;
+}
+
+@keyframes fly {
+    0%   { transform: translate(-50%, -50%) rotate(0deg); }
+    50%  { transform: translate(-50%, -100%) rotate(45deg); }
+    100% { transform: translate(-50%, -50%) rotate(90deg); }
+}
+
+@keyframes rotate {
+    0%   { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.pagination {
+    text-align: center;
+    margin-top: 20px;
+     clear: both;
+}
+
+.pagination a {
+    padding: 5px 10px;
+    text-decoration: none;
+    color: #007bff;
+    border: 1px solid #333;
+    margin: 0 3px;
+    border-radius: 5px;
+}
+
+.pagination a:hover {
+    background-color: rgba(255, 255, 255, 0.1); /*  color with transparency */
+    color: white;
+}
+.pagination .current-page {
+   padding: 5px 10px;
+   margin: 0 3px;
+   border-radius: 5px;
+   background-color: #007bff;
+   color: white;
+   border: 1px solid #007bff;
+}
+.download-button {
+    display: inline-block;
+    padding: 8px 15px;
+    font-size: 1em;
+    background-color: #007bff;
+    color: white;
+    text-decoration: none;
+    border-radius: 5px;
+    transition: background-color 0.3s ease;
+    margin-top: 5px;
+}
+.download-button:hover {
+    background-color: #0056b3;
+}
+/* Slideshow Styles */
+
 .slideshow-container {
     position: relative;
     width: 100%;
     overflow: hidden;
-    border-radius: 8px; /* Consistent rounded corners */
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.6); /* Shadow for depth */
-    margin-bottom: 30px; /* Space below the slideshow */
-
+    border-radius: 8px; /* Rounded corners */
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.6); /* Shadow */
+    margin-bottom: 30px; /* Space below slideshow */
 }
-
 .slideshow-inner {
-  height: 350px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  position: relative;
+	height: 350px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	position: relative;
     width: 100%;
 }
-
-.mySlides {
+ .mySlides {
     position: relative;
-    display: none; /* Initially hide all slides */
-    width: 100%; /* Full width */
-    text-align: center; /* Center content */
+    display: none; /* Hide all slides initially */
+    width: 100%;
+    text-align: center; /* Center content horizontally */
 }
-
 .mySlides img {
+    max-height: 300px;
+    width: auto;
     max-width: 100%;
-    height: auto;
-    display: block;
-    margin: 0 auto;
-
+    vertical-align: middle;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
 }
-
 .slide-caption {
     position: absolute;
-    bottom: 20px;
     left: 50%;
+    bottom: 20px;
+     width: auto;
     transform: translateX(-50%);
-    background-color: rgba(0, 0, 0, 0.7);
+    background-color: rgba(0, 0, 0, 0.7); /* Semi-transparent black */
     color: white;
     padding: 10px 20px;
     border-radius: 5px;
-    z-index: 10;
+    z-index: 3;
+    font-size: 1.4em;
+    font-weight: bold;
 }
-.prev, .next {
+.prev,
+.next {
     cursor: pointer;
     position: absolute;
     top: 50%;
@@ -321,104 +391,96 @@ h1 {
 .dot:hover {
     background-color: #717171;
 }
+/* Responsive Styles */
 
-.telegram-loader .circle {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    border: 2px solid rgba(0, 123, 255, 0.3);
-    position: absolute;
-    top: 0;
-    left: 0;
-    animation: rotate 2s linear infinite;
-}
-.download-button {
-    display: inline-block;
-    padding: 8px 15px;
-    font-size: 1em;
-    background-color: #007bff;
-    color: white;
-    text-decoration: none;
-    border-radius: 5px;
-    transition: background-color 0.3s ease;
-    margin-top: 5px;
-}
-
-.download-button:hover {
-    background-color: #0056b3;
-}
-
-/* Media Queries */
 @media (max-width: 768px) {
     .navbar {
-        flex-direction: column; /* Stack elements vertically */
-        align-items: flex-start; /* Align to the start */
+        flex-direction: column;
+        align-items: flex-start;
     }
 
     .logo-container {
-        margin-right: 0; /* Remove margin */
-        margin-bottom: 10px; /* Add some space below logo */
+        margin-right: 0;
+        margin-bottom: 10px;
     }
  .navbar-center {
         position: static; /* Remove absolute positioning */
         transform: none;   /* Remove transform */
         margin: 0 auto 10px;
+        font-size: 1.2em;
     }
 
     .nav-links {
-        margin-left: 0; /* Remove margin */
-        margin-bottom: 10px;
-        justify-content: center;
-        width: 100%;
-
-    }
-     .nav-links a {
-        margin: 0 5px;
-
+       margin: 0 auto;
     }
 
-    .nav-item {
-        margin: 0 7px; /* Reduce horizontal spacing */
+    .nav-link .link-text {
+        display: none; /* Hide link text on small screens */
     }
-      .nav-link .link-text {
-        display: none}
+
     .search-form input[type="text"] {
-			display: none;
-	}
+        display: none;
+    }
 
-    .search-form .search-button {
-        display: none; /* Hide the regular search button */
+    .search-form .search-button{
+        display: none;
     }
 
     .search-icon-button {
-        display: inline-block; /* Show the icon button */
+        display: inline-block; /* Show icon button */
+         margin-right: 5px;
     }
-	.card {
+
+     .card {
         width: calc(50% - 10px); /* Two cards per row on smaller screens */
+    }
+    .slideshow-inner {
+      height: auto; /* Let the height adjust based on content */
+    }
+    .mySlides img{
+       max-height: 200px; /* Limit image height */
+    }
+      .slide-caption{
+        font-size: 1em;
+        padding: 5px 10px;
+        bottom: 5px;
+    }
+     .prev,
+    .next {
+        font-size: 16px; /* Smaller arrows */
+        padding: 10px; /* Smaller padding */
+        margin-top: -16px;
     }
 }
 
 @media (max-width: 480px) {
-	.tv-shows {
-		justify-content: center; /* Center cards on very small screens */
-	}
     .card {
-        width: 95%; /* Full width on very small screens */
+        width: 95%; /* One card per row on very small screens */
     }
-	.slideshow-inner {
-		height: 200px;
-	}
-    .prev,.next{
-      font-size: 12px;
+    .slideshow-inner {
+      height: auto; /* Let the height adjust based on content */
     }
-    .text {
-        font-size: 0.9em;
-        top: 50%;
-        transform: translate(-50%, -50%);
-        bottom: auto;
-      }
-     .dot {
-        height: 8px;
+     .mySlides img{
+       max-height: 150px; /* Limit image height */
+    }
+    .slide-caption{
+        font-size: 0.8em;/*Reduce font size*/
+        padding: 5px 10px; /* Reduce padding*/
+        bottom: 2px;/*Adjust position*/
+    }
+     .prev,
+    .next {
+        font-size: 14px; /* Smaller arrows */
+        padding: 8px; /* Smaller padding */
+        margin-top: -14px;
+    }
+    .dot-container {
+        padding: 10px; /* Reduce padding */
+    }
+
+    .dot {
+        height: 8px; /* Smaller dots */
         width: 8px;
+        margin: 0 1px; /* Less margin */
     }
 }
