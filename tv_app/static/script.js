@@ -48,25 +48,26 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     window.addEventListener('resize', handleResize);
+	// Initialize slideshow
+    showSlides(slideIndex);
 
-    // --- Slideshow functionality ---
-	let slideIndex = 0;
-	showSlides(slideIndex);
+    let slideIndex = 0; // Moved outside DOMContentLoaded
 
-	function plusSlides(n) {
-		showSlides(slideIndex += n);
-	}
+    function plusSlides(n) {
+        showSlides(slideIndex += n);
+    }
 
-	function currentSlide(n) {
-		showSlides(slideIndex = n - 1);
-	}
+    function currentSlide(n) {
+        showSlides(slideIndex = n - 1);
+    }
 
 	function showSlides(n) {
+		let i;
 		let slides = document.getElementsByClassName("mySlides");
         let dots = document.getElementsByClassName("dot");
 
-		if (n >= slides.length) { slideIndex = 0 }
-		if (n < 0) { slideIndex = slides.length - 1 }
+		if (n >= slides.length) { slideIndex = 0; }
+		if (n < 0) { slideIndex = slides.length - 1; }
 
         // Remove 'active-slide' class from all slides
         for (let i = 0; i < slides.length; i++) {
@@ -86,9 +87,9 @@ document.addEventListener('DOMContentLoaded', function() {
              dots[slideIndex].className += " active";
          }
 	}
+
     // Automatic slideshow advance
     let slideInterval = setInterval(() => { plusSlides(1); }, 5000);
-
      // Pause slideshow on hover
     const slideshowContainer = document.querySelector(".slideshow-container");
 
