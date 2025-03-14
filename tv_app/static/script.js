@@ -25,7 +25,7 @@ document.addEventListener('DOMContentLoaded', function() {
             toggleSearch();
         });
 
-        // Handle clicks outside search form (mobile close)
+        // Handle clicks outside search form (mobile close) and blur
         document.addEventListener('click', function(event) {
             if (window.innerWidth <= 768) {
                 if (!searchForm.contains(event.target) && searchExpanded) {
@@ -33,98 +33,181 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }
         });
+        searchInput.addEventListener('blur', function() {
+            if (searchExpanded) {
+                toggleSearch();
+            }
+        });
     }
 
     // --- Slideshow Logic ---
-    let slideIndex = 0;
-    const slides = document.getElementsByClassName("mySlides");
-    const dotsContainer = document.querySelector(".slideshow-dots");
-    let dots = []; // Array to store the dot elements
+    // --- Mobile Slideshow ---
+    let mobileSlideIndex = 0;
+    const mobileSlides = document.querySelectorAll(".mobile-slideshow .mySlides"); // Target mobile slides
+    const mobileDotsContainer = document.querySelector(".mobile-slideshow .slideshow-dots");
+    let mobileDots = [];
 
-    function plusSlides(n) {
-        showSlides(slideIndex += n);
+    function mobilePlusSlides(n) {
+        showMobileSlides(mobileSlideIndex += n);
     }
 
-    function showSlides(n) {
-        if (!slides.length) return;
+    function showMobileSlides(n) {
+        if (!mobileSlides.length) return;
 
-        if (n >= slides.length) { slideIndex = 0; }
-        if (n < 0) { slideIndex = slides.length - 1; }
+        if (n >= mobileSlides.length) { mobileSlideIndex = 0; }
+        if (n < 0) { mobileSlideIndex = mobileSlides.length - 1; }
 
-        for (let i = 0; i < slides.length; i++) {
-            slides[i].classList.remove("active-slide");
-            slides[i].style.display = "none"; // Hide all slides initially
+        for (let i = 0; i < mobileSlides.length; i++) {
+            mobileSlides[i].classList.remove("active-slide");
+            mobileSlides[i].style.display = "none";
         }
 
-        // Update dots
-        updateDots();
+        updateMobileDots();
 
-        slides[slideIndex].style.display = "block"; // Display current slide
-        slides[slideIndex].classList.add("active-slide");
+        mobileSlides[mobileSlideIndex].style.display = "block";
+        mobileSlides[mobileSlideIndex].classList.add("active-slide");
     }
+     function updateMobileDots() {
+        if (!mobileDotsContainer) return;
 
+        mobileDotsContainer.innerHTML = '';
+        mobileDots = [];
 
-     // Function to update the dots
-    function updateDots() {
-        if (!dotsContainer) return;
-
-        // Remove existing dots
-        dotsContainer.innerHTML = '';
-        dots = [];
-
-        // Create dots
-        for (let i = 0; i < slides.length; i++) {
+        for (let i = 0; i < mobileSlides.length; i++) {
             const dot = document.createElement("span");
             dot.classList.add("dot");
             dot.addEventListener("click", () => {
-                goToSlide(i);
+                goToMobileSlide(i);
              });
-            dotsContainer.appendChild(dot);
-            dots.push(dot);
+            mobileDotsContainer.appendChild(dot);
+            mobileDots.push(dot);
         }
-         // Set active dot
-        if (dots.length > 0) {
-            dots[slideIndex].classList.add("active-dot");
+
+        if (mobileDots.length > 0) {
+            mobileDots[mobileSlideIndex].classList.add("active-dot");
         }
     }
-    function goToSlide(index) {
-        slideIndex = index;
-        showSlides(slideIndex);
+      function goToMobileSlide(index) {
+        mobileSlideIndex = index;
+        showMobileSlides(mobileSlideIndex);
     }
 
-    // Initial setup
-    showSlides(slideIndex);
-    updateDots(); // Create dots initially
+    // --- Desktop Slideshow ---
+    let desktopSlideIndex = 0;
+    const desktopSlides = document.querySelectorAll(".desktop-slideshow .mySlides");
 
-     // Automatic slideshow advance
-    let slideInterval = setInterval(() => { plusSlides(1); }, 6000);
+    function showDesktopSlides() {
+    if (!desktopSlides.length) return;
 
-    // Pause slideshow on hover
-    const slideshowContainer = document.querySelector(".slideshow-container");
-    if(slideshowContainer){
-        slideshowContainer.addEventListener('mouseover', () => {
-            clearInterval(slideInterval);
+    // Hide all slides and reset styles
+    for (let i = 0; i < desktopSlides.length; i++) {
+        desktopSlides[i].style.display = 'none';
+        desktopSlides[i].classList.remove('active-slide');
+        desktopSlides[i].style.transform = ''; // Reset any transform
+        desktopSlides[i].style.opacity = '';    // Reset opacity
+        desktopSlides[i].style.filter = '';     // Reset filter
+    }
+
+
+     // Calculate visible range, ensuring it's centered
+     let numVisible = 5; // Change for number you want
+     if(desktopSlides.length < numVisible)
+     {
+        numVisible = desktopSlides.length;
+     }
+     const startIndex = Math.max(0, desktopSlideIndex - Math.floor((numVisible -1 ) / 2));
+     const endIndex = Math.min(desktopSlides.length -1, startIndex + numVisible - 1);
+
+    // Display and style slides in the visible range
+    for (let i = startIndex; i <= endIndex; i++) {
+        desktopSlides[i].style.display = 'block';
+
+        if (i === desktopSlideIndex) {
+            desktopSlides[i].classList.add('active-slide');
+            desktopSlides[i].style.transform = 'scale(1.1)';
+            desktopSlides[i].style.opacity = '1';
+        } else {
+            desktopSlides[i].style.transform = 'scale(0.8)';
+            desktopSlides[i].style.opacity = '0.7';
+            desktopSlides[i].style.filter = 'brightness(0.5) blur(2px)';
+        }
+    }
+     if (desktopSlideIndex > 0) {
+        desktopSlides[desktopSlideIndex - 1].style.display = 'block';
+    }
+    if (desktopSlideIndex < desktopSlides.length - 1) {
+        desktopSlides[desktopSlideIndex + 1].style.display = 'block';
+    }
+
+}
+    function desktopPlusSlides(n) {
+        desktopSlideIndex += n;
+
+        // Wrap around
+        if (desktopSlideIndex >= desktopSlides.length) { desktopSlideIndex = 0; }
+        if (desktopSlideIndex < 0) { desktopSlideIndex = desktopSlides.length - 1; }
+
+        showDesktopSlides();
+    }
+
+    // Initial setup for both slideshows
+    showMobileSlides(mobileSlideIndex);
+    updateMobileDots();
+    showDesktopSlides(desktopSlideIndex);
+
+
+     // Automatic slideshow advance for mobile
+    let mobileSlideInterval = setInterval(() => { mobilePlusSlides(1); }, 6000);
+
+    // Pause slideshow on hover for mobile
+    const mobileSlideshowContainer = document.querySelector(".mobile-slideshow");
+    if (mobileSlideshowContainer) {
+        mobileSlideshowContainer.addEventListener('mouseover', () => { clearInterval(mobileSlideInterval); });
+        mobileSlideshowContainer.addEventListener('mouseout', () => { mobileSlideInterval = setInterval(() => { mobilePlusSlides(1); }, 6000); });
+    }
+
+    // Event listeners for mobile prev/next buttons
+    const mobilePrevButton = document.querySelector(".mobile-slideshow .prev");
+    const mobileNextButton = document.querySelector(".mobile-slideshow .next");
+
+    if (mobilePrevButton) {
+        mobilePrevButton.addEventListener('click', function(event) {
+            event.preventDefault();
+            mobilePlusSlides(-1);
         });
-
-        slideshowContainer.addEventListener('mouseout', () => {
-            slideInterval = setInterval(() => { plusSlides(1); }, 6000);
+    }
+    if (mobileNextButton) {
+        mobileNextButton.addEventListener('click', function(event) {
+            event.preventDefault();
+            mobilePlusSlides(1);
         });
     }
 
-    // --- Event listeners for prev/next buttons ---
-    const prevButton = document.querySelector(".prev");
-    const nextButton = document.querySelector(".next");
+        // --- Desktop Slideshow Controls ---
+    // Automatic slideshow advance for DESKTOP (separate interval)
+    let desktopSlideInterval = setInterval(() => { desktopPlusSlides(1); }, 6000);
 
+    // Pause slideshow on hover for DESKTOP
+    const desktopSlideshowContainer = document.querySelector(".desktop-slideshow");
+    if (desktopSlideshowContainer) {
+        desktopSlideshowContainer.addEventListener('mouseover', () => { clearInterval(desktopSlideInterval); });
+        desktopSlideshowContainer.addEventListener('mouseout', () => { desktopSlideInterval = setInterval(() => { desktopPlusSlides(1); }, 6000); });
+    }
+
+      // Event listeners for prev/next buttons
+    const prevButton = document.querySelector(".desktop-slideshow .prev");
+    const nextButton = document.querySelector(".desktop-slideshow .next");
+     // --- Event listeners for prev/next buttons ---
     if (prevButton) {
         prevButton.addEventListener('click', function(event) {
             event.preventDefault();
-            plusSlides(-1);
+            desktopPlusSlides(-1); // Use desktopPlusSlides
         });
     }
     if (nextButton) {
         nextButton.addEventListener('click', function(event) {
             event.preventDefault();
-            plusSlides(1);
+           desktopPlusSlides(1);   // Use desktopPlusSlides
         });
     }
 });
