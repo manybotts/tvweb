@@ -155,6 +155,22 @@ body {
 	pointer-events: none;
 }
 
+/* Media query to show/hide search elements */
+@media (max-width: 768px) {
+    .search-form .search-button,
+    .search-form input[type="text"] {
+        display: none; /* Hide text input and regular button */
+    }
+
+    .search-icon-button {
+        display: inline-block; /* Show icon button - VERY IMPORTANT */
+        margin-left: 0;       /* Remove the auto margin on small screens */
+    }
+    .nav-links{
+      margin: 0; /*Remove margin*/
+    }
+}
+
 .container {
 	max-width: 1200px;
 	margin: auto;
@@ -360,13 +376,14 @@ h1 {
 	background-color: #0056b3;
 }
 .slideshow-container {
-	position: relative;
-	width: 100%;
-	overflow: hidden;
-	border-radius: 8px;
-	box-shadow: 0 4px 8px rgba(0, 0, 0, 0.6);
-	margin-bottom: 30px;
+    position: relative;
+    width: 100%;
+    overflow: hidden;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.6);
+    margin-bottom: 30px;
 }
+
 .slideshow-inner {
     display: flex;
     overflow-x: auto; /* Use horizontal scrolling */
@@ -374,9 +391,7 @@ h1 {
     scroll-behavior: smooth; /* Smooth scrolling */
     -webkit-overflow-scrolling: touch; /* For smooth scrolling on iOS */
     width: auto; /* Let the content determine the width, important!*/
-    height: auto;
-    padding-bottom: 20px; /* Space for arrows, visually */
-
+    height: auto;  /* Let content determine height */
 }
 
 /* Hide scrollbar */
@@ -399,18 +414,19 @@ h1 {
     width: calc(25% - 20px); /* Same as regular cards */
 }
 
+/* Style for the active slide */
+.mySlides.active-slide {
+    opacity: 1; /* Fully visible */
+    transform: scale(1.1); /* Slightly larger */
+    z-index: 2;
+}
+
 .mySlides:first-child{
     margin-left: 0px;
 }
 
 .mySlides:last-child{
     margin-right: 0px;
-}
-
-.mySlides.active-slide {
-    opacity: 1; /* Fully visible */
-    transform: scale(1.1); /* Slightly larger */
-    z-index: 2;
 }
 
 /* Navigation Arrows */
@@ -420,24 +436,25 @@ h1 {
     position: absolute;
     top: 50%;
     transform: translateY(-50%);
+    width: auto;
     padding: 16px;
     color: white;
     font-weight: bold;
     font-size: 20px;
-    transition: background-color 0.6s ease;
+    transition: 0.6s ease;
     user-select: none;
-    z-index: 3; /* Above the slides */
+    z-index: 3; /* Above the image and caption */
     background: rgba(0, 0, 0, 0.4);  /* Semi-transparent background */
     border: none;
     border-radius: 5px;
 }
 .next {
-    right: 0;
-     border-radius: 5px 0 0 5px;
+	right: 0;
+	border-radius: 5px 0 0 5px;
 }
 
 .prev {
-    left: 0;
+	left: 0;
     border-radius: 0 5px 5px 0;
 }
 
@@ -469,9 +486,7 @@ h1 {
 .dot:hover {
     background-color: #717171;
 }
-
 /* Responsive Styles */
-/* Adjustments for smaller screens */
 
 @media (max-width: 768px) {
 	.nav-links {
@@ -495,24 +510,17 @@ h1 {
 	.search-icon-button {
 		display: inline-block;
 		/* Show icon button */
+        margin-right: 0;
+        margin-left: auto;
 	}
 
 	.card {
 		width: calc(50% - 15px);
 		/* Two cards per row, adjust gap */
 	}
-
-    .mySlides{
+     .mySlides{
          width: calc(50% - 10px);
     }
-
-	.prev,
-	.next {
-		font-size: 16px;
-		/* Smaller arrows */
-		padding: 10px;
-		/* Smaller padding */
-	}
 }
 
 @media (max-width: 480px) {
@@ -525,8 +533,7 @@ h1 {
 		width: 95%;
 		/* One card per row on very small screens */
 	}
-
-    .mySlides{
+      .mySlides{
         width: 90%; /* One slide visible */
     }
 
