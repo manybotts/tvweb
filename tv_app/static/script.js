@@ -1,81 +1,32 @@
 document.addEventListener('DOMContentLoaded', function() {
-    // --- Mobile Search Toggle ---
-    const mobileSearchForm = document.querySelector('.mobile-search-form');
-    const mobileSearchInput = document.querySelector('.mobile-search-input');
-    const mobileSearchIconButton = document.querySelector('.search-icon-button'); // Use unified search icon
+    // --- Floating Search Toggle ---
+    const searchIconButton = document.querySelector('.search-icon-button');
+    const floatingSearch = document.querySelector('.floating-search');
+    const searchInput = document.querySelector('.floating-search .search-input');
 
-    if (mobileSearchIconButton) {
-        mobileSearchIconButton.addEventListener('click', function(event) {
-            event.preventDefault(); // *** PREVENT DEFAULT HERE ***
-            mobileSearchForm.classList.toggle('active');
-            if (mobileSearchForm.classList.contains('active')) {
-                mobileSearchInput.focus();
-            }
-        });
 
-        // Hide mobile search when clicking outside
-        document.addEventListener('click', function(event) {
-            if (!mobileSearchForm.contains(event.target) && !mobileSearchIconButton.contains(event.target) && mobileSearchForm.classList.contains('active')) {
-                mobileSearchForm.classList.remove('active');
-            }
-        });
-
-        // Hide mobile search when input loses focus
-        mobileSearchInput.addEventListener('blur', function() {
-             if (!mobileSearchInput.value.trim()) { // Check if input is empty
-                mobileSearchForm.classList.remove('active');
+    if (searchIconButton) {
+        searchIconButton.addEventListener('click', function(event) {
+            event.preventDefault(); // Prevent default button behavior
+            floatingSearch.classList.toggle('active');
+            if (floatingSearch.classList.contains('active')) {
+                searchInput.focus();
             }
         });
     }
 
-
-    // --- Desktop Search Toggle ---
-    const searchForm = document.querySelector('.search-form');
-    const searchInput = document.querySelector('.search-form .search-input');
-    const searchButton = document.querySelector('.search-form .search-button');
-    const searchIconButton = document.querySelector('.search-icon-button'); // Re-use for desktop
-    let searchExpanded = false;
-
-    function toggleSearch() {
-        if (searchExpanded) {
-            searchInput.style.display = 'none';
-            searchButton.style.display = 'none';
-            searchExpanded = false;
-        } else {
-            searchInput.style.display = 'inline-block';
-            searchButton.style.display = 'inline-block';
-            searchInput.focus();
-            searchExpanded = true;
+    // Hide search box when clicking outside
+    document.addEventListener('click', function(event) {
+        if (!searchIconButton.contains(event.target) && !floatingSearch.contains(event.target) && floatingSearch.classList.contains('active')) {
+            floatingSearch.classList.remove('active');
         }
-    }
-
-	if (searchIconButton) {
-		// Desktop search toggle
-		searchIconButton.addEventListener('click', function(event) {
-			if (window.innerWidth > 768) { // Only toggle desktop search on larger screens
-				event.preventDefault(); // Prevent form submission
-				toggleSearch();
-			}
-			// Mobile search handled above
-		});
-	}
-
-
-        // Handle clicks outside search form (desktop close) and blur
-        document.addEventListener('click', function(event) {
-            // Check if the click target is NOT the search icon or any of its descendants
-            if (!searchForm.contains(event.target) && !searchIconButton.contains(event.target) && searchExpanded ) {
-                toggleSearch();
+    });
+     // Hide search box when pressing outside
+    searchInput.addEventListener('blur', function() {
+            if (!searchInput.value.trim()) { // Check if input is empty
+                floatingSearch.classList.remove('active');
             }
         });
-
-        searchInput.addEventListener('blur', function() {
-            if (searchExpanded) {
-                toggleSearch();
-            }
-        });
-
-
 
     // --- Slideshow Logic ---
     // --- Mobile Slideshow ---
