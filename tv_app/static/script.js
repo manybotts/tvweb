@@ -1,5 +1,33 @@
 document.addEventListener('DOMContentLoaded', function() {
-    // --- Search Input Toggle ---
+    // --- Mobile Search Toggle ---
+    const mobileSearchForm = document.querySelector('.mobile-search-form');
+    const mobileSearchInput = document.querySelector('.mobile-search-input');
+    const mobileSearchIconButton = document.querySelector('.mobile-search-icon-button');
+
+    if (mobileSearchIconButton) {
+        mobileSearchIconButton.addEventListener('click', function(event) {
+            event.preventDefault();
+            mobileSearchForm.classList.toggle('active');
+            if (mobileSearchForm.classList.contains('active')) {
+                mobileSearchInput.focus();
+            }
+        });
+
+        // Hide mobile search when clicking outside
+        document.addEventListener('click', function(event) {
+            if (!mobileSearchForm.contains(event.target) && mobileSearchForm.classList.contains('active')) {
+                mobileSearchForm.classList.remove('active');
+            }
+        });
+
+        // Hide mobile search when input loses focus
+        mobileSearchInput.addEventListener('blur', function() {
+            mobileSearchForm.classList.remove('active');
+        });
+    }
+
+
+    // --- Desktop Search Toggle ---
     const searchForm = document.querySelector('.search-form');
     const searchInput = document.querySelector('.search-input');
     const searchButton = document.querySelector('.search-button');
@@ -25,12 +53,12 @@ document.addEventListener('DOMContentLoaded', function() {
             toggleSearch();
         });
 
-        // Handle clicks outside search form (mobile close) and blur
+        // Handle clicks outside search form (desktop close) and blur
         document.addEventListener('click', function(event) {
-           //removed the if statement to ensure it applies for all screen sizes
-                if (!searchForm.contains(event.target) && searchExpanded) {
-                    toggleSearch();
-                }
+            //removed the if statement to ensure it applies for all screen sizes
+            if (!searchForm.contains(event.target) && searchExpanded) {
+                toggleSearch();
+            }
         });
         searchInput.addEventListener('blur', function() {
             if (searchExpanded) {
@@ -38,6 +66,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+
 
     // --- Slideshow Logic ---
     // --- Mobile Slideshow ---
@@ -66,7 +95,8 @@ document.addEventListener('DOMContentLoaded', function() {
         mobileSlides[mobileSlideIndex].style.display = "block";
         mobileSlides[mobileSlideIndex].classList.add("active-slide");
     }
-     function updateMobileDots() {
+
+    function updateMobileDots() {
         if (!mobileDotsContainer) return;
 
         mobileDotsContainer.innerHTML = '';
@@ -77,7 +107,7 @@ document.addEventListener('DOMContentLoaded', function() {
             dot.classList.add("dot");
             dot.addEventListener("click", () => {
                 goToMobileSlide(i);
-             });
+            });
             mobileDotsContainer.appendChild(dot);
             mobileDots.push(dot);
         }
@@ -86,7 +116,8 @@ document.addEventListener('DOMContentLoaded', function() {
             mobileDots[mobileSlideIndex].classList.add("active-dot");
         }
     }
-      function goToMobileSlide(index) {
+
+    function goToMobileSlide(index) {
         mobileSlideIndex = index;
         showMobileSlides(mobileSlideIndex);
     }
@@ -103,8 +134,8 @@ document.addEventListener('DOMContentLoaded', function() {
             desktopSlides[i].style.display = 'none';
             desktopSlides[i].classList.remove('active-slide');
             desktopSlides[i].style.transform = ''; // Reset any transform
-            desktopSlides[i].style.opacity = '';    // Reset opacity
-            desktopSlides[i].style.filter = '';     // Reset filter
+            desktopSlides[i].style.opacity = ''; // Reset opacity
+            desktopSlides[i].style.filter = ''; // Reset filter
         }
 
         // Calculate visible range, ensuring it's centered
@@ -118,7 +149,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Display and style slides in the visible range
         for (let i = startIndex; i <= endIndex; i++) {
-             desktopSlides[i].style.display = 'block'; // Display the slide
+            desktopSlides[i].style.display = 'block'; // Display the slide
 
             // Apply styles based on whether it's the active slide or not
             if (i === desktopSlideIndex) {
@@ -151,14 +182,22 @@ document.addEventListener('DOMContentLoaded', function() {
     showDesktopSlides(desktopSlideIndex);
 
 
-     // Automatic slideshow advance for mobile
-    let mobileSlideInterval = setInterval(() => { mobilePlusSlides(1); }, 6000);
+    // Automatic slideshow advance for mobile
+    let mobileSlideInterval = setInterval(() => {
+        mobilePlusSlides(1);
+    }, 6000);
 
     // Pause slideshow on hover for mobile
     const mobileSlideshowContainer = document.querySelector(".mobile-slideshow");
     if (mobileSlideshowContainer) {
-        mobileSlideshowContainer.addEventListener('mouseover', () => { clearInterval(mobileSlideInterval); });
-        mobileSlideshowContainer.addEventListener('mouseout', () => { mobileSlideInterval = setInterval(() => { mobilePlusSlides(1); }, 6000); });
+        mobileSlideshowContainer.addEventListener('mouseover', () => {
+            clearInterval(mobileSlideInterval);
+        });
+        mobileSlideshowContainer.addEventListener('mouseout', () => {
+            mobileSlideInterval = setInterval(() => {
+                mobilePlusSlides(1);
+            }, 6000);
+        });
     }
 
     // Event listeners for mobile prev/next buttons
@@ -178,21 +217,29 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-        // --- Desktop Slideshow Controls ---
+    // --- Desktop Slideshow Controls ---
     // Automatic slideshow advance for DESKTOP (separate interval)
-    let desktopSlideInterval = setInterval(() => { desktopPlusSlides(1); }, 6000);
+    let desktopSlideInterval = setInterval(() => {
+        desktopPlusSlides(1);
+    }, 6000);
 
     // Pause slideshow on hover for DESKTOP
     const desktopSlideshowContainer = document.querySelector(".desktop-slideshow");
     if (desktopSlideshowContainer) {
-        desktopSlideshowContainer.addEventListener('mouseover', () => { clearInterval(desktopSlideInterval); });
-        desktopSlideshowContainer.addEventListener('mouseout', () => { desktopSlideInterval = setInterval(() => { desktopPlusSlides(1); }, 6000); });
+        desktopSlideshowContainer.addEventListener('mouseover', () => {
+            clearInterval(desktopSlideInterval);
+        });
+        desktopSlideshowContainer.addEventListener('mouseout', () => {
+            desktopSlideInterval = setInterval(() => {
+                desktopPlusSlides(1);
+            }, 6000);
+        });
     }
 
-      // Event listeners for prev/next buttons
+    // Event listeners for prev/next buttons
     const prevButton = document.querySelector(".desktop-slideshow .prev");
     const nextButton = document.querySelector(".desktop-slideshow .next");
-     // --- Event listeners for prev/next buttons ---
+    // --- Event listeners for prev/next buttons ---
     if (prevButton) {
         prevButton.addEventListener('click', function(event) {
             event.preventDefault();
@@ -202,7 +249,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (nextButton) {
         nextButton.addEventListener('click', function(event) {
             event.preventDefault();
-           desktopPlusSlides(1);   // Use desktopPlusSlides
+            desktopPlusSlides(1); // Use desktopPlusSlides
         });
     }
 });
