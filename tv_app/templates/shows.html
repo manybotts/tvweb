@@ -6,8 +6,8 @@
     {% for show_name in show_names %}
         <li><a href="{{ url_for('index', search=show_name) }}">{{ show_name }}</a></li>
     {% endfor %}
-    {% if not show_names %}
+     {% if not show_names %}
         <li>No Shows found</li>
-    {% endif %}
+     {% endif %}
     </ul>
 {% endblock %}
