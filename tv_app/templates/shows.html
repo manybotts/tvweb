@@ -1,13 +1,15 @@
 {% extends "base.html" %}
 {% block title %}Available Shows{% endblock %}
 {% block content %}
-    <h1>Available TV Shows</h1>
-    <ul>
+    <h2><span class="show-label-icon"></span>Available TV Shows</h2>
+    <div class="show-list">
     {% for show_name in show_names %}
-        <li><a href="{{ url_for('index', search=show_name) }}">{{ show_name }}</a></li>
+        <a href="{{ url_for('index', search=show_name) }}" class="show-item">
+            {{ show_name }}
+        </a>
     {% endfor %}
      {% if not show_names %}
-        <li>No Shows found</li>
+        <p>No Shows found</p>
      {% endif %}
-    </ul>
+    </div>
 {% endblock %}
