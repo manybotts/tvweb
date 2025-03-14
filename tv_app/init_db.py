@@ -1,9 +1,8 @@
 # tv_app/init_db.py
-from .app import create_app  # Use relative import
-from .models import db, TVShow  # Use relative import
+from tv_app.app import app # Import the 'app' instance directly
+from tv_app.models import db, TVShow  # Import db and TVShow
 from sqlalchemy import inspect
 
-app = create_app()
 with app.app_context():
     inspector = inspect(db.engine)
     if not inspector.has_table(TVShow.__tablename__):
