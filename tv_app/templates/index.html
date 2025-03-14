@@ -15,7 +15,7 @@
              <div class="desktop-slideshow">
                 <div class="slideshow-inner">
                 {% for show in trending_shows %}
-                    <div class="mySlides">
+                    <div class="mySlides slideshow-item">  </div>
                         <a href="{{ url_for('show_details', show_id=show.id) }}">
                             {% if show.poster_path %}
                                 <img src="{{ show.poster_path }}" alt="{{ show.show_name }}" class="slideshow-image">
@@ -32,7 +32,7 @@
              <div class="mobile-slideshow">
                 <div class="slideshow-inner">
                 {% for show in trending_shows %}
-                    <div class="mySlides">
+                   <div class="mySlides slideshow-item">
                         <a href="{{ url_for('show_details', show_id=show.id) }}">
                             {% if show.poster_path %}
                                 <img src="{{ show.poster_path }}" alt="{{ show.show_name }}" class="slideshow-image">
@@ -61,14 +61,14 @@
         <h2><span class="new-icon"></span>Newly Added</h2>
         <div class="tv-shows">
 			{% for show in shows.items %}
-				<div class="card">
+				<div class="show-card">
 					<a href="{{ url_for('show_details', show_id=show.id) }}">
 						{% if show.poster_path %}
 						<img src="{{ show.poster_path }}" alt="{{ show.show_name }}" loading="lazy">
 						{% else %}
 						<div class="telegram-loader"></div>
 						{% endif %}
-						<h2>{{ show.show_name }}</h2>
+						<h3>{{ show.show_name }}</h3>
 						<p>{{ show.episode_title }}</p>
 					</a>
 				</div>
@@ -79,14 +79,14 @@
         <div class="tv-shows">
             {% if shows.items %}
 				{% for show in shows.items %}
-					<div class="card">
+					<div class="show-card">
 						<a href="{{ url_for('show_details', show_id=show.id) }}">
 							{% if show.poster_path %}
 							<img src="{{ show.poster_path }}" alt="{{ show.show_name }}" loading="lazy">
 							{% else %}
 							<div class="telegram-loader"></div>
 							{% endif %}
-							<h2>{{ show.show_name }}</h2>
+							<h3>{{ show.show_name }}</h3>
 							<p>{{ show.episode_title }}</p>
 						</a>
 					</div>
