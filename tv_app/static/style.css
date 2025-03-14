@@ -93,26 +93,24 @@ h2 { /* For main page headings ONLY */
 .navbar a:hover {
     background-color: rgba(255, 255, 255, 0.1);
 }
+/* --- IBOX TV Styling --- */
 
-/* --- iBOX TV Styling --- */
 .brand-text {
     font-weight: bold;
-    font-size: 1em;  /* Keep it small */
+    font-size: 1em;  /*  same size as nav-links */
     font-family: 'Panton Rust', 'Helvetica Neue', Helvetica, Arial, sans-serif;
-    margin-right: 20px; /* Space before search icon */
-    white-space: nowrap; /* Prevent line break */
+    margin-left: auto; /* Push to the right */
+    margin-right: 20px;
+    white-space: nowrap;
 }
 
 .ibox-text {
     color: #d4b75c;  /* Pale Golden Yellow */
-    margin-right: 0px;
 }
 
 .tv-text {
     color: #fff; /* White */
 }
-
-
 /* --- Search Icon (Shared) --- */
 .search-icon-button {
     background: none;
@@ -132,7 +130,7 @@ h2 { /* For main page headings ONLY */
 
 .floating-search {
     position: absolute;
-    top: 60px; /*  Below navbar. Adjust as needed. */
+    top: 65px; /*  Below navbar. Adjust as needed. */
     right: 20px; /*  Right alignment */
     background-color: #222;
     border: 1px solid #555;
@@ -188,11 +186,6 @@ h2 { /* For main page headings ONLY */
 	.nav-link .link-text {
 		display: none;
 	}
-    /* Align iBOX TV and search to the right, even on mobile */
-    .nav-links {
-       margin-right: 0;
-    }
-
 }
 
 /* --- Icons --- */
@@ -228,25 +221,25 @@ h2 { /* For main page headings ONLY */
 /* --- Show Card Styles (for Newly Added and Search Results) --- */
 
 .tv-shows {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: flex-start; /* Left-align */
-    gap: 4vw; /* Responsive gap, using viewport width */
-    padding: 1vw; /* Responsive padding */
+     display: grid; /* Use CSS Grid */
+    grid-template-columns: repeat(2, 1fr); /* Two columns */
+    gap: 4vw; /* Responsive gap */
+    padding: 4vw; /* Responsive padding */
+
 }
 
 .show-card {
     border: 1px solid #333;
-    padding: 4vw; /* Responsive padding */
-    width: 45vw; /* Responsive width: almost full width on mobile, with space for gap */
-    box-sizing: border-box; /* Include padding in width */
+    padding: 4vw;  /*Responsive Padding*/
+    /* Removed width: 45vw; */
+    box-sizing: border-box;
     background-color: #222;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.6);
     transition: transform 0.3s ease;
     border-radius: 8px;
     overflow: hidden;
-    display: flex; /* Use flexbox for internal layout */
-    flex-direction: column; /* Stack content vertically */
+    display: flex;
+    flex-direction: column;
     margin-bottom: 4vw;
 }
 .show-card:hover {
@@ -315,11 +308,12 @@ h2 { /* For main page headings ONLY */
 /* On larger screens, use a multi-column layout */
 @media (min-width: 769px) {
    .tv-shows{
+     grid-template-columns: repeat(2, 1fr); /* Two columns on tablets */
         padding: 15px;
         gap: 15px;
    }
     .show-card {
-        width: calc(50% - 20px); /* Two columns */
+        width: auto; /* Let width be determined by grid */
         padding: 15px;
         margin-bottom: 20px;
     }
@@ -333,14 +327,19 @@ h2 { /* For main page headings ONLY */
 
 @media (min-width: 992px) {
     .show-card {
-        width: calc(33.333% - 20px); /* Three columns */
+        width: auto;
+    }
+    .tv-shows {
+        grid-template-columns: repeat(3, 1fr); /* Three columns on larger screens */
     }
 }
 
 @media (min-width: 1200px) {
-    .show-card {
-        width: calc(25% - 20px); /* Four columns */
-
+    .show-card{
+        width: auto;
+    }
+    .tv-shows {
+        grid-template-columns: repeat(4, 1fr); /* Four columns on very large screens */
     }
 }
 /* --- PART 1 END --- */
@@ -697,6 +696,7 @@ h2 { /* For main page headings ONLY */
     .mobile-slideshow {
         display: block; /* Ensure mobile slideshow is visible */
     }
+
 }
    /* Between 992px and 1199px wide: Four columns */
     @media (min-width: 992px) and (max-width: 1199px) {
@@ -726,7 +726,6 @@ h2 { /* For main page headings ONLY */
             display:block;
          }
     }
-
 /* --- PART 2 END --- */
 /* --- tv_app/static/style.css --- */
 /* --- PART 3 START --- */
