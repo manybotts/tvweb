@@ -1,35 +1,31 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}{% endblock %} - TV Show Tracker</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" integrity="sha512-9usAa10IRO0HhonpyAIVpjrylPvoDwiPUiKdWk5t3PyolY1cOd4DSE0Ga+ri4AuTroPR5aQvXU9xC6qOPnzFeg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
-    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
+    <title>ShoiBOX TV</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
 <body>
-    <div class="navbar">
+    <nav class="navbar">
         <div class="logo-container">
-          <a href="{{ url_for('index') }}">
-            <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" class="logo">
-          </a>
+            <a href="/"><img src="{{ url_for('static', filename='tv_logo.jpeg') }}" alt="Logo" class="logo"></a>
             <div class="nav-links">
-                <a href="{{ url_for('index') }}">Home</a>
-                <a href="{{ url_for('list_shows') }}">Shows</a>
+                <a href="/">Home</a>
             </div>
         </div>
-        <div class="navbar-center">
-            𝕚𝔹𝕆𝕏 𝕋𝕍
-        </div>
-        <form action="{{ url_for('index') }}" method="GET" class="search-form">
-            <input type="text" name="search" placeholder="Search for shows..." value="{{ search_query if search_query else '' }}">
-            <button type="submit"><i class="fas fa-search"></i></button>
+        <div class="navbar-center">ShoiBOX TV</div>
+        <form action="{{ url_for('search') }}" method="get" class="search-form">
+            <input type="text" name="query" placeholder="Search for a TV show..." class="search-input">
+            <button type="submit" class="search-button">
+                <span class="search-icon">&#x1F50D;</span>
+                <span class="search-text">Search</span>
+            </button>
         </form>
-    </div>
+    </nav>
 
     <div class="container">
         {% block content %}{% endblock %}
     </div>
+    <script src="{{ url_for('static', filename='script.js')}}"></script>
 </body>
 </html>
