@@ -5,37 +5,36 @@ document.addEventListener('DOMContentLoaded', function() {
     const searchIconButton = document.querySelector('.search-icon-button');
     let searchExpanded = false;
 
+	// Function to toggle the search input visibility
     function toggleSearch() {
         if (window.innerWidth <= 768) { // Check if we're in the small-screen state
             if (searchExpanded) {
                 // Hide the input, show the icon
                 searchInput.style.display = 'none';
                 searchIconButton.style.display = 'inline-block';
-                searchButton.style.display = 'none';
                 searchExpanded = false;
             } else {
                 // Show the input, hide the icon
                 searchInput.style.display = 'inline-block';
-                searchButton.style.display = 'inline-block';
                 searchIconButton.style.display = 'none';
                 searchInput.focus(); // Put the cursor in the input
                 searchExpanded = true;
             }
         }
     }
-
+	//Handle window resize
      function handleResize() {
+		 //If on big screen and search is toggled.
         if (window.innerWidth > 768 && searchExpanded) {
 			searchInput.style.display = 'inline-block';
-            searchButton.style.display = 'inline-block';
             searchIconButton.style.display = 'none';
+         //If on small screen and search is toggled.
         } else if(window.innerWidth <= 768 && searchExpanded){
 			searchInput.style.display = 'inline-block';
-            searchButton.style.display = 'none';
             searchIconButton.style.display = 'none';
+         //If on small screen and search is NOT toggled.
 		} else if (window.innerWidth <= 768 && !searchExpanded) {
             searchInput.style.display = 'none';
-            searchButton.style.display = 'none';
 			searchIconButton.style.display = 'inline-block';
 		}
     }
@@ -48,4 +47,42 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     window.addEventListener('resize', handleResize);
+	// Initialize slideshow
+    showSlides(slideIndex);
 });
+
+let slideIndex = 0;
+
+function plusSlides(n) {
+  showSlides(slideIndex += n);
+}
+
+function currentSlide(n) {
+  showSlides(slideIndex = n - 1);
+}
+
+function showSlides(n) {
+    let i;
+    let slides = document.getElementsByClassName("mySlides");
+    let dots = document.getElementsByClassName("dot");
+
+    if (n >= slides.length) { slideIndex = 0; }
+    if (n < 0) { slideIndex = slides.length - 1; }
+
+    for (i = 0; i < slides.length; i++) {
+        slides[i].style.display = "none";
+    }
+    for (i = 0; i < dots.length; i++) {
+        dots[i].className = dots[i].className.replace(" active", "");
+    }
+
+    if (slides.length > 0) {
+        slides[slideIndex].style.display = "block";
+        if (dots.length > 0) {
+            dots[slideIndex].className += " active";
+        }
+    }
+}
+//Automatic movement
+
+let slideInterval = setInterval(() => { plusSlides(1) }, 5000);
