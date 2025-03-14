@@ -161,7 +161,7 @@ document.addEventListener('DOMContentLoaded', function() {
             } else {
                 desktopSlides[i].style.transform = 'scale(0.8)';
                 desktopSlides[i].style.opacity = '0.7';
-                desktopSlides[i].style.filter = 'brightness(0.5) blur(2px)';
+                desktopSlides[i].style.filter = 'brightness(0.5) blur(1px)'; // Reduced Blur
             }
         }
     }
@@ -250,7 +250,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (nextButton) {
         nextButton.addEventListener('click', function(event) {
             event.preventDefault();
-            desktopPlusSlides(1); // Use desktopPlusSlides
+           desktopPlusSlides(1);   // Use desktopPlusSlides
         });
     }
 });
