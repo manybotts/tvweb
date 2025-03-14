@@ -15,4 +15,9 @@ class TVShow(db.Model):
     overview = db.Column(db.Text)
     vote_average = db.Column(db.Float)
     poster_path = db.Column(db.String, default=None)
-    created_at = db.Column(db.DateTime,
+    created_at = db.Column(db.DateTime, default=datetime.utcnow) # Line 18 - Check this!
+    clicks = db.Column(db.Integer, default=0)
+    content_hash = db.Column(db.String(64), nullable=False, unique=True, index=True)
+
+    def __repr__(self):
+        return f'<TVShow {self.show_name} - {self.episode_title}>'
