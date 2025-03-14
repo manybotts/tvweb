@@ -57,7 +57,7 @@ body {
     padding: 8px 15px; /* More padding */
     margin: 0 5px; /* less horizontal margin */
     border-radius: 5px;
-    transition: background-color: 0.3s ease;
+    transition: background-color 0.3s ease;
     font-size: 1em; /* Larger font */
     display: flex; /* Use flex for alignment */
     align-items: center; /* Center icon and text */
@@ -78,23 +78,22 @@ body {
 	 background-color: rgba(255, 255, 255, 0.1);
 }
 
-.navbar-brand{
-    color: #e50914;
-    font-size: 1.4em;
+/* Style for the brand text (iBOX TV) - initially hidden */
+.brand-text {
+    color: white;
     font-weight: bold;
-    text-decoration: none;
-    display: flex;
-    align-items: center;
-    font-family: 'Netflix Sans','Helvetica Neue',Helvetica,Arial,sans-serif;
-
+    font-size: 1em; /* Adjust as needed */
+    font-family: 'Panton Rust', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    margin-left: auto; /* Push to the right on larger screens */
+    display: none; /* Hidden by default */
 }
-/* Style for the brand text (iBOX TV) */
-.navbar-brand .brand-text {
-    color: gold; /* Gold color for iBOX TV */
-    font-weight: bold;
-    font-size: 1.7em; /* Adjust as needed */
-	font-family: 'Panton Rust', 'Helvetica Neue', Helvetica, Arial, sans-serif; /* Use a bold font */
 
+
+/* Show brand text on larger screens */
+@media (min-width: 769px) {
+    .brand-text {
+        display: inline; /* Show on larger screens */
+    }
 }
 
 .search-form {
@@ -111,7 +110,8 @@ body {
 	border-radius: 4px;
 	margin-right: 5px;
 	width: 150px;
-	transition: width 0.3s ease;
+	transition: width 0.3s ease,  display 0.3s ease;
+  display: inline-block;
 }
 .search-form input[type="text"]:focus {
 	width: 200px;
@@ -128,8 +128,8 @@ body {
     border-radius: 4px;
     cursor: pointer;
     white-space: nowrap;
-    transition: background-color: 0.3s ease;
-	display: none;
+    transition: background-color: 0.3s ease, display 0.3s ease;
+	  display: inline-block; /*Initially visible*/
 }
 
 .search-form .search-button:hover {
@@ -144,9 +144,7 @@ body {
 	cursor: pointer;
 	color: white;
 	font-size: 1.2em;
-	display: none;
-
-	/* Hidden by default */
+	/*display: none; /* Hidden by default */
 	margin-left: auto; /*Push to the right*/
 
 }
@@ -161,18 +159,20 @@ body {
     .search-form .search-button,
     .search-form input[type="text"] {
         display: none; /* Hide text input and regular button on small screens */
+        width: 0;
     }
 
     .search-icon-button {
         display: inline-block; /* Show icon button on small screens */
-        margin-left: 0;       /* Remove the auto margin on small screens! */
+        margin-left: 5px;       /* Remove the auto margin on small screens! */
     }
      .nav-links{
       margin: 0; /*Remove margin*/
     }
-	.navbar-brand .brand-text {
+    .brand-text {
         font-size: 1em; /* Smaller font size on mobile */
     }
+
 }
 
 .container {
@@ -184,17 +184,14 @@ body {
 	box-sizing: border-box;
 }
 
-h1 {
-	text-align: center;
-	margin-bottom: 30px;
-	color: #e50914;
-	/* Netflix red */
-	font-family: 'Netflix Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif;
-	/* Netflix font */
-	font-size: 2em;
-	display: flex;
-	align-items: center;
-	justify-content: center;
+h2 {  /* Style both h1 and h2 */
+    text-align: left; /* Left-align headings */
+    margin-bottom: 20px;
+    color: #fff; /* White text */
+    font-family: 'Netflix Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    font-size: 1.8em; /* Slightly smaller font size */
+    display: flex; /* Use flexbox for alignment */
+    align-items: center; /* Vertically center with the dot */
 }
 
 .blinking-dot {
@@ -256,6 +253,7 @@ h1 {
 	border-bottom: 1px solid #333;
 	margin-bottom: 10px;
 	border-radius: 4px;
+  object-fit: cover;
 	/* Slightly rounded corners */
 }
 
@@ -380,8 +378,7 @@ h1 {
 .download-button:hover {
 	background-color: #0056b3;
 }
-/* --- tv_app/static/style.css --- */
-/* --- Continued (Part 2) --- */
+/* --- Slideshow --- */
 
 .slideshow-container {
     position: relative;
@@ -390,14 +387,20 @@ h1 {
     border-radius: 8px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.6);
     margin-bottom: 30px;
-    height: 250px; /* Reduced height */
+    height: 250px; /* Fixed height for the slideshow */
 }
 
 .slideshow-inner {
     display: flex;
-    width: 300%;       /* 300% to show prev, current, next */
-    transition: transform 0.6s ease-in-out; /* Smooth transition */
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+    width: auto;
+    height: 100%; /* Fill container height */
 }
+
+
 /* Hide scrollbar */
 .slideshow-inner::-webkit-scrollbar {
     display: none;  /* Chrome, Safari, Opera*/
@@ -407,76 +410,92 @@ h1 {
     -ms-overflow-style: none;  /* IE and Edge */
     scrollbar-width: none;  /* Firefox */
 }
+
+
 .mySlides {
-    flex: 0 0 33.3333%; /* Each slide takes 1/3 of the inner container */
-    position: relative;
-    display: flex; /* Make it a flex container */
-    justify-content: center; /* Center the card horizontally */
-    align-items: center;
-	border-radius: 8px;
+    flex: 0 0 auto;
+    scroll-snap-align: center;
+    margin: 0 10px;
+    opacity: 0.7;
+    transition: opacity 0.4s ease, transform 0.4s ease;
+    position: relative; /* For absolute positioning of caption */
+    width: calc(25% - 20px); /* Same as regular cards */
+    border-radius: 8px; /* Match card style */
+    overflow: hidden; /* Ensure content doesn't overflow */
+    height: 100%;
 
 }
 
-.mySlides.card {
-	width: 70%;
-	height: 200px;
-	box-shadow: 0 4px 8px rgba(0, 0, 0, 0.6);
-	/*transition: transform 0.6s ease-out;*/
-	margin-bottom: 0;
-	position: relative;
+.mySlides.active-slide {
+    opacity: 1;
+    transform: scale(1.1);
+    z-index: 2;
 }
 
-.mySlides.card img{
-	border: none;
-}
-.mySlides:not(.active-slide){
-	filter: blur(4px);
+.mySlides:first-child{
+    margin-left: 0px;
 }
 
-.mySlides:not(.active-slide) .card {
-    opacity: 0.6;  /* Dim non-active slides */
-    transform: scale(0.8); /* Shrink non-active slides */
+.mySlides:last-child{
+    margin-right: 0px;
 }
 
-.mySlides.active-slide .card {
-    transform: scale(1); /* Normal scale for active slide */
-    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.8); /* Larger shadow for active */
-
+.mySlides img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;  /* VERY IMPORTANT: Cover the entire area */
+    display: block; /* Remove any extra spacing below image */
 }
+
+.slide-caption {
+    position: absolute;
+    bottom: 10px; /* Position at the bottom */
+    left: 50%;    /* Center horizontally */
+    transform: translateX(-50%); /* Center horizontally */
+    background-color: rgba(0, 0, 0, 0.7);
+    color: white;
+    padding: 5px 10px;  /* Smaller padding */
+    border-radius: 5px;
+    font-size: 0.9em;   /* Smaller font size */
+    font-weight: bold;
+    text-align: center; /* Center the text */
+    width: auto;       /* Let the width adjust to content */
+    white-space: nowrap; /* Prevent text wrapping */
+    z-index: 3; /* Ensure it's above the blurred background */
+}
+
 
 /* Navigation Arrows */
-.slideshow-controls {
-    position: absolute;
-    top: 50%;
-    width: 100%;
-    display: flex;
-    justify-content: space-between;
-    transform: translateY(-50%);
-    z-index: 3; /* Above the slides */
-}
 .prev,
 .next {
     cursor: pointer;
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: auto;
     padding: 16px;
     color: white;
     font-weight: bold;
     font-size: 20px;
     transition: 0.6s ease;
     user-select: none;
-    background: rgba(0, 0, 0, 0.4);  /* Semi-transparent background */
+    z-index: 3;
+    background: rgba(0, 0, 0, 0.4);
     border: none;
     border-radius: 5px;
-     z-index: 3;
 }
 
 .next {
     right: 0;
-	border-radius: 5px 0 0 5px;
+    border-radius: 5px 0 0 5px;
 
 }
-.prev{
-	border-radius: 0 5px 5px 0;
+
+.prev {
+    left: 0;
+    border-radius: 0 5px 5px 0;
 }
+
 .prev:hover,
 .next:hover {
     background-color: rgba(0, 0, 0, 0.8);
@@ -485,38 +504,42 @@ h1 {
 /* Responsive Styles */
 
 @media (max-width: 768px) {
+    .search-form .search-button,
+    .search-form input[type="text"] {
+        display: none; /* Hide text input and regular button */
+    }
+
+    .search-icon-button {
+        display: inline-block; /* Show icon button */
+        margin-left: 0;       /* Remove auto-margin, align left */
+    }
+
+     .nav-links{
+      margin: 0; /*Remove margin*/
+    }
+    .navbar-brand .brand-text {
+        font-size: 1em; /* Smaller font size on mobile */
+    }
+
     .card {
         width: calc(50% - 15px); /* Two columns on smaller screens */
     }
-    .mySlides.card{
-        height: 180px;
+    .mySlides{
+        width: calc(50% - 20px);
     }
+
 }
 
 @media (max-width: 480px) {
-	.mySlides.card {
-		height: 150px;
-	}
+    .navbar-brand .brand-text {
+        display: none; /* Hide brand text on very small screens */
+    }
+
     .card {
         width: 95%; /* One column on very small screens */
     }
-	.slideshow-container {
-		height: 200px;
-		/* Reduce height */
-	}
+      .mySlides{
+        width: 90%;
+    }
 }
- .text {
-	 color: #fff;
-	 font-size: 1.2em;
-	 font-weight: bold;
-	 padding: 8px 12px;
-	 position: absolute;
-	 bottom: 8px;
-	 width: 100%;
-	 text-align: center;
-	 z-index: 3;
-	 text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7);
-	 background-color: rgba(0, 0, 0, 0.3);
-	 border-radius: 5px;
-     font-family: 'Netflix Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif;
- }
+/* --- End of style.css --- */
