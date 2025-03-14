@@ -81,8 +81,3 @@ def delete_all_shows():
     except Exception as e:
         db.session.rollback()
         return jsonify({'message': f'Error deleting shows: {str(e)}'}), 500
-
-# Add this block to run the update task if triggered by the cron job
-if os.environ.get('RUN_UPDATE') == 'true':
-    with app.app_context():
-        update_tv_shows()
