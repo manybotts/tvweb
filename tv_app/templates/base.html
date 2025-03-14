@@ -5,10 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}{% endblock %} - TV Show Tracker</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" integrity="sha512-9usAa10IRO0HhonpyAIVpjrylPvoDwiPUiKdWk5t3PyolY1cOd4DSE0Ga+ri4AuTroPR5aQvXU9xC6qOPnzFeg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
-     <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
+    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v={{ range(1, 10000) | random }}">
     <script src="{{ url_for('static', filename='script.js') }}?v={{ range(1, 10000) | random }}"></script>
-
 </head>
 <body>
     <nav class="navbar">
@@ -24,7 +23,7 @@
             <form action="{{ url_for('index') }}" method="GET" class="search-form">
                 <input type="text" name="search" placeholder="Search for shows..." class="search-input">
                 <button type="submit" class="search-button">Search</button>
-                <button type="button" class="search-icon-button">
+                 <button type="button" class="search-icon-button">
                     <i class="fas fa-search"></i>
                 </button>
             </form>
@@ -34,5 +33,6 @@
     <div class="container">
         {% block content %}{% endblock %}
     </div>
+
 </body>
 </html>
