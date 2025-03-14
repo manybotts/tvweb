@@ -5,6 +5,7 @@ from .tasks import update_tv_shows, test_task  # Relative import
 from .models import db, TVShow  # Relative import
 from sqlalchemy import desc
 from dotenv import load_dotenv
+import logging #Import logging
 
 load_dotenv()
 
@@ -13,6 +14,10 @@ app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your_secret_key')
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///tv_shows.db')  # Default to SQLite
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db.init_app(app)
+
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 # --- Database Operations (using SQLAlchemy's built-in features) ---
 
@@ -87,6 +92,9 @@ def delete_all_shows():
 @app.route('/health')
 def health_check():
     """Health check endpoint, also triggers the update task."""
-    with app.app_context():  # Create an application context
-        update_tv_shows.delay()  # Enqueue the task
+    logger.info("Health check called!")  # ADD THIS
+    with app.app_context():
+        logger.info("Enqueuing update_tv_shows task...")  # ADD THIS
+        update_tv_shows.delay()
+        logger.info("update_tv_shows task enqueued.")  # ADD THIS
     return "OK", 200
