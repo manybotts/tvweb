@@ -5,7 +5,7 @@ from .tasks import update_tv_shows, test_task  # Relative import
 from .models import db, TVShow  # Relative import
 from sqlalchemy import desc
 from dotenv import load_dotenv
-import logging #Import logging
+import logging  # Import logging
 
 load_dotenv()
 
@@ -90,3 +90,13 @@ def delete_all_shows():
     except Exception as e:
         db.session.rollback()
         return jsonify({'message': f'Error deleting shows: {str(e)}'}), 500
+
+# --- Error Handlers ---
+
+@app.errorhandler(404)
+def page_not_found(e):
+    return render_template('404.html'), 404
+
+@app.errorhandler(500)
+def internal_server_error(e):
+    return render_template('500.html'), 500
