@@ -3,85 +3,77 @@
 {% block title %}TV Show Updates{% endblock %}
 
 {% block content %}
-    {% if message %}
+   {% if message %}
         <div class="alert alert-warning" role="alert">
             {{ message }}
         </div>
     {% endif %}
+
     {% if not search_query %}
-        <h2>Most Watched Today</h2>
+        <h2><span class="blinking-dot"></span>Most Watched Today</h2>
         <div class="slideshow-container">
             <div class="slideshow-inner">
             {% for show in trending_shows %}
-                <div class="mySlides">
+                <div class="mySlides card">
                     <a href="{{ url_for('show_details', show_id=show.id) }}">
-                    {% if show.poster_path %}
-                        <img src="{{ show.poster_path }}" alt="{{ show.show_name }}">
-                    {% else %}
-                        <div class="telegram-loader"></div>
-                    {% endif %}
-                    <div class="slide-caption">
-                        <h2>{{ show.show_name }}</h2>
-                        <p>{{ show.episode_title }}</p>
-                    </div>
+                        {% if show.poster_path %}
+                            <img src="{{ show.poster_path }}" alt="{{ show.show_name }}">
+                        {% else %}
+                            <div class="telegram-loader"></div>
+                        {% endif %}
+                         <div class="text">{{ show.show_name }}</div>
                     </a>
+
                 </div>
             {% endfor %}
             </div>
-             <div class="slideshow-controls">
+            <div class="slideshow-controls">
                  <button  class="prev" onclick="plusSlides(-1)">&#10094;</button>
                  <button class="next" onclick="plusSlides(1)">&#10095;</button>
-            </div>
-            <div class="dot-container">
-            {% for show in trending_shows %}
-              <span class="dot" onclick="currentSlide({{ loop.index }})"></span>
-            {% endfor %}
             </div>
         </div>
     {% endif %}
 
     {# --- Conditionally display either "Newly Added" or search results --- #}
-    {% if not search_query %}
+   {% if not search_query %}
         <h2><span class="blinking-dot"></span>Newly Added</h2>
         <div class="tv-shows">
-            {% for show in shows.items %}  {# Iterate over shows.items #}
-                <div class="card">
-                    <a href="{{ url_for('show_details', show_id=show.id) }}">  {# Use show.id #}
-                        {% if show.poster_path %}
-                            <img src="{{ show.poster_path }}" alt="{{ show.show_name }}" loading="lazy">
-                        {% else %}
-                        <div class="telegram-loader"></div>
-                        {% endif %}
-                        <h2>{{ show.show_name }}</h2>
-                        <p>{{ show.episode_title }}</p>
-                    </a>
-                </div>
-            {% endfor %}
+			{% for show in shows.items %}
+				<div class="card">
+					<a href="{{ url_for('show_details', show_id=show.id) }}">
+						{% if show.poster_path %}
+						<img src="{{ show.poster_path }}" alt="{{ show.show_name }}" loading="lazy">
+						{% else %}
+						<div class="telegram-loader"></div>
+						{% endif %}
+						<h2>{{ show.show_name }}</h2>
+						<p>{{ show.episode_title }}</p>
+					</a>
+				</div>
+			{% endfor %}
         </div>
-    {% else %}  {# --- Display search results --- #}
-        {# Optional: Add a heading for search results #}
+    {% else %}
         <h2>Search Results for "{{ search_query }}"</h2>
         <div class="tv-shows">
-            {% if shows.items %} {# Check shows.items #}
-                {% for show in shows.items %}  {# Iterate over shows.items #}
-                    <div class="card">
-                         <a href="{{ url_for('show_details', show_id=show.id) }}">  {# Use show.id #}
-                            {% if show.poster_path %}
-                                <img src="{{ show.poster_path }}" alt="{{ show.show_name }}" loading="lazy">
-                            {% else %}
-                             <div class="telegram-loader"></div>
-                            {% endif %}
-                            <h2>{{ show.show_name }}</h2>
-                            <p>{{ show.episode_title }}</p>
-                        </a>
-                    </div>
-                {% endfor %}
+            {% if shows.items %}
+				{% for show in shows.items %}
+					<div class="card">
+						<a href="{{ url_for('show_details', show_id=show.id) }}">
+							{% if show.poster_path %}
+							<img src="{{ show.poster_path }}" alt="{{ show.show_name }}" loading="lazy">
+							{% else %}
+							<div class="telegram-loader"></div>
+							{% endif %}
+							<h2>{{ show.show_name }}</h2>
+							<p>{{ show.episode_title }}</p>
+						</a>
+					</div>
+				{% endfor %}
             {% else %}
                 <p>No TV shows found.</p>
             {% endif %}
         </div>
     {% endif %}
-
 
     <div class="pagination">
       {% if shows.has_prev %}
@@ -109,11 +101,5 @@
           <span class="disabled">Next</span>
       {% endif %}
     </div>
-     {% if not search_query and shows.items %}
-        <div></div>
-    {% else %}
-        {%if not shows.items%}
-          <p>No TV shows found matching your query.</p>
-        {%endif%}
-    {% endif %}
+
 {% endblock %}
