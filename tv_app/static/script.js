@@ -55,11 +55,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Handle clicks outside search form (desktop close) and blur
         document.addEventListener('click', function(event) {
-            //removed the if statement to ensure it applies for all screen sizes
-            if (!searchForm.contains(event.target) && searchExpanded) {
+            // Check if the click target is NOT the search icon or any of its descendants
+            if (!searchForm.contains(event.target) && !searchIconButton.contains(event.target) && searchExpanded ) {
                 toggleSearch();
             }
         });
+
         searchInput.addEventListener('blur', function() {
             if (searchExpanded) {
                 toggleSearch();
@@ -134,8 +135,8 @@ document.addEventListener('DOMContentLoaded', function() {
             desktopSlides[i].style.display = 'none';
             desktopSlides[i].classList.remove('active-slide');
             desktopSlides[i].style.transform = ''; // Reset any transform
-            desktopSlides[i].style.opacity = ''; // Reset opacity
-            desktopSlides[i].style.filter = ''; // Reset filter
+            desktopSlides[i].style.opacity = '';    // Reset opacity
+            desktopSlides[i].style.filter = '';     // Reset filter
         }
 
         // Calculate visible range, ensuring it's centered
