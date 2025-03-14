@@ -1,31 +1,42 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>ShoiBOX TV</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}{% endblock %} - TV Show Tracker</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" integrity="sha512-9usAa10IRO0HhonpyAIVpjrylPvoDwiPUiKdWk5t3PyolY1cOd4DSE0Ga+ri4AuTroPR5aQvXU9xC6qOPnzFeg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v={{ range(1, 10000) | random }}">
+    <script src="{{ url_for('static', filename='script.js') }}?v={{ range(1, 10000) | random }}"></script>
 </head>
 <body>
-    <nav class="navbar">
+    <div class="navbar">
         <div class="logo-container">
-            <a href="/"><img src="{{ url_for('static', filename='tv_logo.jpeg') }}" alt="Logo" class="logo"></a>
+          <a href="{{ url_for('index') }}">
+            <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" class="logo">
+          </a>
             <div class="nav-links">
-                <a href="/">Home</a>
+                <a href="{{ url_for('index') }}">Home</a>
+                <a href="{{ url_for('list_shows') }}">Shows</a>
             </div>
         </div>
-        <div class="navbar-center">ShoiBOX TV</div>
-        <form action="{{ url_for('index') }}" method="get" class="search-form">
-            <input type="text" name="query" placeholder="Search for a TV show..." class="search-input">
+        <div class="navbar-center">
+            𝕚𝔹𝕆𝕏 𝕋𝕍
+        </div>
+        <form action="{{ url_for('index') }}" method="GET" class="search-form">
+            <input type="text" name="search" placeholder="Search for shows..." class="search-input">
             <button type="submit" class="search-button">
-                <span class="search-icon">&#x1F50D;</span>
-                <span class="search-text">Search</span>
+               Search
+            </button>
+             <button type="button" class="search-icon-button">
+                <i class="fas fa-search"></i>
             </button>
         </form>
-    </nav>
+    </div>
 
     <div class="container">
         {% block content %}{% endblock %}
     </div>
-    <script src="{{ url_for('static', filename='script.js')}}"></script>
+    
 </body>
 </html>
