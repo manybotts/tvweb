@@ -82,7 +82,7 @@ document.addEventListener('DOMContentLoaded', function() {
         showMobileSlides(mobileSlideIndex);
     }
 
- // --- Desktop Slideshow ---
+    // --- Desktop Slideshow ---
 	let desktopSlideIndex = 0;
 	const desktopSlideshowInner = document.querySelector(".desktop-slideshow .slideshow-inner");
 	let desktopSlides = []; // We'll store *all* slides (including clones) here
@@ -154,7 +154,7 @@ document.addEventListener('DOMContentLoaded', function() {
             else {
               desktopSlides[i].style.transform = 'scale(0.8)';
               desktopSlides[i].style.opacity = '0.7';
-              desktopSlides[i].style.filter = 'brightness(0.5) blur(1px)';
+              desktopSlides[i].style.filter = 'brightness(0.5) blur(1px)'; // Reduced Blur
             }
 
         }
