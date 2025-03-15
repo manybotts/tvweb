@@ -2,6 +2,35 @@
 {% block title %}Available Shows{% endblock %}
 {% block content %}
     <h2><span class="show-label-icon"></span>Available TV Shows</h2>
+
+    {# Pagination Links (TOP) #}
+    <div class="pagination">
+        {% if shows.has_prev %}
+            <a href="{{ url_for('list_shows', page=shows.prev_num) }}">Previous</a>
+        {% else %}
+            <span class="disabled">Previous</span>
+        {% endif %}
+
+        {% for page_num in shows.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+            {% if page_num %}
+                {% if shows.page == page_num %}
+                    <span class="current-page">{{ page_num }}</span>
+                {% else %}
+                    <a href="{{ url_for('list_shows', page=page_num) }}">{{ page_num }}</a>
+                {% endif %}
+            {% else %}
+                <span class="ellipsis">…</span>
+            {% endif %}
+        {% endfor %}
+
+        {% if shows.has_next %}
+            <a href="{{ url_for('list_shows', page=shows.next_num) }}">Next</a>
+        {% else %}
+            <span class="disabled">Next</span>
+        {% endif %}
+    </div>
+
+
     <div class="show-list">
     {% for show_name in show_names %}
         <a href="{{ url_for('index', search=show_name) }}" class="show-item">
@@ -11,5 +40,32 @@
      {% if not show_names %}
         <p>No Shows found</p>
      {% endif %}
+    </div>
+
+    {# Pagination Links (BOTTOM) - identical to the top #}
+    <div class="pagination">
+        {% if shows.has_prev %}
+            <a href="{{ url_for('list_shows', page=shows.prev_num) }}">Previous</a>
+        {% else %}
+            <span class="disabled">Previous</span>
+        {% endif %}
+
+        {% for page_num in shows.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+            {% if page_num %}
+                {% if shows.page == page_num %}
+                    <span class="current-page">{{ page_num }}</span>
+                {% else %}
+                    <a href="{{ url_for('list_shows', page=page_num) }}">{{ page_num }}</a>
+                {% endif %}
+            {% else %}
+                <span class="ellipsis">…</span>
+            {% endif %}
+        {% endfor %}
+
+        {% if shows.has_next %}
+            <a href="{{ url_for('list_shows', page=shows.next_num) }}">Next</a>
+        {% else %}
+            <span class="disabled">Next</span>
+        {% endif %}
     </div>
 {% endblock %}
