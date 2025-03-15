@@ -286,24 +286,6 @@ h2 { /* For main page headings ONLY */
 }
 
 /* --- Show Item --- */
-.show-list{
-     display: flex;
-    flex-wrap: wrap;
-    justify-content: flex-start;
-    gap: 15px;
-    padding: 20px;
-}
- .show-item {
-     background-color: #222;
-    color: #fff;
-    padding: 10px 15px;
-    border-radius: 5px;
-    text-decoration: none;
-    transition: background-color: 0.3s ease;
-    width: calc(20% - 12px);  /*Five Columns*/
-    box-sizing: border-box;
-    text-align: center;
-}
 /* --- Larger screens --- */
 /* On larger screens, use a multi-column layout */
 @media (min-width: 769px) {
@@ -345,6 +327,24 @@ h2 { /* For main page headings ONLY */
 /* --- PART 1 END --- */
 /* --- tv_app/static/style.css --- */
 /* --- PART 2 START --- */
+.show-list{
+     display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    gap: 15px;
+    padding: 20px;
+}
+ .show-item {
+     background-color: #222;
+    color: #fff;
+    padding: 10px 15px;
+    border-radius: 5px;
+    text-decoration: none;
+    transition: background-color 0.3s ease;
+    width: calc(20% - 12px);  /*Five Columns*/
+    box-sizing: border-box;
+    text-align: center;
+}
 
 .show-item:hover {
     background-color: #333;
