@@ -286,6 +286,7 @@ h2 { /* For main page headings ONLY */
 }
 
 /* --- Show Item --- */
+
 /* --- Larger screens --- */
 /* On larger screens, use a multi-column layout */
 @media (min-width: 769px) {
@@ -327,28 +328,36 @@ h2 { /* For main page headings ONLY */
 /* --- PART 1 END --- */
 /* --- tv_app/static/style.css --- */
 /* --- PART 2 START --- */
-.show-list{
-     display: flex;
-    flex-wrap: wrap;
-    justify-content: flex-start;
-    gap: 15px;
+
+/* --- Styles for shows.html (Available Shows Page) --- */
+
+.show-list {
+    display: grid; /* Use CSS Grid */
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); /* Responsive columns */
+    gap: 20px; /* Space between items */
     padding: 20px;
 }
- .show-item {
-     background-color: #222;
+
+.show-list-item {
+    background-color: #222;
     color: #fff;
-    padding: 10px 15px;
-    border-radius: 5px;
+    padding: 15px;
+    border-radius: 8px;
     text-decoration: none;
     transition: background-color 0.3s ease;
-    width: calc(20% - 12px);  /*Five Columns*/
-    box-sizing: border-box;
-    text-align: center;
+    display: block; /* Make the link fill the container */
+    text-align: center; /* Center the text */
+    font-size: 1em; /* Adjust as needed */
+    font-weight: bold;
+    font-family: 'Netflix Sans', sans-serif; /* Consistent font */
+    border: 1px solid #333; /* Subtle border */
 }
 
-.show-item:hover {
-    background-color: #333;
+.show-list-item:hover {
+    background-color: #333; /* Slightly lighter on hover */
+    transform: translateY(-3px);
 }
+
 
 /* --- Loader --- */
 
