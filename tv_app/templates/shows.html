@@ -30,10 +30,9 @@
         {% endif %}
     </div>
 
-
     <div class="show-list">
     {% for show_name in show_names %}
-        <a href="{{ url_for('index', search=show_name) }}" class="show-item">
+        <a href="{{ url_for('index', search=show_name) }}" class="show-list-item">
             {{ show_name }}
         </a>
     {% endfor %}
