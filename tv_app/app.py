@@ -3,7 +3,7 @@ import os
 from flask import Flask, render_template, redirect, url_for, request, jsonify
 from .tasks import update_tv_shows, test_task  # Relative import
 from .models import db, TVShow  # Relative import
-from sqlalchemy import desc
+from sqlalchemy import desc, func
 from dotenv import load_dotenv
 import logging  # Import logging
 
@@ -40,7 +40,7 @@ def index():
           shows = TVShow.query.order_by(TVShow.created_at.desc()).paginate(page=page, per_page=per_page, error_out=False)
           message = f"No show with name '{search_query}', Here are all available shows!"
           return render_template('index.html', shows=shows, search_query=search_query, trending_shows=[], message=message)
-        trending_shows = []
+        trending_shows = [] # No trending shows if it's a search
     else:
         shows = TVShow.query.order_by(TVShow.created_at.desc()).paginate(page=page, per_page=per_page, error_out=False)
         trending_shows = get_trending_shows()
@@ -67,9 +67,17 @@ def redirect_to_download(show_id):
 
 @app.route('/shows')  # Keep this as is - it lists show *names*, not full details
 def list_shows():
-    """Displays a list of all available TV show names."""
-    show_names = [show.show_name for show in TVShow.query.distinct(TVShow.show_name).order_by(TVShow.show_name).all()]
-    return render_template('shows.html', show_names=show_names)
+    """Displays a list of all available TV show names, with pagination."""
+    page = request.args.get('page', 1, type=int)
+    per_page = 30  # Number of show names per page
+
+    # Use paginate on the query that retrieves distinct show names.
+    shows_paginated = TVShow.query.distinct(TVShow.show_name).order_by(TVShow.show_name).paginate(page=page, per_page=per_page, error_out=False)
+
+    # Extract show names from the paginated result.  This is efficient.
+    show_names = [show.show_name for show in shows_paginated.items]
+
+    return render_template('shows.html', show_names=show_names, shows=shows_paginated) #Pass the pagination object
 
 @app.route('/update', methods=['POST'])
 def update():
