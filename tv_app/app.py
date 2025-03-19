@@ -59,7 +59,9 @@ def index():
 
         # 3. Fuzzy Matching (for Related Results)
         all_show_names = [show.show_name for show in TVShow.query.all()]
-        fuzzy_matches = process.extract(normalized_query, all_show_names, limit=5)
+        # NO LIMIT HERE
+        fuzzy_matches = process.extract(normalized_query, all_show_names)
+
 
         # Combine and Prioritize Results
         results = []
@@ -68,10 +70,13 @@ def index():
         for show in partial_matches:
             if show not in results:
                 results.append(show)
+
+        # --- ADDED SCORE THRESHOLD ---
         for show_name, score in fuzzy_matches:
-            show = TVShow.query.filter_by(show_name=show_name).first()
-            if show and show not in results:
-                results.append(show)
+            if score >= 60:  #  Only include fuzzy matches with a score of 60 or higher
+                show = TVShow.query.filter_by(show_name=show_name).first()
+                if show and show not in results:
+                    results.append(show)
 
         # Paginate the combined results
         shows = paginate_results(results, page, per_page)
@@ -114,6 +119,8 @@ def index():
 
 def paginate_results(results, page, per_page):
     """Paginates a list of results manually."""
+    from flask_sqlalchemy import pagination
+
     start = (page - 1) * per_page
     end = start + per_page
     paginated_items = results[start:end]
