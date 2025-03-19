@@ -1,15 +1,11 @@
 {% extends "base.html" %}
-
-{% block title %}TV Show Updates{% endblock %}
-
+{% block title %}TV Show Tracker{% endblock %}
 {% block content %}
-   {% if message %}
-        <div class="alert alert-warning" role="alert">
-            {{ message }}
-        </div>
+    {% if message %}
+    <p class="message">{{ message }}</p>  {# Display message #}
     {% endif %}
 
-    {% if not search_query %}
+  {% if not search_query %}
     <h2><span class="eye-icon"></span>Most Watched Today</h2>
         <div class="slideshow-container">
              <div class="desktop-slideshow">
@@ -57,71 +53,55 @@
     {% endif %}
 
     {# --- Conditionally display either "Newly Added" or search results --- #}
-   {% if not search_query %}
-        <h2><span class="new-icon"></span>Newly Added</h2>
-        <div class="tv-shows">
-			{% for show in shows.items %}
-				<div class="show-card">
-					<a href="{{ url_for('show_details', show_id=show.id) }}">
-						{% if show.poster_path %}
-						<img src="{{ show.poster_path }}" alt="{{ show.show_name }}" loading="lazy">
-						{% else %}
-						<div class="telegram-loader"></div>
-						{% endif %}
-						<h3>{{ show.show_name }}</h3>
-						<p class = "episode-title">{{ show.episode_title }}</p>
-					</a>
-				</div>
-			{% endfor %}
+    {% if not search_query %}
+    <h2><span class="new-icon"></span>Newly Added</h2>
+    <div class="tv-shows">
+        {% for show in shows.items %}
+        <div class="show-card">
+            <a href="{{ url_for('show_details', show_id=show.id) }}">
+                {% if show.poster_path %}
+                <img src="{{ show.poster_path }}" alt="{{ show.show_name }}" loading="lazy">
+                {% else %}
+                <div class="telegram-loader"></div>
+                {% endif %}
+                <h3>{{ show.show_name }}</h3>
+                <p class="episode-title">{{ show.episode_title or 'N/A' }}</p>
+            </a>
         </div>
+        {% endfor %}
+    </div>
     {% else %}
-        <h2>Search Results for "{{ search_query }}"</h2>
-        <div class="tv-shows">
-            {% if shows.items %}
-				{% for show in shows.items %}
-					<div class="show-card">
-						<a href="{{ url_for('show_details', show_id=show.id) }}">
-							{% if show.poster_path %}
-							<img src="{{ show.poster_path }}" alt="{{ show.show_name }}" loading="lazy">
-							{% else %}
-							<div class="telegram-loader"></div>
-							{% endif %}
-							<h3>{{ show.show_name }}</h3>
-							<p class = "episode-title">{{ show.episode_title }}</p>
-						</a>
-					</div>
-				{% endfor %}
-            {% else %}
-                <p>No TV shows found.</p>
-            {% endif %}
-        </div>
+    <h2>Search Results for "{{ search_query }}"</h2> {# Corrected heading #}
+    <div class="tv-shows">
+        {% for show in shows.items %}
+            <div class="show-card">
+                <a href="{{ url_for('show_details', show_id=show.id) }}">
+                    {% if show.poster_path %}
+                    <img src="{{ show.poster_path }}" alt="{{ show.show_name }}" loading="lazy">
+                    {% else %}
+                    <div class="telegram-loader"></div>
+                    {% endif %}
+                    <h3>{{ show.show_name }}</h3>
+                    <p class="episode-title">{{ show.episode_title or 'N/A' }}</p>
+                </a>
+            </div>
+
+        {% else %}
+            <p>No shows found.</p>
+         {% endfor %}
+    </div>
     {% endif %}
 
+
+    {# Pagination Links #}
     <div class="pagination">
-      {% if shows.has_prev %}
-          <a href="{{ url_for('index', page=shows.prev_num, search=search_query) }}">Previous</a>
-      {% else %}
-          <span class="disabled">Previous</span>
-      {% endif %}
-
-      {% for page_num in shows.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
-        {% if page_num %}
-          {% if shows.page == page_num %}
-            <span class="current-page">{{ page_num }}</span>
-          {% else %}
-            <a href="{{ url_for('index', page=page_num, search=search_query) }}">{{ page_num }}</a>
-          {% endif %}
-        {% else %}
-          <span class="ellipsis">…</span>
+        {% if shows.has_prev %}
+            <a href="{{ url_for('index', page=shows.prev_num, search=search_query) }}">&laquo; Previous</a>
         {% endif %}
-      {% endfor %}
-
-
-      {% if shows.has_next %}
-          <a href="{{ url_for('index', page=shows.next_num, search=search_query) }}">Next</a>
-      {% else %}
-          <span class="disabled">Next</span>
-      {% endif %}
+        <span>Page {{ shows.page }} of {{ shows.pages }}</span>
+        {% if shows.has_next %}
+            <a href="{{ url_for('index', page=shows.next_num, search=search_query) }}">Next &raquo;</a>
+        {% endif %}
     </div>
 
 {% endblock %}
