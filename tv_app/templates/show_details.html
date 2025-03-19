@@ -3,31 +3,36 @@
 {% block title %}{{ show.show_name }}{% endblock %}
 
 {% block content %}
-<div class="show-details-container">
-    <div class="show-details-banner">
+<div class="show-details-container">  {# Use a container for overall layout #}
+
+    <div class="show-details-banner"> {# Banner-like area for title/episode #}
         <h1>{{ show.show_name }}</h1>
-        <p class="episode-title">{{ show.episode_title }}</p>
+        <p class="episode-title">{{ show.episode_title if show.episode_title else 'N/A' }}</p>
     </div>
 
-    <div class="show-details-content">
-        <div class="show-image-container">
+    <div class="show-details-content"> {# Main content area #}
+        <div class="show-image-container"> {# Container for image #}
             {% if show.poster_path %}
-            <img src="{{ show.poster_path }}" alt="{{ show.show_name }}" class="show-image" loading="lazy">
+                <img src="{{ show.poster_path }}" alt="{{ show.show_name }}" class="show-image" loading="lazy">  {# Use class for image styling #}
             {% else %}
-            <p>Image Not Found</p>
+                <p>Image Not Found</p>
             {% endif %}
         </div>
 
         <div class="show-info">
             {% if show.overview %}
+             <p><strong>Seasons:</strong> {{ show.season_range if show.season_range else 'N/A' }}</p>
+            <p><strong>Genre:</strong> {{ show.genre if show.genre else 'N/A' }}</p>
+            <p><strong>Year:</strong> {{ show.year if show.year else 'N/A' }}</p>
+            <p><strong>Rating:</strong> {{ show.vote_average if show.vote_average else 'N/A' }}</p>
             <p class="overview"><strong>Overview:</strong> {{ show.overview }}</p>
             {% endif %}
 
-            {% if show.vote_average %}
-            <p class="rating"><strong>Rating:</strong> {{ show.vote_average }}/10</p>
+            {% if show.download_link %}
+                <a href="{{ url_for('redirect_to_download', show_id=show.id) }}" class="download-button">Download</a>  {# Class for button styling #}
+            {% else %}
+                <p>Download link not available.</p>
             {% endif %}
-
-            <a href="{{ url_for('redirect_to_download', show_id=show.id) }}" class="download-button">Download</a>
         </div>
     </div>
 </div>
