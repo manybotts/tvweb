@@ -3,13 +3,13 @@
 {% block title %}Available Shows{% endblock %}
 
 {% block content %}
-<div class="shows-container">  {# Main container for the shows page #}
+<div class="shows-container">
 
-    <h2><span class="show-label-icon"></span>Available TV Shows</h2>  {# Use a span for icon if needed #}
+    <h2><span class="show-label-icon"></span>Available TV Shows</h2>
 
-    <div class="filters-container">  {# Container for all filter/sort options #}
+    <div class="filters-container">
 
-        <div class="sort-options"> {# Container for sort links #}
+        <div class="sort-options">
             Sort by:
             <a href="{{ url_for('list_shows', sort='name', genre=filter_genre, year=filter_year, rating=filter_rating) }}" {% if sort_by == 'name' %}class="active-sort"{% endif %}>Name</a> |
             <a href="{{ url_for('list_shows', sort='popularity', genre=filter_genre, year=filter_year, rating=filter_rating) }}" {% if sort_by == 'popularity' %}class="active-sort"{% endif %}>Popularity</a> |
@@ -17,12 +17,12 @@
             <a href="{{ url_for('list_shows', sort='rating', genre=filter_genre, year=filter_year, rating=filter_rating) }}" {% if sort_by == 'rating' %}class="active-sort"{% endif %}>Rating</a>
         </div>
 
-        <div class="filter-group"> {# Group for genre filter #}
+        <div class="filter-group">
             <label for="genre-filter">Filter By Genre:</label>
             <a href="{{ url_for('list_shows', sort=sort_by, year=filter_year, rating=filter_rating) }}">All</a> |
             <a href="{{ url_for('list_shows', sort=sort_by, genre='Comedy', year=filter_year, rating=filter_rating) }}">Comedy</a> |
             <a href="{{ url_for('list_shows', sort=sort_by, genre='Action', year=filter_year, rating=filter_rating) }}">Action</a> |
-            <a href="{{ url_for('list_shows', sort=sort_by, genre='Drama', year=filter_year, rating=filter_rating) }}">Drama</a> |
+            {# Add more genre links as needed #}
             <form action="{{ url_for('list_shows') }}" method="GET" class="filter-form">
                 <input type="hidden" name="sort" value="{{ sort_by }}">
                 <input type="hidden" name="year" value="{{ filter_year }}">
@@ -32,22 +32,22 @@
             </form>
         </div>
 
-        <div class="filter-group">  {# Group for year filter #}
+        <div class="filter-group">
           <label for="year-filter">Filter By Year:</label>
-          <a href="{{ url_for('list_shows', sort=sort_by, genre=filter_genre, rating=filter_rating) }}">All</a> |
-              {% for year in range(2024, 1999, -1) %}
-              <a href="{{ url_for('list_shows', sort=sort_by, genre=filter_genre, year=year, rating=filter_rating) }}">{{ year }}</a> |
-          {% endfor %}
-          <form action="{{ url_for('list_shows') }}" method="GET" class="filter-form">
-              <input type="hidden" name="sort" value="{{ sort_by }}">
-              <input type="hidden" name="genre" value="{{ filter_genre }}">
-              <input type="hidden" name="rating" value="{{ filter_rating }}">
-              <input type="number" name="year" id="year-filter" placeholder="Enter year" value="{{ filter_year }}">
-              <button type="submit" class="filter-button">Filter</button>
-          </form>
-      </div>
+            <a href="{{ url_for('list_shows', sort=sort_by, genre=filter_genre, rating=filter_rating) }}">All</a> |
+                {% for year in range(2024, 1999, -1) %}
+                <a href="{{ url_for('list_shows', sort=sort_by, genre=filter_genre, year=year, rating=filter_rating) }}">{{ year }}</a> |
+            {% endfor %}
+            <form action="{{ url_for('list_shows') }}" method="GET" class="filter-form">
+                <input type="hidden" name="sort" value="{{ sort_by }}">
+                <input type="hidden" name="genre" value="{{ filter_genre }}">
+                <input type="hidden" name="rating" value="{{ filter_rating }}">
+                <input type="number" name="year" id="year-filter" placeholder="Enter year" value="{{ filter_year }}">
+                <button type="submit" class="filter-button">Filter</button>
+            </form>
+        </div>
 
-      <div class="filter-group"> {# Group for rating filter #}
+        <div class="filter-group">
             <label for="rating-filter">Filter by Rating:</label>
             <a href="{{ url_for('list_shows', sort=sort_by, genre=filter_genre, year=filter_year) }}">All</a> |
             <a href="{{ url_for('list_shows', sort=sort_by, genre=filter_genre, year=filter_year, rating=7) }}">7+</a> |
@@ -63,17 +63,17 @@
         </div>
     </div>
 
-    <ul class="shows-list">  {# Use a class for the show list #}
+    <ul class="shows-list">
       {% for show in shows.items %}
-        <li class="show-item"> {# Use a class for each show item #}
-            <a href="{{ url_for('show_details', show_id=show.id) }}" class="show-link"> {# Class for show links #}
+        <li class="show-item">
+            <a href="{{ url_for('show_details', show_id=show.id) }}" class="show-link">
                 {{ show.show_name }}
             </a>
           </li>
       {% endfor %}
     </ul>
 
-    {# Pagination links #}
+    {# Pagination links (using Flask-SQLAlchemy's built-in pagination) #}
     <div class="pagination">
         {% if shows.has_prev %}
             <a href="{{ url_for('list_shows', page=shows.prev_num, sort=sort_by, genre=filter_genre, year=filter_year, rating=filter_rating) }}">&laquo; Previous</a>
