@@ -1,5 +1,5 @@
 /* --- tv_app/static/style.css --- */
-/* --- PART 1 START (Revised - Preserving Original, index.html & shows.html fixes) --- */
+/* --- PART 1 START (General, Navbar, Icons, Show Cards - Base) --- */
 
 /* --- General Styles --- */
 
@@ -194,46 +194,47 @@ h2 {
 
 .eye-icon::before {
     font-family: "Font Awesome 6 Free";
-    content: "\f06e";
+    content: "\f06e";  /* Eye icon */
     margin-right: 8px;
-    color: #e50914;
-    display: inline-block;
+    color: #e50914;  /* Netflix red */
+    display: inline-block; /* Needed for consistent spacing */
     font-weight: 900;
     font-size: 0.8em;
 }
 
 .new-icon::before {
     font-family: "Font Awesome 6 Free";
-    content: "\f058";
+    content: "\f058"; /* Checkmark circle icon */
     margin-right: 8px;
-    color: #90ee90;
+    color: #90ee90; /* Light green */
     display: inline-block;
     font-weight: 900;
     font-size: 0.8em;
 }
+
  .show-label-icon::before {
     font-family: "Font Awesome 6 Free";
-    content: "\f039";
+    content: "\f039";  /*List icon*/
     margin-right: 8px;
     display: inline-block;
     font-weight: 900;
     font-size: 0.8em;
 }
+
 
 /* --- Show Card Styles (for Newly Added and Search Results) --- */
 
 .tv-shows {
      display: grid; /* Use CSS Grid */
     grid-template-columns: repeat(2, 1fr); /* Two columns */
-    gap: 4vw; /* Responsive gap */
-    padding: 4vw; /* Responsive padding */
+    gap: 15px; /* Consistent gap */
+    padding: 20px; /* Consistent padding */
 
 }
 
 .show-card {
     border: 1px solid #333;
-    padding: 4vw;  /*Responsive Padding*/
-    /* Removed width: 45vw; */
+    padding: 10px;  /*Reduced padding*/
     box-sizing: border-box;
     background-color: #222;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.6);
@@ -242,10 +243,12 @@ h2 {
     overflow: hidden;
     display: flex;
     flex-direction: column;
-    margin-bottom: 4vw;
+    margin-bottom: 15px; /* Reduced margin */
+    height: 100%;
 }
+
 .show-card:hover {
-	transform: translateY(-7px);
+	transform: translateY(-5px); /* Slightly less dramatic hover effect */
 }
 
 .show-card a {
@@ -261,7 +264,7 @@ h2 {
     width: 100%; /* Full width of the card */
     height: auto; /* Maintain aspect ratio */
     border-radius: 4px;
-     margin-bottom: 10px;
+     margin-bottom: 5px; /* Reduced margin */
 
 }
 
@@ -272,6 +275,7 @@ h2 {
     font-family: 'Netflix Sans', sans-serif;
     text-align: center; /* Center-align show titles */
     margin-top: auto; /* Title at the bottom */
+     padding: 0 5px; /* Reduced horizontal padding */
 }
 
 .show-card p {
@@ -279,6 +283,8 @@ h2 {
     color: #aaa;
     margin-bottom: 0;
      margin-top: auto;
+      padding: 0 5px 5px 5px; /* Reduced padding */
+     text-align: center;
 }
 /* Centered Episode Title */
 .episode-title{
@@ -287,21 +293,13 @@ h2 {
     font-weight: bold;
 }
 
-/* --- Show Item --- */
 
 /* --- Larger screens --- */
 /* On larger screens, use a multi-column layout */
 @media (min-width: 769px) {
    .tv-shows{
      grid-template-columns: repeat(2, 1fr); /* Two columns on tablets */
-        padding: 15px;
-        gap: 15px;
    }
-    .show-card {
-        width: auto; /* Let width be determined by grid */
-        padding: 15px;
-        margin-bottom: 20px;
-    }
     .show-card h3{
         font-size: 1.2em;
     }
@@ -311,25 +309,19 @@ h2 {
 }
 
 @media (min-width: 992px) {
-    .show-card {
-        width: auto;
-    }
     .tv-shows {
         grid-template-columns: repeat(3, 1fr); /* Three columns on larger screens */
     }
 }
 
 @media (min-width: 1200px) {
-    .show-card{
-        width: auto;
-    }
     .tv-shows {
         grid-template-columns: repeat(4, 1fr); /* Four columns on very large screens */
     }
 }
 /* --- PART 1 END --- */
 /* --- tv_app/static/style.css --- */
-/* --- PART 2 START (Slideshow, Pagination, /shows styles - Compact) --- */
+/* --- PART 2 START (Slideshow, Pagination, and /shows page styles - Compact) --- */
 
 /* Styles for shows.html */
 .shows-container { max-width: 1200px; margin: 0 auto; padding: 20px; padding-top: 80px; box-sizing: border-box;}
@@ -429,7 +421,7 @@ h2 {
 .mobile-slideshow .prev { left: 0; border-radius: 0 5px 5px 0; }
 .mobile-slideshow .prev:hover, .mobile-slideshow .next:hover { background-color: rgba(0, 0, 0, 0.8); }
 .mobile-slideshow .slideshow-dots { text-align: center; margin-top: 10px; }
-.mobile-slideshow .dot { height: 10px; width: 10px; margin: 0 5px; background-color: #bbb; border-radius: 50%; display: inline-block; transition: background-color 0.6s ease; cursor: pointer; }
+.mobile-slideshow .dot { height: 10px; width: 10px; margin: 0 5px; background-color: #bbb; border-radius: 50%; display: inline-block; transition: background-color: 0.6s ease; cursor: pointer; }
 .mobile-slideshow .dot.active-dot { background-color: #e50914; }
 
 /* Desktop Slideshow */
@@ -459,14 +451,14 @@ h2 {
 }
 
 @media (min-width: 1200px) {
-    .desktop-slideshow .mySlides { width: calc((100% / 5) - 16px); margin: 0 8px; }
+      .desktop-slideshow .mySlides { width: calc((100% / 5) - 16px); margin: 0 8px; }
 	 .mobile-slideshow{ display:none }
 	 .desktop-slideshow{ display:block; }
 }
 
 /* --- PART 2 END --- */
 /* --- tv_app/static/style.css --- */
-/* --- PART 3 START (Styles for show_details.html and 404/500) --- */
+/* --- PART 3 START (show_details.html and error pages) --- */
 
 /* --- Show Details Page --- */
 
@@ -474,8 +466,7 @@ h2 {
     padding: 20px;
     max-width: 800px; /* Limit width on larger screens */
     margin: 0 auto;  /* Center the container */
-    padding-top: 80px; /*For the fixed Navbar*/
-
+    padding-top: 80px; /* For the fixed Navbar */
 }
 
 /* Banner area at the top */
@@ -498,7 +489,7 @@ h2 {
 .episode-title {
     font-size: 1.2em;
     color: #aaa; /* Lighter color for episode title */
-     font-weight: normal; /* Assuming you want it less bold than the heading */
+    font-weight: normal;
 }
 
 /* Main content area (image and info) */
@@ -527,31 +518,36 @@ h2 {
 /* Style the paragraphs within show-info */
 .show-info p {
     margin-bottom: 15px;
-	 color:#fff; /* Consistent text color */
+    color: #fff;
 }
 
 .overview {
     line-height: 1.4;
-    margin-bottom: 15px; /*Consistent spacing*/
+    margin-bottom: 15px;
+    text-align:justify;
 }
 
-/*Download button*/
-.download-button {
-    display: inline-block; /* Or block, depending on layout */
+.show-details-button {
+    display: inline-block;
     padding: 10px 20px;
     font-size: 1.1em;
-    background-color: #e50914; /* Netflix red */
+    background-color: #e50914;
     color: white;
     text-decoration: none;
     border-radius: 5px;
+    font-weight: bold;
+    text-align: center;
     transition: background-color 0.3s ease;
-    border: none;
+    margin-top: 20px;
+    align-self: center;
+    width: auto;
+    max-width: 200px;
+    border:none;
     cursor: pointer;
-    margin-top:10px; /*Margin to the overview*/
 }
 
-.download-button:hover {
-    background-color: #b20710; /* Darker red on hover */
+.show-details-button:hover {
+   background-color: #b20710;
 }
 
 /* --- Responsive Adjustments (show_details.html) --- */
@@ -570,29 +566,27 @@ h2 {
         width: auto;          /* Info takes remaining space */
     }
 }
-/* --- 404 and 500 error pages --- */
 
-.error-container{
+/* --- 404 and 500 Pages --- */
+.error-container {
     text-align: center;
     padding: 50px;
     background-color: #141414;
     border-radius: 8px;
-    box-shadow: 0 4px 8px rgba(0,0,0, 0.6);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.6);
 }
-
-.error-code{
+.error-code {
     font-size: 3em;
     font-weight: bold;
     color: #e50914;
     margin-bottom: 10px;
 }
-
-.error-message{
+.error-message {
     font-size: 1.2em;
     color: #ddd;
     margin-bottom: 20px;
 }
-.back-home-link a{
+.back-home-link {
     display: inline-block;
     padding: 10px 20px;
     background-color: #e50914;
@@ -601,5 +595,7 @@ h2 {
     border-radius: 5px;
     transition: background-color 0.3s;
 }
-
-/* --- END OF PART 3 --- */
+.back-home-link:hover {
+    background-color: #b20710;
+}
+/* --- PART 3 END --- */
