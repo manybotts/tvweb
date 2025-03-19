@@ -13,7 +13,7 @@ result_expires = 3600  # Expire results after 1 hour (adjust as needed)
 beat_schedule = {
     'update-tv-shows-every-5-minutes': {  # Descriptive name
         'task': 'tv_app.tasks.update_tv_shows',
-        'schedule': 300.0,  # Run every 5 minutes (300 seconds)
+        'schedule': 75.0,  # Run every 5 minutes (300 seconds)
     },
 }
 
