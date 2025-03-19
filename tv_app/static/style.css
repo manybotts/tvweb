@@ -1,5 +1,5 @@
 /* --- tv_app/static/style.css --- */
-/* --- PART 1 START (Revised - Corrected Index Page Grid) --- */
+/* --- PART 1 START (Revised - Tightened Show Card Spacing) --- */
 
 /* --- General Styles --- */
 
@@ -184,8 +184,6 @@ h2 {
 }
 
 /* --- Media Queries for Navbar --- */
-/* No changes needed here, we use the same search icon */
-/* Removed .desktop-search and .mobile-search-form specific rules */
 @media (max-width: 768px) {
 	.nav-link .link-text {
 		display: none;
@@ -223,19 +221,18 @@ h2 {
 }
 
 /* --- Show Card Styles (for Newly Added and Search Results) --- */
-/* These styles *are* used on index.html, both for "Newly Added" and search results */
 
 .tv-shows {
-     display: grid; /* Use CSS Grid */
+    display: grid;
     grid-template-columns: repeat(2, 1fr); /* Two columns by default */
-    gap: 4vw; /* Responsive gap */
-    padding: 4vw; /* Responsive padding */
+    gap: 15px; /* Consistent gap */
+    padding: 20px; /* Consistent padding */
 
 }
 
 .show-card {
     border: 1px solid #333;
-    padding: 4vw;  /*Responsive Padding*/
+    padding: 10px; /* Reduced padding */
     box-sizing: border-box;
     background-color: #222;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.6);
@@ -244,52 +241,51 @@ h2 {
     overflow: hidden;
     display: flex;
     flex-direction: column;
-    margin-bottom: 4vw; /* Add margin at the bottom */
-    height: 100%; /* Ensure cards fill grid cell height */
+    margin-bottom: 15px; /* Reduced margin */
+    height: 100%;
 }
+
 .show-card:hover {
-	transform: translateY(-7px);
+    transform: translateY(-5px); /* Slightly less dramatic hover effect */
 }
 
 .show-card a {
     text-decoration: none;
     color: inherit;
-     display: block;
-     flex-grow: 1; /* Allow the link to fill the card */
-     display: flex;
-     flex-direction: column;
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
 }
 
 .show-card img {
-    width: 100%; /* Full width of the card */
-    height: auto; /* Maintain aspect ratio */
+    width: 100%;
+    height: auto;
     border-radius: 4px;
-     margin-bottom: 10px;
-
+    margin-bottom: 5px; /* Reduced margin */
 }
 
-.show-card h3 { /* Use h3 for show titles */
-    font-size: 1em; /* Responsive font size */
+.show-card h3 {
+    font-size: 1em;
     margin-bottom: 5px;
     color: #e50914;
     font-family: 'Netflix Sans', sans-serif;
-    text-align: center; /* Center-align show titles */
+    text-align: center;
     margin-top: auto; /* Title at the bottom */
-    padding: 0 10px; /* Horizontal padding */
+    padding: 0 5px; /* Reduced horizontal padding */
 }
 
 .show-card p {
-    font-size: 0.7em; /* Responsive font size */
+    font-size: 0.7em;
     color: #aaa;
     margin-bottom: 0;
-     margin-top: auto;
-     padding: 0 10px 10px 10px;
-     text-align: center;
-}
-/* Centered Episode Title */
-.episode-title{
+    margin-top: auto;
+    padding: 0 5px 5px 5px; /* Reduced padding */
     text-align: center;
-     margin-top: 5px;
+}
+
+.episode-title {
+    text-align: center;
+    margin-top: 5px;
     font-weight: bold;
 }
 
@@ -297,20 +293,16 @@ h2 {
 /* On larger screens, use a multi-column layout */
 @media (min-width: 769px) {
    .tv-shows{
-     grid-template-columns: repeat(2, 1fr); /* Two columns on tablets */
-        padding: 15px;
-        gap: 15px;
+     grid-template-columns: repeat(2, 1fr);
    }
     .show-card {
         width: auto; /* Let width be determined by grid */
-        padding: 15px;
-        margin-bottom: 20px;
     }
     .show-card h3{
-        font-size: 1.2em;
+        font-size: 1.1em; /* Slightly larger font on larger screens */
     }
      .show-card p{
-        font-size: 0.9em;
+        font-size: 0.8em; /* Slightly larger font on larger screens */
     }
 }
 
@@ -319,7 +311,7 @@ h2 {
         width: auto;
     }
     .tv-shows {
-        grid-template-columns: repeat(3, 1fr); /* Three columns on larger screens */
+        grid-template-columns: repeat(3, 1fr); /* Three columns */
     }
 }
 
@@ -328,486 +320,108 @@ h2 {
         width: auto;
     }
     .tv-shows {
-        grid-template-columns: repeat(4, 1fr); /* Four columns on very large screens */
+        grid-template-columns: repeat(4, 1fr); /* Four columns */
     }
 }
 /* --- PART 1 END --- */
 /* --- tv_app/static/style.css --- */
-/* --- PART 2 START (Slideshow, Pagination, and /shows page styles) --- */
+/* --- PART 2 (Slideshow, Pagination, /shows styles - Compact) --- */
 
-/* --- Styles for shows.html (Available Shows Page) --- */
+/* --- Styles for shows.html --- */
+.shows-container { max-width: 1200px; margin: 0 auto; padding: 20px; padding-top: 80px; box-sizing: border-box; }
+.filters-container { margin-bottom: 20px; background-color: #222; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5); display: flex; flex-wrap: wrap; justify-content: space-between; border-bottom: 1px solid #333; padding-bottom: 10px;}
+.sort-options { margin-bottom: 15px; display: flex; align-items: center;}
+.sort-options a { margin-right:15px; color: #fff; font-size: 0.9em; text-decoration: none; padding: 6px 10px; border-radius: 4px; background-color: #333; border: 1px solid #555; transition: background-color 0.3s ease; display: inline-block;}
+.sort-options a:hover, .filter-group a:hover { text-decoration:underline; }
+.active-sort { font-weight: bold; color: #e50914; text-decoration: none; }
 
-.shows-container { /* Added for overall page layout */
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 20px;
-    padding-top: 80px; /* Account for fixed navbar */
-    box-sizing: border-box;
-}
+.filter-group { margin-bottom: 15px; display: flex; flex-direction: column;}
+.filter-group label { color: #fff; font-size: 0.9em; font-weight: bold; margin-bottom: 5px; }
+.filter-group a { color:#fff; margin-right: 15px; font-size: 0.8em; text-decoration: none; padding: 6px 10px; border-radius: 4px; background-color: #333; border: 1px solid #555; transition: background-color 0.3s ease; display: inline-block;}
+.filter-form { display: inline-block; margin-top: 5px;}
+.filter-form input, .filter-form button { padding: 6px 10px; border-radius: 4px; margin-right: 5px; font-size: 0.8em;}
+.filter-form input[type="text"], .filter-form input[type="number"] { border: 1px solid #555; background-color: #333; color: white; }
+.filter-form button { background-color: #e50914; color: white; border: none; cursor: pointer; }
 
-.filters-container { /* Added for filter/sort container */
-    display: flex;
-    flex-wrap: wrap; /* Allow wrapping on smaller screens */
-    justify-content: space-between; /* Space out filter groups */
-    margin-bottom: 20px;
-    border-bottom: 1px solid #333;
-    padding-bottom: 10px;
+.shows-list { list-style: none; padding: 0; margin:0; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 15px; }
+.show-item { text-align: center; }
+.show-link { background-color: #222; color: #fff; padding: 15px; border-radius: 8px; text-decoration: none;
+    transition: background-color 0.3s ease, transform 0.2s ease; display: block; font-size: 1em; font-weight: bold;
+    font-family: 'Netflix Sans', sans-serif; border: 1px solid #333; height: 100%; box-sizing: border-box;
 }
-
-.sort-options { /* For sorting links */
-    display: flex;
-    align-items: center; /* Vertically center links */
-    margin-bottom: 10px; /* Space below sort options */
-}
-.sort-options a {
-	margin-right:15px; /* Space between links*/
-	color: #fff;
-	font-size: 0.9em;
-}
-
-.filter-group { /* For each filter group (genre, year, rating) */
-    display: flex;
-    flex-direction: column; /* Stack label and form vertically */
-    margin-bottom: 10px; /* Space between filter groups */
-}
-.filter-group label{
-	color: #fff;
-	font-size: 0.9em;
-	font-weight: bold;
-	margin-bottom: 5px;
-}
-
-.filter-form {
-    display: flex; /* Horizontal layout for input and button */
-    align-items: center; /* Vertically center items */
-    margin-top: 5px;
-}
-.filter-form input, .filter-form button{
-	padding: 6px 10px;
-	border-radius: 4px;
-	margin-right: 5px;
-	font-size: 0.8em;
-}
-
-.filter-form input[type="text"],
-.filter-form input[type="number"] {
-    border: 1px solid #555;
-    background-color: #333;
-    color: white;
-}
-
-.filter-form button { /* Style for filter buttons */
-    background-color: #e50914; /* Netflix red */
-    color: white;
-    border: none;
-    cursor: pointer;
-}
- .filter-group a{
- 	color:#fff;
- 	margin-right: 15px;
- 	font-size: 0.8em;
- }
-  .filter-group a:hover, .sort-options a:hover{
-  	text-decoration:underline;
-  }
-
-.shows-list {
-    list-style: none; /* Remove bullet points */
-    padding: 0;
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); /* Responsive columns */
-    gap: 15px;
-}
-
-.show-item {
-    /* Removed background and border, as those are on the link */
-    text-align: center; /* Center the link inside the item */
-}
-
-.show-link {
-    background-color: #222; /* Dark background for link */
-    color: #fff;
-    padding: 15px;
-    border-radius: 8px;
-    text-decoration: none;
-    transition: background-color 0.3s ease, transform 0.2s ease; /* Added transform */
-    display: block; /* Make the link fill the container */
-    font-size: 1em;
-    font-weight: bold;
-    font-family: 'Netflix Sans', sans-serif;
-    border: 1px solid #333;
-     height: 100%; /* Make the link fill the list item */
-    box-sizing: border-box; /* Include padding and border in height */
-}
-
-.show-link:hover {
-    background-color: #333;
-    transform: scale(1.05); /* Slightly enlarge on hover */
-}
-
-/*Active Sort Link*/
-.active-sort {
-    font-weight: bold;
-    color: #e50914;
-    text-decoration: none;
-}
+.show-link:hover { background-color: #333; transform: scale(1.05); }
 
 /* --- Loader --- */
-
-.telegram-loader { /*  Keep, but you'll need to add/remove this class dynamically */
-    width: 48px;
-    height: 48px;
-    border-radius: 50%;
-    position: relative;
-    animation: rotate 1s linear infinite;
-}
-
-.telegram-loader::before,
-.telegram-loader::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    border-radius: 50%;
-    border: 5px solid #fff;
-    animation: pulse 1.5s ease-out infinite;
-}
-
-.telegram-loader::after {
-    border-color: #007bff;
-    animation-delay: 1s;
-}
-
-@keyframes rotate {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-}
-
-@keyframes pulse {
-    0%, 100% { transform: scale(0); opacity: 1; }
-    50% { transform: scale(1); opacity: 0.5; }
-}
+.telegram-loader { width: 48px; height: 48px; border-radius: 50%; position: relative; animation: rotate 1s linear infinite; }
+.telegram-loader::before, .telegram-loader::after { content: ""; position: absolute; inset: 0; border-radius: 50%; border: 5px solid #fff; animation: pulse 1.5s ease-out infinite; }
+.telegram-loader::after { border-color: #007bff; animation-delay: 1s; }
+@keyframes rotate { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+@keyframes pulse { 0%, 100% { transform: scale(0); opacity: 1; } 50% { transform: scale(1); opacity: 0.5; } }
 
 /* --- Pagination --- */
-
-.pagination {
-    text-align: center;
-    margin-top: 20px;
-    clear: both;
-     display: flex; /* Use flexbox */
-    justify-content: center; /* Center horizontally */
-    align-items: center;
-}
-
-.pagination a {
-    padding: 5px 10px;
-    text-decoration: none;
-    color: #007bff;
-    border: 1px solid #333;
-    margin: 0 3px;
-    border-radius: 5px;
-     display: inline-block; /* Ensure proper spacing */
-}
-
-.pagination a:hover {
-    background-color: rgba(255, 255, 255, 0.1);
-    color: white;
-}
-
-.pagination .current-page {
-    padding: 5px 10px;
-    margin: 0 3px;
-    border-radius: 5px;
-    background-color: #007bff;
-    color: white;
-    border: 1px solid #007bff;
-    display: inline-block; /* Ensure proper spacing */
-}
-.pagination span{
-	color:#fff;
-	margin:0 8px;
-}
+.pagination { text-align: center; margin-top: 20px; clear: both; display: flex; justify-content: center; align-items: center; }
+.pagination a { padding: 5px 10px; text-decoration: none; color: #007bff; border: 1px solid #333; margin: 0 3px; border-radius: 5px; display: inline-block; }
+.pagination a:hover { background-color: rgba(255, 255, 255, 0.1); color: white; }
+.pagination .current-page { padding: 5px 10px; margin: 0 3px; border-radius: 5px; background-color: #007bff; color: white; border: 1px solid #007bff; display: inline-block;}
+.pagination span{ color:#fff; margin:0 8px; }
 
 /* --- Download Button --- */
-
-.download-button {
-    display: inline-block; /* Or block, depending on layout */
-    padding: 10px 20px;
-    font-size: 1.1em;
-    background-color: #e50914; /* Netflix red */
-    color: white;
-    text-decoration: none;
-    border-radius: 5px;
-    transition: background-color: 0.3s ease;
-    border: none;
-    cursor: pointer;
-    margin-top: 10px;
+.download-button { display: inline-block; padding: 10px 20px; font-size: 1.1em; background-color: #e50914; color: white; text-decoration: none; border-radius: 5px;
+    transition: background-color 0.3s ease; border: none; cursor: pointer; margin-top: 10px;
 }
-
-.download-button:hover {
-    background-color: #b20710; /* Darker red on hover */
-}
+.download-button:hover { background-color: #b20710; }
 
 /* --- Slideshow --- */
-/*Keep slideshow styles*/
-.slideshow-container {
-    position: relative;
-    width: 100%;
-    overflow: hidden;
-    border-radius: 8px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.6);
-    margin-bottom: 30px;
-}
-/* --- Mobile Slideshow --- */
+.slideshow-container { position: relative; width: 100%; overflow: hidden; border-radius: 8px; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.6); margin-bottom: 30px;}
 
-.mobile-slideshow {
-    height: auto;
-}
-
-.mobile-slideshow .slideshow-inner {
-    display: flex;
-    overflow-x: hidden;
-    scroll-snap-type: x mandatory;
-    scroll-behavior: smooth;
-    -webkit-overflow-scrolling: touch;
-    width: 100%;
-    justify-content: center;
-}
-
+/* Mobile Slideshow */
+.mobile-slideshow { height: auto; }
+.mobile-slideshow .slideshow-inner { display: flex; overflow-x: hidden; scroll-snap-type: x mandatory; scroll-behavior: smooth; -webkit-overflow-scrolling: touch; width: 100%; justify-content: center; }
 .mobile-slideshow .slideshow-inner::-webkit-scrollbar { display: none; }
 .mobile-slideshow .slideshow-inner { -ms-overflow-style: none; scrollbar-width: none; }
+.mobile-slideshow .mySlides { flex: 0 0 90vw; scroll-snap-align: center; margin: 0 5vw; position: relative; border-radius: 8px; overflow: hidden; display: none; transition: opacity 0.4s ease, transform 0.4s ease; }
+.mobile-slideshow .mySlides.active-slide { opacity: 1; transform: scale(1); z-index: 2; margin: 0;}
+.mobile-slideshow .mySlides:not(.active-slide){ filter: brightness(0.5) blur(2px); transform: scale(0.8);}
+.mobile-slideshow .slideshow-image { width: 100%; height: auto; object-fit: cover; display: block; border-radius: 8px; }
+.mobile-slideshow .slide-caption { position: absolute; bottom: 0; left: 0; right: 0; background-color: rgba(0, 0, 0, 0.7); color: white; padding: 10px; border-radius: 0 0 8px 8px; font-size: 0.9em; font-weight: bold; text-align: center; width: auto; white-space: nowrap; z-index: 3; }
+.mobile-slideshow .prev, .mobile-slideshow .next { cursor: pointer; position: absolute; top: 50%; transform: translateY(-50%); width: auto; padding: 16px; color: white; font-weight: bold; font-size: 20px; transition: 0.6s ease; user-select: none; z-index: 3; background: rgba(0, 0, 0, 0.4); border: none; border-radius: 5px;}
+.mobile-slideshow .next { right: 0; border-radius: 5px 0 0 5px; }
+.mobile-slideshow .prev { left: 0; border-radius: 0 5px 5px 0; }
+.mobile-slideshow .prev:hover, .mobile-slideshow .next:hover { background-color: rgba(0, 0, 0, 0.8); }
+.mobile-slideshow .slideshow-dots { text-align: center; margin-top: 10px; }
+.mobile-slideshow .dot { height: 10px; width: 10px; margin: 0 5px; background-color: #bbb; border-radius: 50%; display: inline-block; transition: background-color 0.6s ease; cursor: pointer; }
+.mobile-slideshow .dot.active-dot { background-color: #e50914; }
 
-.mobile-slideshow .mySlides {
-    flex: 0 0 90vw;
-    scroll-snap-align: center;
-    margin: 0 5vw;
-    position: relative;
-    border-radius: 8px;
-    overflow: hidden;
-    display: none;
-    transition: opacity 0.4s ease, transform 0.4s ease;
-
-}
-
-.mobile-slideshow .mySlides.active-slide {
-	opacity: 1;
-	transform: scale(1);
-	z-index: 2;
-     margin: 0;
-}
-.mobile-slideshow .mySlides:not(.active-slide){
-        filter: brightness(0.5) blur(2px);
-    transform: scale(0.8);
-}
-
-.mobile-slideshow .slideshow-image {
-    width: 100%;
-    height: auto;
-    object-fit: cover;
-    display: block;
-    border-radius: 8px;
-}
-.mobile-slideshow .slide-caption {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    background-color: rgba(0, 0, 0, 0.7);
-    color: white;
-    padding: 10px;
-    border-radius: 0 0 8px 8px;
-    font-size: 0.9em;
-    font-weight: bold;
-    text-align: center;
-    width: auto;
-    white-space: nowrap;
-    z-index: 3;
-}
-
-.mobile-slideshow .prev,
-.mobile-slideshow .next {
-    cursor: pointer;
-    position: absolute;
-    top: 50%;
-    transform: translateY(-50%);
-    width: auto;
-    padding: 16px;
-    color: white;
-    font-weight: bold;
-    font-size: 20px;
-    transition: 0.6s ease;
-    user-select: none;
-    z-index: 3;
-    background: rgba(0, 0, 0, 0.4);
-    border: none;
-    border-radius: 5px;
-}
-
-.mobile-slideshow .next {
-    right: 0;
-    border-radius: 5px 0 0 5px;
-}
-
-.mobile-slideshow .prev {
-    left: 0;
-    border-radius: 0 5px 5px 0;
-}
-
-.mobile-slideshow .prev:hover,
-.mobile-slideshow .next:hover {
-    background-color: rgba(0, 0, 0, 0.8);
-}
-
-.mobile-slideshow .slideshow-dots {
-    text-align: center;
-    margin-top: 10px;
-}
-
-.mobile-slideshow .dot {
-    height: 10px;
-    width: 10px;
-    margin: 0 5px;
-    background-color: #bbb;
-    border-radius: 50%;
-    display: inline-block;
-    transition: background-color: 0.6s ease;
-    cursor: pointer;
-}
-
-.mobile-slideshow .dot.active-dot {
-    background-color: #e50914;
-}
-
-/* --- Desktop Slideshow --- */
-
-.desktop-slideshow {
-    display: none;
-    height: 280px;
-    position: relative;
-    width: 100%;
-    overflow: hidden;
-}
-
-.desktop-slideshow .slideshow-inner {
-    display: flex;
-    width: 100%;
-    height: 100%;
-    align-items: center;
-     transition: transform 0.5s ease;
-}
-
-.desktop-slideshow .mySlides {
-    flex: 0 0 auto;
-    width: calc((100% / 5) - 16px);
-    margin: 0 8px;
-    height: 90%;
-    transition: transform 0.5s ease, opacity 0.5s ease, filter 0.5s ease;
-    position: relative;
-    border-radius: 8px;
-    overflow: hidden;
-    display: none;
-}
-.desktop-slideshow .mySlides.active-slide{
-     opacity: 1;
-    transform: scale(1.1);
-    z-index: 2;
-}
-.desktop-slideshow .mySlides:not(.active-slide){
-     filter: brightness(0.5) blur(1px);
-    transform: scale(0.8);
-}
-.desktop-slideshow .slideshow-image{
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: block;
-     border-radius: 8px;
-}
-.desktop-slideshow .slide-caption{
-    position: absolute;
-    bottom: 10px;
-    left: 50%;
-    transform: translateX(-50%);
-    background-color: rgba(0, 0, 0, 0.7);
-    color: white;
-    padding: 5px 10px;
-    border-radius: 5px;
-    font-size: 0.9em;
-    font-weight: bold;
-    text-align: center;
-    width: auto;
-    white-space: nowrap;
-     z-index: 3;
-}
-.desktop-slideshow .prev,
-.desktop-slideshow .next{
-     cursor: pointer;
-    position: absolute;
-    top: 50%;
-    transform: translateY(-50%);
-    width: auto;
-    padding: 16px;
-    color: white;
-    font-weight: bold;
-    font-size: 20px;
-    transition: background-color 0.6s ease;
-    user-select: none;
-    z-index: 3;
-    background: rgba(0, 0, 0, 0.4);
-    border: none;
-    border-radius: 5px;
-}
-.desktop-slideshow .next{
-     right: 0;
-    border-radius: 5px 0 0 5px;
-}
-.desktop-slideshow .prev{
-    left: 0;
-    border-radius: 0 5px 5px 0;
-}
-.desktop-slideshow .prev:hover,
-.desktop-slideshow .next:hover{
-   background-color: rgba(0, 0, 0, 0.8);
-}
+/* Desktop Slideshow */
+.desktop-slideshow { display: none; height: 280px; position: relative; width: 100%; overflow: hidden; }
+.desktop-slideshow .slideshow-inner { display: flex; width: 100%; height: 100%; align-items: center; transition: transform 0.5s ease; }
+.desktop-slideshow .mySlides { flex: 0 0 auto; width: calc((100% / 5) - 16px); margin: 0 8px; height: 90%; transition: transform 0.5s ease, opacity 0.5s ease, filter 0.5s ease; position: relative; border-radius: 8px; overflow: hidden; display: none;}
+.desktop-slideshow .mySlides.active-slide{ opacity: 1; transform: scale(1.1); z-index: 2; }
+.desktop-slideshow .mySlides:not(.active-slide){ filter: brightness(0.5) blur(1px); transform: scale(0.8);}
+.desktop-slideshow .slideshow-image{ width: 100%; height: 100%; object-fit: cover; display: block; border-radius: 8px;}
+.desktop-slideshow .slide-caption{ position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%); background-color: rgba(0, 0, 0, 0.7); color: white; padding: 5px 10px; border-radius: 5px; font-size: 0.9em; font-weight: bold; text-align: center; width: auto; white-space: nowrap; z-index: 3;}
+.desktop-slideshow .prev, .desktop-slideshow .next{ cursor: pointer; position: absolute; top: 50%; transform: translateY(-50%); width: auto; padding: 16px; color: white; font-weight: bold; font-size: 20px; transition: background-color 0.6s ease; user-select: none; z-index: 3; background: rgba(0, 0, 0, 0.4); border: none; border-radius: 5px;}
+.desktop-slideshow .next{ right: 0; border-radius: 5px 0 0 5px; }
+.desktop-slideshow .prev{ left: 0; border-radius: 0 5px 5px 0; }
+.desktop-slideshow .prev:hover, .desktop-slideshow .next:hover{ background-color: rgba(0, 0, 0, 0.8); }
 
 /* --- Responsive Adjustments --- */
-
 @media (max-width: 768px) {
-    .desktop-slideshow {
-        display: none; /* Hide on smaller screens */
-    }
-    .mobile-slideshow {
-        display: block; /* Ensure mobile slideshow is visible */
-    }
-	 .filters-container{
-		 flex-direction:column;
-	 }
+    .desktop-slideshow { display: none; }
+    .mobile-slideshow { display: block; }
+    .filters-container{ flex-direction:column; }
 }
-   @media (min-width: 992px) and (max-width: 1199px) {
-        .desktop-slideshow .mySlides {
-           width: calc((100% / 4) - 16px);
-           margin: 0 8px;
-        }
-         .mobile-slideshow{
-            display:none
-         }
-         .desktop-slideshow{
-            display:block;
-         }
-    }
+@media (min-width: 992px) and (max-width: 1199px) {
+    .desktop-slideshow .mySlides { width: calc((100% / 4) - 16px); margin: 0 8px;}
+    .mobile-slideshow{ display:none }
+    .desktop-slideshow{ display:block; }
+}
+@media (min-width: 1200px) {
+    .desktop-slideshow .mySlides { width: calc((100% / 5) - 16px); margin: 0 8px; }
+    .mobile-slideshow{ display:none }
+    .desktop-slideshow{ display:block; }
+}
 
-    @media (min-width: 1200px) {
-
-          .desktop-slideshow .mySlides {
-           width: calc((100% / 5) - 16px);
-            margin: 0 8px;
-        }
-         .mobile-slideshow{
-            display:none
-         }
-         .desktop-slideshow{
-            display:block;
-         }
-    }
 /* --- PART 2 END --- */
 /* --- tv_app/static/style.css --- */
 /* --- PART 3 START (Styles for show_details.html) --- */
@@ -818,7 +432,7 @@ h2 {
     padding: 20px;
     max-width: 800px; /* Limit width on larger screens */
     margin: 0 auto;  /* Center the container */
-        padding-top: 80px; /*For the fixed Navbar*/
+    padding-top: 80px; /*For the fixed Navbar*/
 
 }
 
@@ -887,7 +501,7 @@ h2 {
     color: white;
     text-decoration: none;
     border-radius: 5px;
-    transition: background-color: 0.3s ease;
+    transition: background-color 0.3s ease;
     border: none;
     cursor: pointer;
     margin-top:10px; /*Margin to the overview*/
