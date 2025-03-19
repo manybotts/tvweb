@@ -1,13 +1,12 @@
 # tv_app/app.py
 import os
 from flask import Flask, render_template, redirect, url_for, request, jsonify
-from .tasks import update_tv_shows, test_task, normalize_string  # Import normalize_string
+from .tasks import update_tv_shows, test_task, normalize_string
 from .models import db, TVShow
-from sqlalchemy import desc
+from sqlalchemy import desc, func
 from dotenv import load_dotenv
 import logging
-from thefuzz import process, fuzz  # Import thefuzz
-
+from thefuzz import process, fuzz
 
 load_dotenv()
 
@@ -15,92 +14,60 @@ app = Flask(__name__)
 app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "your_secret_key")
 app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get(
     "DATABASE_URL", "sqlite:///tv_shows.db"
-)  # Default to SQLite
+)
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 db.init_app(app)
 
-# Configure logging
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
-# --- Database Operations ---
-
-
 def get_trending_shows(limit=5):
-    """Retrieves the top 'limit' trending shows, ordered by clicks."""
     return TVShow.query.order_by(TVShow.clicks.desc()).limit(limit).all()
-
-
-# --- Routes ---
-
 
 @app.route("/")
 def index():
-    """Homepage: displays TV shows with pagination, improved search, and trending shows."""
     search_query = request.args.get("search", "")
     page = request.args.get("page", 1, type=int)
     per_page = 10
-    message = None  # Initialize message
+    message = None
 
     if search_query:
-        normalized_query = normalize_string(search_query)  # Normalize the query
-
-        # 1. Exact Match (Highest Priority)
-        exact_match = (
-            TVShow.query.filter(TVShow.show_name == normalized_query).first()
-        )
-
-        # 2. Partial Match (Using SQLAlchemy's ilike)
-        partial_matches = TVShow.query.filter(
-            TVShow.show_name.ilike(f"%{normalized_query}%")
-        ).all()
-
-        # 3. Fuzzy Matching (for Related Results)
+        normalized_query = normalize_string(search_query)
+        exact_match = TVShow.query.filter(TVShow.show_name == normalized_query).first()
+        partial_matches = TVShow.query.filter(TVShow.show_name.ilike(f"%{normalized_query}%")).all()
         all_show_names = [show.show_name for show in TVShow.query.all()]
-        # NO LIMIT HERE
         fuzzy_matches = process.extract(normalized_query, all_show_names)
 
-
-        # Combine and Prioritize Results
         results = []
         if exact_match:
             results.append(exact_match)
         for show in partial_matches:
             if show not in results:
                 results.append(show)
-
-        # --- ADDED SCORE THRESHOLD ---
         for show_name, score in fuzzy_matches:
-            if score >= 60:  #  Only include fuzzy matches with a score of 60 or higher
+            if score >= 60:
                 show = TVShow.query.filter_by(show_name=show_name).first()
                 if show and show not in results:
                     results.append(show)
 
-        # Paginate the combined results
         shows = paginate_results(results, page, per_page)
 
-        # Check if any results were found
         if not shows.items:
             message = (
                 f"No shows found matching '{search_query}'. Here are some similar shows:"
             )
-            # If no exact or partial matches, show related (fuzzy) results
-            shows = paginate_results(
-                results, page, per_page
-            )  # paginate all results, including fuzzy.
-            if not shows.items:  # still empty after fuzzy?
+            shows = paginate_results(results, page, per_page)
+            if not shows.items:
                 message = f"No shows found matching '{search_query}'. Displaying all shows."
                 shows = (
                     TVShow.query.order_by(TVShow.created_at.desc())
                     .paginate(page=page, per_page=per_page, error_out=False)
                 )
-
-        trending_shows = []  # No trending shows if it's a search
+        trending_shows = []
 
     else:
-        # No search query: display all shows, ordered by creation date
         shows = (
             TVShow.query.order_by(TVShow.created_at.desc())
             .paginate(page=page, per_page=per_page, error_out=False)
@@ -169,21 +136,17 @@ class CustomPagination:
 
 @app.route("/show/<int:show_id>")
 def show_details(show_id):
-    """Displays details for a single TV show and increments its click count."""
-    show = TVShow.query.get_or_404(show_id)  # Use get_or_404 with the primary key
+    show = TVShow.query.get_or_404(show_id)
     show.clicks += 1
     db.session.commit()
     return render_template("show_details.html", show=show)
 
-
 @app.route("/redirect/<int:show_id>")
 def redirect_to_download(show_id):
-    """Redirects to the download link for a TV show."""
-    show = TVShow.query.get_or_404(show_id)  # Use get_or_404 with the primary key
+    show = TVShow.query.get_or_404(show_id)
     if show.download_link:
         return redirect(show.download_link)
     return "Show or link not found", 404
-
 
 @app.route("/shows")
 def list_shows():
@@ -194,8 +157,8 @@ def list_shows():
     filter_year = request.args.get("year")
     filter_rating = request.args.get("rating")
 
-    # Start with a base query that selects distinct show names.
-    query = TVShow.query.distinct(TVShow.show_name)
+    # Start with a base query
+    query = TVShow.query
 
     # Apply filtering
     if filter_genre:
@@ -214,9 +177,10 @@ def list_shows():
             query = query.filter(TVShow.vote_average >= filter_rating)
         except ValueError:
             pass
-    # Apply sorting.  Crucially, we sort *after* filtering.
+
+    # Apply sorting *before* distinct, and use the correct column
     if sort_by == "name":
-        query = query.order_by(TVShow.show_name)  # Now we can order correctly
+        query = query.order_by(TVShow.show_name)
     elif sort_by == "popularity":
         query = query.order_by(TVShow.clicks.desc())
     elif sort_by == "year":
@@ -224,18 +188,24 @@ def list_shows():
     elif sort_by == "rating":
         query = query.order_by(TVShow.vote_average.desc())
 
-    # Paginate the query *after* filtering and sorting
+    # *Now* apply distinct, after filtering and sorting
+    query = query.distinct(TVShow.show_name)
+    # To make distinct work with order by in postgreql
+    query = query.order_by(TVShow.show_name)
+
+
+    # Paginate the query *after* filtering, sorting, and distinct
     shows_paginated = query.paginate(page=page, per_page=per_page, error_out=False)
+
 
     return render_template(
         "shows.html",
         shows=shows_paginated,  # Pass the pagination object
-        sort_by=sort_by,
-        filter_genre=filter_genre,
-        filter_year=filter_year,
-        filter_rating=filter_rating,
+        sort_by=sort_by,        # Pass current sort
+        filter_genre=filter_genre,  # Pass current genre filter
+        filter_year=filter_year,   # Pass current year filter
+        filter_rating=filter_rating,  # Pass current rating filter
     )
-
 
 @app.route("/update", methods=["POST"])
 def update():
@@ -258,8 +228,6 @@ def delete_all_shows():
     except Exception as e:
         db.session.rollback()
         return jsonify({"message": f"Error deleting shows: {str(e)}"}), 500
-
-
 # --- Error Handlers ---
 
 
