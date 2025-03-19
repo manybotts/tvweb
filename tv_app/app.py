@@ -1,12 +1,12 @@
 # tv_app/app.py
 import os
 from flask import Flask, render_template, redirect, url_for, request, jsonify
-from .tasks import update_tv_shows, test_task, normalize_string  # Corrected import
-from .models import db, TVShow  # Corrected import
-from sqlalchemy import desc
+from .tasks import update_tv_shows, test_task, normalize_string  # Import normalize_string
+from .models import db, TVShow
+from sqlalchemy import desc, func
 from dotenv import load_dotenv
 import logging
-from thefuzz import process, fuzz
+from thefuzz import process, fuzz  # Import thefuzz
 import datetime  # Import datetime
 
 
@@ -216,9 +216,10 @@ def list_shows():
             query = query.filter(TVShow.vote_average >= filter_rating)
         except ValueError:
             pass
-    # Apply sorting.  Crucially, we sort *after* filtering.
+
+    # Apply sorting *before* distinct
     if sort_by == "name":
-        query = query.order_by(TVShow.show_name)  # Now we can order correctly
+        query = query.order_by(TVShow.show_name)
     elif sort_by == "popularity":
         query = query.order_by(TVShow.clicks.desc())
     elif sort_by == "year":
@@ -226,21 +227,18 @@ def list_shows():
     elif sort_by == "rating":
         query = query.order_by(TVShow.vote_average.desc())
 
-    # *Now* apply distinct, after filtering and sorting
-    query = query.distinct(TVShow.show_name)
-    # To make distinct work with order by in postgreql
-    query = query.order_by(TVShow.show_name)
-
+    # *Now* apply distinct, after filtering and sorting, AND order by show_name FIRST
+    query = query.distinct(TVShow.show_name).order_by(TVShow.show_name)
 
     # Paginate the query *after* filtering, sorting, and distinct
     shows_paginated = query.paginate(page=page, per_page=per_page, error_out=False)
-
-    #Get unique genres
+     # Get all unique genres for the filter (from existing shows)
     all_genres = set()
-    for show in TVShow.query.all():
-        if show.genre:
-            all_genres.update(show.genre.split(', '))
+    for show in TVShow.query.all():  # Consider optimizing if you have many shows
+        if show.genre:  # Check if genre is not None
+            all_genres.update(show.genre.split(', '))  # Split and add to set
     all_genres = sorted(list(all_genres))
+
 
     return render_template(
         "shows.html",
@@ -249,10 +247,9 @@ def list_shows():
         filter_genre=filter_genre,  # Pass current genre filter
         filter_year=filter_year,   # Pass current year filter
         filter_rating=filter_rating,  # Pass current rating filter
-        now = now, # Pass now to template,
+        now = now, # Pass now to template
         all_genres = all_genres
     )
-
 
 @app.route("/update", methods=["POST"])
 def update():
