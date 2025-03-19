@@ -1,5 +1,5 @@
 /* --- tv_app/static/style.css --- */
-/* --- PART 1 START (Revised - Preserving Original) --- */
+/* --- PART 1 START (Revised - Preserving Original, with index.html fixes) --- */
 
 /* --- General Styles --- */
 
@@ -18,7 +18,7 @@ body {
     margin: auto;
     overflow: hidden;
     padding: 20px;
-    padding-top: 80px;  /* Account for fixed navbar */
+    padding-top: 80px; /* Account for fixed navbar */
     box-sizing: border-box;
 }
 
@@ -72,7 +72,7 @@ h2 {
 .nav-links {
     display: flex;
     align-items: center;
-    margin-right: auto;  /* Push iBOX TV and search to the right */
+    margin-right: auto; /* Push iBOX TV and search to the right */
     margin-left: 20px;
 }
 
@@ -102,7 +102,7 @@ h2 {
     font-weight: bold;
     font-size: 1em;  /*  same size as nav-links */
     font-family: 'Panton Rust', 'Helvetica Neue', Helvetica, Arial, sans-serif;
-    margin-left: auto;  /* Push to the right */
+    margin-left: auto; /* Push to the right */
     margin-right: 20px;
     white-space: nowrap;
 }
@@ -123,18 +123,19 @@ h2 {
     cursor: pointer;
     color: white;
     font-size: 1.2em;
+     /* Space after nav links */
 }
 
 .search-icon-button i {
-    pointer-events: none;  /* Prevent icon clicks from interfering */
+    pointer-events: none;
 }
 
 /* --- Floating Search Box (Initially Hidden) --- */
 
 .floating-search {
     position: absolute;
-    top: 65px;  /*  Below navbar. Adjust as needed. */
-    right: 20px;  /*  Right alignment */
+    top: 65px; /*  Below navbar. Adjust as needed. */
+    right: 20px; /*  Right alignment */
     background-color: #222;
     border: 1px solid #555;
     border-radius: 5px;
@@ -143,13 +144,12 @@ h2 {
     display: none; /* Initially hidden */
 }
 
-/* Style to show the search box when it has the 'active' class */
 .floating-search.active {
     display: block; /* Shown when active */
 }
 
 .floating-search form {
-    display: flex;
+    display: flex; /* Use flexbox for layout */
     align-items: center;
     padding: 5px;
 }
@@ -179,13 +179,13 @@ h2 {
     font-size: 1.2em;
     padding: 8px;
 }
-
-.floating-search .search-button:hover {
+.floating-search .search-button:hover{
      background-color: #0056b3;
 }
 
 /* --- Media Queries for Navbar --- */
-/* Hide link text on smaller screens */
+/* No changes needed here, we use the same search icon */
+/* Removed .desktop-search and .mobile-search-form specific rules */
 @media (max-width: 768px) {
 	.nav-link .link-text {
 		display: none;
@@ -193,13 +193,12 @@ h2 {
 }
 
 /* --- Icons --- */
-/* (These styles are applied to the <i> tags within the links/headings) */
 
 .eye-icon::before {
     font-family: "Font Awesome 6 Free";
-    content: "\f06e"; /* Eye icon */
+    content: "\f06e";
     margin-right: 8px;
-    color: #e50914; /* Netflix red */
+    color: #e50914;
     display: inline-block;
     font-weight: 900;
     font-size: 0.8em;
@@ -207,35 +206,36 @@ h2 {
 
 .new-icon::before {
     font-family: "Font Awesome 6 Free";
-    content: "\f058"; /* Checkmark circle icon */
+    content: "\f058";
     margin-right: 8px;
-    color: #90ee90; /* Light green */
+    color: #90ee90;
     display: inline-block;
     font-weight: 900;
     font-size: 0.8em;
 }
-
  .show-label-icon::before {
     font-family: "Font Awesome 6 Free";
-    content: "\f039";  /* List icon */
+    content: "\f039";
     margin-right: 8px;
     display: inline-block;
     font-weight: 900;
     font-size: 0.8em;
 }
 
-
-/* --- Show Card Styles (for Newly Added and Search Results on index.html) --- */
+/* --- Show Card Styles (for Newly Added and Search Results) --- */
+/* These styles are now applied on index.html */
 
 .tv-shows {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); /* Responsive columns */
     gap: 20px;
-    padding: 20px 0; /* Padding at top and bottom */
+    padding: 20px 0;  /*Padding at top and bottom, not sides*/
 }
-
+/*Show Card*/
 .show-card {
     border: 1px solid #333;
+    padding: 15px;  /*Reduce padding*/
+    box-sizing: border-box;
     background-color: #222;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.6);
     transition: transform 0.3s ease;
@@ -243,10 +243,9 @@ h2 {
     overflow: hidden;
     display: flex;
     flex-direction: column;
-    height: 100%; /* Fill grid cell height */
-    box-sizing: border-box;
+    margin-bottom: 20px;
+     height: 100%;
 }
-
 .show-card:hover {
 	transform: translateY(-7px);
 }
@@ -254,429 +253,200 @@ h2 {
 .show-card a {
     text-decoration: none;
     color: inherit;
-    display: flex;
-    flex-direction: column;
-    flex-grow: 1; /* Make link fill card */
+    display: block;
+     flex-grow: 1; /* Allow the link to fill the card */
+     display: flex;
+     flex-direction: column;
 }
 
 .show-card img {
-    width: 100%;
-    height: auto;
+    width: 100%; /* Full width of the card */
+    height: auto; /* Maintain aspect ratio */
     border-radius: 4px;
-    margin-bottom: 10px;
+     margin-bottom: 10px;
+
 }
 
-.show-card h3 {
-    font-size: 1em;
+.show-card h3 { /* Use h3 for show titles */
+    font-size: 1em; /* Responsive font size */
     margin-bottom: 5px;
     color: #e50914;
     font-family: 'Netflix Sans', sans-serif;
-    text-align: center;
-    margin-top: auto;  /* Push title to bottom */
-    padding: 0 10px;
+    text-align: center; /* Center-align show titles */
+    margin-top: auto; /* Title at the bottom */
+     padding: 0 10px;
 }
 
 .show-card p {
-    font-size: 0.9em;
+    font-size: 0.7em; /* Responsive font size */
     color: #aaa;
+    margin-bottom: 0;
+     margin-top: auto;
+      padding: 0 10px 10px 10px; /* Add some padding */
+       text-align: center;
+}
+/* Centered Episode Title */
+.episode-title{
     text-align: center;
-    margin-top: auto; /* Push to bottom */
-    padding: 0 10px 10px 10px;
-}
-/* --- PART 1 END --- */
-/* --- tv_app/static/style.css --- */
-/* --- PART 2 START (Revised - Preserving Original) --- */
-
-/* --- Slideshow Styles (for Trending Shows on index.html) --- */
-
-.slideshow-container {
-    position: relative;
-    max-width: 100%; /* Full width */
-    margin: auto;
-    overflow: hidden; /* Hide overflowing slides */
-}
-
-/* Container for the actual slides. JavaScript will manipulate this. */
-.slideshow-inner {
-    display: flex;
-    transition: transform 0.5s ease-in-out; /* Smooth transition */
-    width: 400%; /* 4 times the container width, for 4 slides */
-}
-
-.slideshow-item {
-    flex: 0 0 25%; /* Each slide takes 1/4 of the width */
-    box-sizing: border-box;
-    position: relative; /* Needed for absolute positioning of caption */
-}
-
-.slideshow-image {
-    width: 100%;
-    height: auto;
-    display: block; /* Remove extra space below image */
-}
-
-/* Caption on each slide */
-.slide-caption {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    background-color: rgba(0, 0, 0, 0.7);
-    color: #fff;
-    padding: 5px;
-    text-align: center;
-    font-size: 0.9em;
-    box-sizing: border-box;
-}
-
-/*Mobile Slideshow*/
- .mobile-slideshow .slideshow-controls {
-    text-align: center;
-    margin-top: 10px;
-}
- .mobile-slideshow  .prev, .mobile-slideshow .next {
-    cursor: pointer;
-    color: white;
-    font-size: 20px;
-    padding: 10px;
-    background-color: rgba(0,0,0,0.5);
-    border: none;
-    border-radius: 5px;
-    margin: 0 5px;
-    transition: background-color 0.3s;
-}
-
-.mobile-slideshow  .prev:hover, .mobile-slideshow .next:hover {
-    background-color: rgba(0,0,0,0.8);
-}
-
-.mobile-slideshow .slideshow-dots {
-     text-align: center;
-    margin-top: 10px;
-}
-
- .mobile-slideshow  .dot {
-    height: 10px;
-    width: 10px;
-    margin: 0 2px;
-    background-color: #bbb;
-    border-radius: 50%;
-    display: inline-block;
-    transition: background-color 0.6s ease;
-    cursor: pointer; /* Indicate interactivity */
-}
-
-/*Style the dots for each slides*/
- .mobile-slideshow  .dot.active, .mobile-slideshow .dot:hover  {
-  background-color: #2e86de; /* Brighter color for active/hover */
-}
-
-/* Hide desktop slide show by default*/
-.desktop-slideshow {
-    display: block; /* Hide by default, show on larger screens */
-}
-.mobile-slideshow{
-    display:none;
-}
-
-/* --- Media Queries for Slideshow --- */
-/* For mobile devices (portrait and landscape) */
-@media (max-width: 768px) {
-    .desktop-slideshow{
-        display:none;
-    }
-    .mobile-slideshow{
-        display:block;
-    }
-
-}
-
-/* --- Pagination Styles --- */
-
-/* Container for all pagination links */
-.pagination {
-    display: flex;
-    justify-content: center; /* Center the pagination links */
-    align-items: center; /* Vertically center */
-    margin-top: 20px;
-    padding: 10px;
-    background-color: #222;
-    border-radius: 5px;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
-}
-
-.pagination a, .pagination span {
-    padding: 8px 12px;
-    margin: 0 4px;
-    border-radius: 4px;
-    text-decoration: none;
-    color: #fff;
-    background-color: #333;
-    border: 1px solid #555;
-    transition: background-color 0.3s ease;
-}
-
-/* Currently selected page */
-.pagination .current-page {
-    background-color: #007bff;
-    border-color: #007bff;
+     margin-top: 5px;
     font-weight: bold;
 }
 
-.pagination a:hover {
-    background-color: #555;
+/* --- Larger screens --- */
+/* On larger screens, use a multi-column layout */
+/*@media (min-width: 769px) {
+   .tv-shows{
+     grid-template-columns: repeat(2, 1fr);
+        padding: 15px;
+        gap: 15px;
+   }
+
 }
 
-/* Disabled state for "Previous" and "Next" links */
-.pagination .disabled {
-    color: #666;
-    background-color: #333;
-    border-color: #555;
-    cursor: not-allowed;
+@media (min-width: 992px) {
+
+    .tv-shows {
+        grid-template-columns: repeat(3, 1fr);
+    }
 }
 
-/* Ellipsis (...) style */
-.pagination .ellipsis {
-    padding: 8px 12px;
-    margin: 0 4px;
-    color: #999;
-}
+@media (min-width: 1200px) {
 
-/* --- END OF PART 2 --- */
+    .tv-shows {
+        grid-template-columns: repeat(4, 1fr);
+    }
+}*/
+/* --- PART 1 END --- */
 /* --- tv_app/static/style.css --- */
-/* --- PART 3 START (Styles for /shows - No Explanations) --- */
+/* --- PART 2 START (Slideshow, Pagination, and /shows page styles) --- */
 
-/* Main container for the /shows page */
-.shows-container {
+/* --- Styles for shows.html (Available Shows Page) --- */
+
+.shows-container { /* Added for overall page layout */
     max-width: 1200px;
     margin: 0 auto;
     padding: 20px;
-    padding-top: 80px; /* For the fixed navbar */
+    padding-top: 80px; /* Account for fixed navbar */
     box-sizing: border-box;
 }
 
-/* Container for the filter and sort controls */
-.filters-container {
+.filters-container { /* Added for filter/sort container */
+    display: flex;
+    flex-wrap: wrap; /* Allow wrapping on smaller screens */
+    justify-content: space-between; /* Space out filter groups */
     margin-bottom: 20px;
-    background-color: #222;
-    padding: 15px;
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+    border-bottom: 1px solid #333;
+    padding-bottom: 10px;
 }
 
-/* Container for the "Sort by" links */
-.sort-options {
-    margin-bottom: 15px;
+.sort-options { /* For sorting links */
+    display: flex;
+    align-items: center; /* Vertically center links */
+    margin-bottom: 10px; /* Space below sort options */
 }
 
 .sort-options a {
-    color: #fff;
-    text-decoration: none;
-    padding: 6px 10px;
-    margin-right: 5px;
-    border-radius: 4px;
-    background-color: #333;
-    border: 1px solid #555;
-    transition: background-color 0.3s ease;
-    display: inline-block;
+    margin-right: 15px;
+	color: #fff;
+	font-size: 0.9em;
 }
 
-.sort-options a:hover {
-    background-color: #555;
-}
-
-/* Style for the currently active sort link */
-.sort-options .active-sort {
-    background-color: #007bff;
-    border-color: #007bff;
-    font-weight: bold;
-}
-
-/* Individual filter groups (Genre, Year, Rating) */
-.filter-group {
-    margin-bottom: 15px;
+.filter-group { /* For each filter group (genre, year, rating) */
+    display: flex;
+    flex-direction: column; /* Stack label and form vertically */
+    margin-bottom: 10px; /* Space between filter groups */
 }
 
 .filter-group label {
-    display: block;
-    margin-bottom: 5px;
-    font-weight: bold;
-    color: #ddd;
-}
-.filter-group a{
-	color:#fff;
-    text-decoration: none;
-    padding: 6px 10px;
-    margin-right: 5px;
-    border-radius: 4px;
-    background-color: #333;
-    border: 1px solid #555;
-    transition: background-color 0.3s ease;
-    display: inline-block;
-}
-.filter-group a:hover{
-	text-decoration:underline;
+	color: #fff;
+	font-size: 0.9em;
+	font-weight: bold;
+	margin-bottom: 5px;
 }
 
 .filter-form {
-    display: inline-block;
+    display: flex; /* Horizontal layout for input and button */
+    align-items: center; /* Vertically center items */
     margin-top: 5px;
+}
+
+.filter-form input, .filter-form button{
+	padding: 6px 10px;
+	border-radius: 4px;
+	margin-right: 5px;
+	font-size: 0.8em;
 }
 
 .filter-form input[type="text"],
 .filter-form input[type="number"] {
-    padding: 6px;
     border: 1px solid #555;
     background-color: #333;
-    color: #fff;
-    border-radius: 4px;
-    margin-right: 5px;
-    width: 120px;
+    color: white;
 }
 
-.filter-button {
-    padding: 6px 12px;
-    background-color: #007bff;
-    color: #fff;
+.filter-form button { /* Style for filter buttons */
+    background-color: #e50914; /* Netflix red */
+    color: white;
     border: none;
-    border-radius: 4px;
     cursor: pointer;
-    transition: background-color 0.3s ease;
+}
+ .filter-group a{
+ 	color:#fff;
+ 	margin-right: 15px;
+ 	font-size: 0.8em;
+ }
+  .filter-group a:hover, .sort-options a:hover{
+  	text-decoration:underline;
+  }
+
+/* Style the "All" links to stand out a bit less */
+.filter-group a[href*="sort="] { /* Selects links containing "sort=" */
+    color: #aaa; /* Lighter color */
+    font-weight: normal; /* Not bold */
 }
 
-.filter-button:hover {
-    background-color: #0056b3;
-}
-
-/* List of shows on /shows */
 .shows-list {
-    list-style: none;
+    list-style: none; /* Remove bullet points */
     padding: 0;
-    margin: 0;
-    display: grid;
+    display: grid;  /* Use a grid layout */
     grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); /* Responsive columns */
-    gap: 15px;
+    gap: 15px; /* Spacing between show items */
 }
 
 .show-item {
-    border: 1px solid #555;
-    background-color: #333;
-    border-radius: 4px;
-    overflow: hidden; /* Prevent content overflow */
+    text-align: center; /* Center the link text */
 }
 
 .show-link {
-    display: block; /* Make the entire item clickable */
-    padding: 10px;
+    background-color: #222; /* Dark background */
     color: #fff;
+    padding: 15px;
+    border-radius: 8px;
     text-decoration: none;
-    transition: background-color 0.3s ease;
-    text-align: center;
+    transition: background-color 0.3s ease, transform 0.2s ease; /* Smooth transitions */
+    display: block; /* Fill the container */
+    font-size: 1em;
+    font-weight: bold;
+    font-family: 'Netflix Sans', sans-serif; /* Consistent font */
+    border: 1px solid #333; /* Subtle border */
+    height: 100%; /* Fill the grid cell */
+    box-sizing: border-box;
 }
 
 .show-link:hover {
-    background-color: #444;
+    background-color: #333; /* Slightly lighter on hover */
+    transform: scale(1.05); /* Slightly enlarge on hover */
 }
 
-
-/* Styles for show_details.html */
-
-.show-details-container {
-    padding: 20px;
-    max-width: 800px; /* Limit width */
-    margin: 0 auto;
-}
-/* Banner area at the top */
-.show-details-banner {
-    width: 100%;
-    background-color: rgba(0, 0, 0, 0.5);
-    padding: 20px;
-    text-align: center;
-    margin-bottom: 20px;
-    border-radius: 5px;
-}
-
-.show-details-banner h1 {
-    font-size: 2.5em;
-    margin-bottom: 10px;
+/* Active Sort Link */
+.active-sort {
+    font-weight: bold;
     color: #e50914;
-    font-family: 'Netflix Sans', sans-serif;
-}
-
-.episode-title {
-    font-size: 1.2em;
-    color: #aaa;
-    font-weight: normal; /* Assuming you want it less bold than the heading */
-}
-
-/* Main content area */
-.show-details-content {
-    display: flex;          /* Flexbox for layout */
-    flex-direction: column; /* Default: Stack image above info */
-    gap: 20px;             /* Space between image and info */
-}
-
-.show-image-container {
-    width: 100%;          /* Full width in column layout */
-    text-align: center;   /* Center the image */
-}
-
-.show-image {
-    max-width: 100%;   /* Image won't overflow its container */
-    height: auto;
-    border-radius: 8px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.6);
-}
-
-.show-info {
-    width: 100%;           /* Full width in column layout */
-}
-
-/* Style the paragraphs within show-info */
-.show-info p {
-    margin-bottom: 15px;
-}
-
-.overview {
-    line-height: 1.4;
-    margin-bottom: 15px; /* Consistent spacing */
-}
-
-.download-button {
-    display: inline-block;
-    padding: 10px 20px;
-    font-size: 1.1em;
-    background-color: #e50914;
-    color: white;
     text-decoration: none;
-    border-radius: 5px;
-    transition: background-color 0.3s ease;
-    border: none;
-    cursor: pointer;
 }
 
-.download-button:hover {
-    background-color: #b20710;  /* Darker shade on hover */
-}
-
-/* --- Responsive Adjustments (show_details.html) --- */
-
-@media (min-width: 769px) {
-    .show-details-content {
-        flex-direction: row;  /* Side-by-side layout on larger screens */
-    }
-
-    .show-image-container {
-        width: 300px;        /* Fixed width for image container */
-        flex-shrink: 0;       /* Prevent image container from shrinking */
-    }
-
-    .show-info {
-        width: auto;          /* Info takes remaining space */
-    }
-}
-/* --- Styles for Loading Indicator --- */
-/*(Used this if poster path doesn't exist)*/
+/* --- Loader --- */
+/* Styles for loading indicator (optional, you can remove it if not used) */
 .telegram-loader {
     width: 48px;
     height: 48px;
@@ -709,4 +479,430 @@ h2 {
     0%, 100% { transform: scale(0); opacity: 1; }
     50% { transform: scale(1); opacity: 0.5; }
 }
+
+/* --- Pagination Styles --- */
+/* Container for all pagination links */
+
+.pagination {
+    text-align: center;
+    margin-top: 20px;
+    clear: both;
+     display: flex; /* Use flexbox */
+    justify-content: center; /* Center horizontally */
+    align-items: center;
+}
+
+.pagination a {
+    padding: 5px 10px;
+    text-decoration: none;
+    color: #007bff;
+    border: 1px solid #333;
+    margin: 0 3px;
+    border-radius: 5px;
+     display: inline-block; /* Ensure proper spacing */
+}
+
+.pagination a:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: white;
+}
+
+.pagination .current-page {
+    padding: 5px 10px;
+    margin: 0 3px;
+    border-radius: 5px;
+    background-color: #007bff;
+    color: white;
+    border: 1px solid #007bff;
+    display: inline-block; /* Ensure proper spacing */
+}
+.pagination span{
+	color:#fff;
+	margin:0 8px;
+}
+
+/* --- Download Button --- */
+.download-button {
+    display: inline-block; /* Or block, depending on layout */
+    padding: 10px 20px;
+    font-size: 1.1em;
+    background-color: #e50914; /* Netflix red */
+    color: white;
+    text-decoration: none;
+    border-radius: 5px;
+    transition: background-color 0.3s ease;
+    border: none;
+    cursor: pointer;
+    margin-top: 10px;
+}
+.download-button:hover {
+     background-color: #b20710;
+}
+/* --- Slideshow --- */
+/*Keep slideshow styles*/
+.slideshow-container {
+    position: relative;
+    width: 100%;
+    overflow: hidden;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.6);
+    margin-bottom: 30px;
+}
+/* --- Mobile Slideshow --- */
+
+.mobile-slideshow {
+    height: auto;
+}
+
+.mobile-slideshow .slideshow-inner {
+    display: flex;
+    overflow-x: hidden;
+    scroll-snap-type: x mandatory;
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+    width: 100%;
+    justify-content: center;
+}
+
+.mobile-slideshow .slideshow-inner::-webkit-scrollbar { display: none; }
+.mobile-slideshow .slideshow-inner { -ms-overflow-style: none; scrollbar-width: none; }
+
+.mobile-slideshow .mySlides {
+    flex: 0 0 90vw;
+    scroll-snap-align: center;
+    margin: 0 5vw;
+    position: relative;
+    border-radius: 8px;
+    overflow: hidden;
+    display: none;
+    transition: opacity 0.4s ease, transform 0.4s ease;
+
+}
+
+.mobile-slideshow .mySlides.active-slide {
+	opacity: 1;
+	transform: scale(1);
+	z-index: 2;
+     margin: 0;
+}
+.mobile-slideshow .mySlides:not(.active-slide){
+        filter: brightness(0.5) blur(2px);
+    transform: scale(0.8);
+}
+
+.mobile-slideshow .slideshow-image {
+    width: 100%;
+    height: auto;
+    object-fit: cover;
+    display: block;
+    border-radius: 8px;
+}
+.mobile-slideshow .slide-caption {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background-color: rgba(0, 0, 0, 0.7);
+    color: white;
+    padding: 10px;
+    border-radius: 0 0 8px 8px;
+    font-size: 0.9em;
+    font-weight: bold;
+    text-align: center;
+    width: auto;
+    white-space: nowrap;
+    z-index: 3;
+}
+
+.mobile-slideshow .prev,
+.mobile-slideshow .next {
+    cursor: pointer;
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: auto;
+    padding: 16px;
+    color: white;
+    font-weight: bold;
+    font-size: 20px;
+    transition: 0.6s ease;
+    user-select: none;
+    z-index: 3;
+    background: rgba(0, 0, 0, 0.4);
+    border: none;
+    border-radius: 5px;
+}
+
+.mobile-slideshow .next {
+    right: 0;
+    border-radius: 5px 0 0 5px;
+}
+
+.mobile-slideshow .prev {
+    left: 0;
+    border-radius: 0 5px 5px 0;
+}
+
+.mobile-slideshow .prev:hover,
+.mobile-slideshow .next:hover {
+    background-color: rgba(0, 0, 0, 0.8);
+}
+
+.mobile-slideshow .slideshow-dots {
+    text-align: center;
+    margin-top: 10px;
+}
+
+.mobile-slideshow .dot {
+    height: 10px;
+    width: 10px;
+    margin: 0 5px;
+    background-color: #bbb;
+    border-radius: 50%;
+    display: inline-block;
+    transition: background-color: 0.6s ease;
+    cursor: pointer;
+}
+
+.mobile-slideshow .dot.active-dot {
+    background-color: #e50914;
+}
+
+/* --- Desktop Slideshow --- */
+
+.desktop-slideshow {
+    display: none;
+    height: 280px;
+    position: relative;
+    width: 100%;
+    overflow: hidden;
+}
+
+.desktop-slideshow .slideshow-inner {
+    display: flex;
+    width: 100%;
+    height: 100%;
+    align-items: center;
+     transition: transform 0.5s ease;
+}
+
+.desktop-slideshow .mySlides {
+    flex: 0 0 auto;
+    width: calc((100% / 5) - 16px);
+    margin: 0 8px;
+    height: 90%;
+    transition: transform 0.5s ease, opacity 0.5s ease, filter 0.5s ease;
+    position: relative;
+    border-radius: 8px;
+    overflow: hidden;
+    display: none;
+}
+.desktop-slideshow .mySlides.active-slide{
+     opacity: 1;
+    transform: scale(1.1);
+    z-index: 2;
+}
+.desktop-slideshow .mySlides:not(.active-slide){
+     filter: brightness(0.5) blur(1px);
+    transform: scale(0.8);
+}
+.desktop-slideshow .slideshow-image{
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+     border-radius: 8px;
+}
+.desktop-slideshow .slide-caption{
+    position: absolute;
+    bottom: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: rgba(0, 0, 0, 0.7);
+    color: white;
+    padding: 5px 10px;
+    border-radius: 5px;
+    font-size: 0.9em;
+    font-weight: bold;
+    text-align: center;
+    width: auto;
+    white-space: nowrap;
+     z-index: 3;
+}
+.desktop-slideshow .prev,
+.desktop-slideshow .next{
+     cursor: pointer;
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: auto;
+    padding: 16px;
+    color: white;
+    font-weight: bold;
+    font-size: 20px;
+    transition: background-color 0.6s ease;
+    user-select: none;
+    z-index: 3;
+    background: rgba(0, 0, 0, 0.4);
+    border: none;
+    border-radius: 5px;
+}
+.desktop-slideshow .next{
+     right: 0;
+    border-radius: 5px 0 0 5px;
+}
+.desktop-slideshow .prev{
+    left: 0;
+    border-radius: 0 5px 5px 0;
+}
+.desktop-slideshow .prev:hover,
+.desktop-slideshow .next:hover{
+   background-color: rgba(0, 0, 0, 0.8);
+}
+
+/* --- Responsive Adjustments --- */
+
+@media (max-width: 768px) {
+    .desktop-slideshow {
+        display: none; /* Hide on smaller screens */
+    }
+    .mobile-slideshow {
+        display: block; /* Ensure mobile slideshow is visible */
+    }
+	 .filters-container{
+		 flex-direction:column;
+	 }
+}
+   @media (min-width: 992px) and (max-width: 1199px) {
+        .desktop-slideshow .mySlides {
+           width: calc((100% / 4) - 16px);
+           margin: 0 8px;
+        }
+         .mobile-slideshow{
+            display:none
+         }
+         .desktop-slideshow{
+            display:block;
+         }
+    }
+
+    @media (min-width: 1200px) {
+
+          .desktop-slideshow .mySlides {
+           width: calc((100% / 5) - 16px);
+            margin: 0 8px;
+        }
+         .mobile-slideshow{
+            display:none
+         }
+         .desktop-slideshow{
+            display:block;
+         }
+    }
+/* --- PART 2 END --- */
+/* --- tv_app/static/style.css --- */
+/* --- PART 3 START (Styles for show_details.html) --- */
+
+/* --- Show Details Page --- */
+
+.show-details-container {
+    padding: 20px;
+    max-width: 800px; /* Limit width on larger screens */
+    margin: 0 auto;  /* Center the container */
+        padding-top: 80px; /*For the fixed Navbar*/
+
+}
+
+/* Banner area at the top */
+.show-details-banner {
+    width: 100%;
+    background-color: rgba(0, 0, 0, 0.5); /* Semi-transparent black */
+    padding: 20px;
+    text-align: center; /* Center the title and episode title */
+    margin-bottom: 20px;
+    border-radius: 5px; /* Consistent rounding */
+}
+
+.show-details-banner h1 {
+    font-size: 2.5em;
+    margin-bottom: 10px;
+    color: #e50914; /* Netflix red */
+    font-family: 'Netflix Sans', sans-serif;
+}
+
+.episode-title {
+    font-size: 1.2em;
+    color: #aaa; /* Lighter color for episode title */
+     font-weight: normal; /* Assuming you want it less bold than the heading */
+}
+
+/* Main content area (image and info) */
+.show-details-content {
+    display: flex;          /* Flexbox for layout */
+    flex-direction: column; /* Default: Stack image above info */
+    gap: 20px;             /* Space between image and info */
+}
+
+.show-image-container {
+    width: 100%;          /* Full width in column layout */
+    text-align: center;   /* Center the image */
+}
+
+.show-image {
+    max-width: 100%;   /* Image won't overflow its container */
+    height: auto;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.6); /* Shadow for depth */
+}
+
+.show-info {
+    width: 100%;           /* Full width in column layout */
+}
+
+/* Style the paragraphs within show-info */
+.show-info p {
+    margin-bottom: 15px;
+}
+
+.overview {
+    line-height: 1.4;
+    margin-bottom: 15px; /*Consistent spacing*/
+}
+
+/*Download button*/
+.download-button {
+    display: inline-block;
+    padding: 10px 20px;
+    font-size: 1.1em;
+    background-color: #e50914;
+    color: white;
+    text-decoration: none;
+    border-radius: 5px;
+    transition: background-color 0.3s ease;
+    border: none;
+    cursor: pointer;
+    margin-top:10px; /*Margin to the overview*/
+}
+
+.download-button:hover {
+    background-color: #b20710; /* Darker red on hover */
+}
+
+/* --- Responsive Adjustments (show_details.html) --- */
+
+@media (min-width: 769px) {
+    .show-details-content {
+        flex-direction: row;  /* Side-by-side layout on larger screens */
+    }
+
+    .show-image-container {
+        width: 300px;        /* Fixed width for image container */
+        flex-shrink: 0;       /* Prevent image container from shrinking */
+    }
+
+    .show-info {
+        width: auto;          /* Info takes remaining space */
+    }
+}
+
 /* --- END OF PART 3 --- */
