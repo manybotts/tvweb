@@ -3,7 +3,7 @@ import os
 from flask import Flask, render_template, redirect, url_for, request, jsonify
 from .tasks import update_tv_shows, test_task, normalize_string  # Import normalize_string
 from .models import db, TVShow
-from sqlalchemy import desc, func
+from sqlalchemy import desc
 from dotenv import load_dotenv
 import logging
 from thefuzz import process, fuzz  # Import thefuzz
@@ -114,15 +114,15 @@ def index():
 
 def paginate_results(results, page, per_page):
     """Paginates a list of results manually."""
-    from flask_sqlalchemy import Pagination
+    from flask_sqlalchemy import pagination
 
     start = (page - 1) * per_page
     end = start + per_page
     paginated_items = results[start:end]
 
     # Create a Pagination object manually
-    pagination = Pagination(None, page, per_page, len(results), paginated_items)
-    return pagination
+    pagination_obj = pagination.Pagination(None, page, per_page, len(results), paginated_items)
+    return pagination_obj
 
 
 @app.route("/show/<int:show_id>")
@@ -145,53 +145,44 @@ def redirect_to_download(show_id):
 
 @app.route("/shows")
 def list_shows():
-    """Displays a list of all available TV show names, with pagination, alphabetical order,
-    and filtering by genre, year, and rating.
-    """
     page = request.args.get("page", 1, type=int)
     per_page = 30
     sort_by = request.args.get("sort", "name")  # Default sort by name
     filter_genre = request.args.get("genre")
     filter_year = request.args.get("year")
-    filter_rating = request.args.get("rating")  # Get rating filter
+    filter_rating = request.args.get("rating")
 
-    # Start with a base query that selects distinct show names.  We select the whole object.
+    # Start with a base query that selects distinct show names.
     query = TVShow.query.distinct(TVShow.show_name)
 
     # Apply filtering
     if filter_genre:
-        query = query.filter(TVShow.genre.ilike(f"%{filter_genre}%"))  # Filter by genre
+        query = query.filter(TVShow.genre.ilike(f"%{filter_genre}%"))
 
     if filter_year:
         try:
-            filter_year = int(filter_year)  # Ensure year is an integer
-            query = query.filter(TVShow.year == filter_year)  # Filter by year
+            filter_year = int(filter_year)
+            query = query.filter(TVShow.year == filter_year)
         except ValueError:
-            # Handle invalid year input (e.g., non-numeric)
             pass
 
     if filter_rating:
         try:
             filter_rating = float(filter_rating)
-            query = query.filter(
-                TVShow.vote_average >= filter_rating
-            )  # Greater or equal than
+            query = query.filter(TVShow.vote_average >= filter_rating)
         except ValueError:
-            pass  # Ignore if not a valid float
-
-    # Apply sorting
+            pass
+    # Apply sorting.  Crucially, we sort *after* filtering.
     if sort_by == "name":
-        query = query.order_by(TVShow.show_name)  # Alphabetical
+        query = query.order_by(TVShow.show_name)  # Now we can order correctly
     elif sort_by == "popularity":
-        query = query.order_by(TVShow.clicks.desc())  # Most clicked
+        query = query.order_by(TVShow.clicks.desc())
     elif sort_by == "year":
-        query = query.order_by(TVShow.year.desc())  # Newest first
+        query = query.order_by(TVShow.year.desc())
     elif sort_by == "rating":
-        query = query.order_by(
-            TVShow.vote_average.desc()
-        )  # Sort by rating.
+        query = query.order_by(TVShow.vote_average.desc())
 
-    # Paginate the query
+    # Paginate the query *after* filtering and sorting
     shows_paginated = query.paginate(page=page, per_page=per_page, error_out=False)
 
     return render_template(
