@@ -1,241 +1,175 @@
-# tv_app/app.py
-import os
-from flask import Flask, render_template, redirect, url_for, request, jsonify
-from .tasks import update_tv_shows, test_task, normalize_string
-from .models import db, TVShow
-from sqlalchemy import desc, func
-from dotenv import load_dotenv
+from flask import Flask, render_template, request, jsonify
+from models import db, Show, init_db
+from tasks import send_telegram_message
+import datetime  # Import the datetime module
 import logging
-from thefuzz import process, fuzz
-
-load_dotenv()
 
 app = Flask(__name__)
-app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "your_secret_key")
-app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get(
-    "DATABASE_URL", "sqlite:///tv_shows.db"
-)
-app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-db.init_app(app)
 
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
-logger = logging.getLogger(__name__)
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
-def get_trending_shows(limit=5):
-    return TVShow.query.order_by(TVShow.clicks.desc()).limit(limit).all()
+# Load configuration from .env file (as before)
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///tv_shows.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False  # Suppress a warning
+app.config['SECRET_KEY'] = 'your_secret_key'  # Use a strong secret key in production
+app.config['CELERY_BROKER_URL'] = 'redis://localhost:6379/0' #Or your provider
+app.config['CELERY_RESULT_BACKEND'] = 'redis://localhost:6379/0' #Or your provider
 
-@app.route("/")
-def index():
-    search_query = request.args.get("search", "")
-    page = request.args.get("page", 1, type=int)
-    per_page = 10
-    message = None
-
-    if search_query:
-        normalized_query = normalize_string(search_query)
-        exact_match = TVShow.query.filter(TVShow.show_name == normalized_query).first()
-        partial_matches = TVShow.query.filter(TVShow.show_name.ilike(f"%{normalized_query}%")).all()
-        all_show_names = [show.show_name for show in TVShow.query.all()]
-        fuzzy_matches = process.extract(normalized_query, all_show_names)
-
-        results = []
-        if exact_match:
-            results.append(exact_match)
-        for show in partial_matches:
-            if show not in results:
-                results.append(show)
-        for show_name, score in fuzzy_matches:
-            if score >= 60:
-                show = TVShow.query.filter_by(show_name=show_name).first()
-                if show and show not in results:
-                    results.append(show)
-
-        shows = paginate_results(results, page, per_page)
-
-        if not shows.items:
-            message = (
-                f"No shows found matching '{search_query}'. Here are some similar shows:"
-            )
-            shows = paginate_results(results, page, per_page)
-            if not shows.items:
-                message = f"No shows found matching '{search_query}'. Displaying all shows."
-                shows = (
-                    TVShow.query.order_by(TVShow.created_at.desc())
-                    .paginate(page=page, per_page=per_page, error_out=False)
-                )
-        trending_shows = []
-
+# Initialize database (with check for existing tables)
+with app.app_context():
+    db.init_app(app)
+    if not db.engine.dialect.has_table(db.engine, 'show'):
+        init_db(app)  # Initialize only if tables don't exist
+        logging.info("Database tables created.")
     else:
-        shows = (
-            TVShow.query.order_by(TVShow.created_at.desc())
-            .paginate(page=page, per_page=per_page, error_out=False)
-        )
-        trending_shows = get_trending_shows()
-        message = None
+         logging.info("Database tables already exist.")
 
-    return render_template(
-        "index.html",
-        shows=shows,
-        search_query=search_query,
-        trending_shows=trending_shows,
-        message=message,
-    )
+# --- Routes ---
 
-
-def paginate_results(results, page, per_page):
-    """Paginates a list of results manually."""
-    from flask_sqlalchemy import pagination
-
-    start = (page - 1) * per_page
-    end = start + per_page
-    paginated_items = results[start:end]
-
-    # Create a CustomPagination object
-    pagination_obj = CustomPagination(page, per_page, len(results), paginated_items)
-    return pagination_obj
-
-class CustomPagination:
-    """
-    A custom pagination class to mimic Flask-SQLAlchemy's Pagination object
-    for use with pre-fetched lists of results.
-    """
-    def __init__(self, page, per_page, total, items):
-        self.page = page
-        self.per_page = per_page
-        self.total = total
-        self.items = items
-
-    @property
-    def pages(self):
-        """Total number of pages."""
-        return (self.total + self.per_page - 1) // self.per_page
-
-    @property
-    def has_prev(self):
-        """True if there's a previous page."""
-        return self.page > 1
-
-    @property
-    def has_next(self):
-        """True if there's a next page."""
-        return self.page < self.pages
-
-    def iter_pages(self, left_edge=2, left_current=2, right_current=5, right_edge=2):
-        """Iterates over page numbers for pagination controls."""
-        last = 0
-        for num in range(1, self.pages + 1):
-            if num <= left_edge or \
-               (num > self.page - left_current - 1 and num < self.page + right_current) or \
-               num > self.pages - right_edge:
-                if last + 1 != num:
-                    yield None  # Represents a gap (...)
-                yield num
-                last = num
-
-@app.route("/show/<int:show_id>")
-def show_details(show_id):
-    show = TVShow.query.get_or_404(show_id)
-    show.clicks += 1
-    db.session.commit()
-    return render_template("show_details.html", show=show)
-
-@app.route("/redirect/<int:show_id>")
-def redirect_to_download(show_id):
-    show = TVShow.query.get_or_404(show_id)
-    if show.download_link:
-        return redirect(show.download_link)
-    return "Show or link not found", 404
-
-@app.route("/shows")
-def list_shows():
-    page = request.args.get("page", 1, type=int)
-    per_page = 30
-    sort_by = request.args.get("sort", "name")  # Default sort by name
-    filter_genre = request.args.get("genre")
-    filter_year = request.args.get("year")
-    filter_rating = request.args.get("rating")
-
-    # Start with a base query
-    query = TVShow.query
-
-    # Apply filtering
-    if filter_genre:
-        query = query.filter(TVShow.genre.ilike(f"%{filter_genre}%"))
-
-    if filter_year:
-        try:
-            filter_year = int(filter_year)
-            query = query.filter(TVShow.year == filter_year)
-        except ValueError:
-            pass
-
-    if filter_rating:
-        try:
-            filter_rating = float(filter_rating)
-            query = query.filter(TVShow.vote_average >= filter_rating)
-        except ValueError:
-            pass
-
-    # Apply sorting *before* distinct, and use the correct column
-    if sort_by == "name":
-        query = query.order_by(TVShow.show_name)
-    elif sort_by == "popularity":
-        query = query.order_by(TVShow.clicks.desc())
-    elif sort_by == "year":
-        query = query.order_by(TVShow.year.desc())
-    elif sort_by == "rating":
-        query = query.order_by(TVShow.vote_average.desc())
-
-    # *Now* apply distinct, after filtering and sorting
-    query = query.distinct(TVShow.show_name)
-    # To make distinct work with order by in postgreql
-    query = query.order_by(TVShow.show_name)
-
-
-    # Paginate the query *after* filtering, sorting, and distinct
-    shows_paginated = query.paginate(page=page, per_page=per_page, error_out=False)
-
-
-    return render_template(
-        "shows.html",
-        shows=shows_paginated,  # Pass the pagination object
-        sort_by=sort_by,        # Pass current sort
-        filter_genre=filter_genre,  # Pass current genre filter
-        filter_year=filter_year,   # Pass current year filter
-        filter_rating=filter_rating,  # Pass current rating filter
-    )
-
-@app.route("/update", methods=["POST"])
-def update():
-    update_tv_shows.delay()  # Run the task asynchronously
-    return jsonify({"message": "Update initiated"}), 202
-
-
-@app.route("/test_celery")
-def test_celery():
-    result = test_task.delay()
-    return f"Celery test task initiated. Check logs/flower. Task ID: {result.id}", 200
-
-
-@app.route("/delete_all", methods=["POST"])
-def delete_all_shows():
+@app.route('/')
+def index():
+    """Displays the homepage with newly added shows and most watched today."""
     try:
-        num_rows_deleted = db.session.query(TVShow).delete()
-        db.session.commit()
-        return jsonify({"message": f"All {num_rows_deleted} shows deleted."}), 200
+        newly_added_shows = Show.query.order_by(Show.added_on.desc()).limit(8).all()
+        #For simplicity, get the first 4 for the slideshow. In a real app, use a proper ranking.
+        most_watched_today = Show.query.order_by(Show.added_on.desc()).limit(4).all()
+
+        #Separate desktop and mobile slides for responsive design
+        desktop_slides = most_watched_today
+        mobile_slides = most_watched_today
+
+        return render_template('index.html', newly_added_shows=newly_added_shows, desktop_slides = desktop_slides, mobile_slides=mobile_slides)
     except Exception as e:
-        db.session.rollback()
-        return jsonify({"message": f"Error deleting shows: {str(e)}"}), 500
-# --- Error Handlers ---
+        logging.exception("Exception on /")
+        return "An error occurred: " + str(e), 500
 
+@app.route('/shows')
+def list_shows():
+    """Lists available shows with filtering and sorting."""
+    try:
+        # Get parameters from the request
+        sort_by = request.args.get('sort', 'name')  # Default sort by name
+        genre = request.args.get('genre', 'all')
+        year = request.args.get('year', 'all')
+        min_rating = request.args.get('rating', 'all')  # Get rating filter
+        page = request.args.get('page', 1, type=int) # Get the page number
+        per_page = 12 # Number of the shows per page
 
-@app.errorhandler(404)
-def page_not_found(e):
-    return render_template("404.html"), 404
+        # Build the query
+        query = Show.query
 
+        if genre != 'all':
+            query = query.filter(Show.genres.contains(genre))  # Use contains for genre list
+        if year != 'all':
+            query = query.filter(Show.year == int(year))
+         #Filter by rating
+        if min_rating != 'all':
+            try:
+                min_rating_float = float(min_rating)
+                query = query.filter(Show.rating >= min_rating_float)
+            except ValueError:
+                pass  # Ignore invalid rating values
+        # Apply sorting
+        if sort_by == 'name':
+            query = query.order_by(Show.name)
+        elif sort_by == 'year':
+            query = query.order_by(Show.year.desc())
+        elif sort_by == 'rating':
+            query = query.order_by(Show.rating.desc())
 
-@app.errorhandler(500)
-def internal_server_error(e):
-    return render_template("500.html"), 500
+        #Paginate the result
+        shows = query.paginate(page=page, per_page=per_page, error_out=False)
+        # Get all available genres for the filter (from existing shows)
+        all_genres = set()
+        for show in Show.query.all():
+            all_genres.update(show.genres)  # Use update to add all elements from the list
+        all_genres = sorted(list(all_genres))  # Convert back to a sorted list
+
+        now = datetime.datetime.now() # Get the current date and time
+        return render_template(
+            'shows.html',
+            shows=shows,
+            all_genres=all_genres,
+            sort_by=sort_by,
+            current_genre=genre,  # Pass selected genre for highlighting
+            current_year=year,    # Pass selected year for highlighting
+            current_rating=min_rating,   #Pass selected rating
+            now=now  # Pass 'now' to the template
+        )
+    except Exception as e:
+        logging.exception("Exception on /shows")
+        return "An error occurred: " + str(e), 500
+
+@app.route('/show/<int:show_id>')
+def show_details(show_id):
+    """Displays details for a specific show."""
+    try:
+        show = Show.query.get_or_404(show_id)  # Get show or return 404 if not found
+        return render_template('show_details.html', show=show)
+    except Exception as e:
+        logging.exception(f"Exception on /show/{show_id}")
+        return "An error occurred: " + str(e), 500
+
+@app.route('/search')
+def search():
+    """Handles show search requests."""
+    try:
+        query_text = request.args.get('query', '')
+        if query_text:
+            # Search in both name and episode title (case-insensitive)
+            results = Show.query.filter(
+                (Show.name.ilike(f'%{query_text}%')) | (Show.episode_title.ilike(f'%{query_text}%'))
+            ).all()
+        else:
+            results = []
+        return render_template('index.html', newly_added_shows=results, search_query=query_text)
+
+    except Exception as e:
+        logging.exception("Exception on /search")
+        return "An error occurred: "+ str(e), 500
+
+@app.route('/add_show', methods=['POST'])
+def add_show_route():
+    """Handles adding a new show via API (for Telegram bot)."""
+    try:
+        data = request.get_json()
+        # Validate required fields
+        if not all(key in data for key in ['name', 'episode_title', 'year', 'rating', 'genres', 'poster_url', 'telegram_message_id', 'overview', 'download_link']):
+            return jsonify({'success': False, 'message': 'Missing required fields.'}), 400
+
+        # Convert year and rating to appropriate types, handling potential errors
+        try:
+            year = int(data['year'])
+            rating = float(data['rating'])
+        except ValueError:
+            return jsonify({'success': False, 'message': 'Invalid year or rating format.'}), 400
+
+        # Check if the show already exists (based on Telegram message ID) to avoid duplicates
+        existing_show = Show.query.filter_by(telegram_message_id=data['telegram_message_id']).first()
+        if existing_show:
+            return jsonify({'success': False, 'message': 'Show with this Telegram message ID already exists.'}), 409 # 409 Conflict
+
+        # Create and add the new show
+        new_show = Show(
+            name=data['name'],
+            episode_title=data['episode_title'],
+            year=year,
+            rating=rating,
+            genres=data['genres'],  # Directly use the list
+            poster_url=data['poster_url'],
+            telegram_message_id=data['telegram_message_id'],
+            overview=data['overview'],
+            download_link=data['download_link']
+        )
+        db.session.add(new_show)
+        db.session.commit()
+        # Send a confirmation message (using Celery)
+        send_telegram_message.delay(f"New show added:\n\n{data['name']} ({year})\nEpisode: {data['episode_title']}\n\nCheck it out on the site!")
+
+        return jsonify({'success': True, 'message': 'Show added successfully!'}), 201 # 201 Created
+
+    except Exception as e:
+        db.session.rollback()  # Rollback in case of any error
+        logging.exception("Exception on /add_show")
+        return jsonify({'success': False, 'message': 'An error occurred: ' + str(e)}), 500
