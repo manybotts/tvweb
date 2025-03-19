@@ -1,5 +1,5 @@
 /* --- tv_app/static/style.css --- */
-/* --- PART 1 START (Revised - Preserving Original, index.html & shows.html fixes) --- */
+/* --- PART 1 START (General, Navbar, Icons, Show Cards - Reduced Padding) --- */
 
 /* --- General Styles --- */
 
@@ -18,7 +18,7 @@ body {
     margin: auto;
     overflow: hidden;
     padding: 20px;
-    padding-top: 80px; /* Account for fixed navbar */
+    padding-top: 80px;  /* Account for fixed navbar */
     box-sizing: border-box;
 }
 
@@ -286,7 +286,6 @@ h2 {
     font-weight: bold;
 }
 
-
 /* --- Larger screens --- */
 /* On larger screens, use a multi-column layout */
 @media (min-width: 769px) {
@@ -312,55 +311,193 @@ h2 {
         grid-template-columns: repeat(4, 1fr); /* Four columns on very large screens */
     }
 }
+
 /* --- PART 1 END --- */
 /* --- tv_app/static/style.css --- */
-/* --- PART 2 START --- */
+/* --- PART 2 START (shows.html Styles, Pagination, Loader) --- */
 
-/* --- Slideshow styles --- */
+/* --- Styles for shows.html (Available Shows Page) --- */
 
-.slideshow-container {
-    position: relative;
-    width: 100%;
-    max-width: 800px; /*  max width for the slideshow */
-    margin: 20px auto;
-    overflow: hidden; /* Hide overflowing parts of images */
-    border-radius: 8px; /* Rounded corners for the slideshow */
-	box-shadow: 0 4px 8px rgba(0, 0, 0, 0.6); /* Shadow */
-}
-.slideshow-container img {
-    width: 100%;
-    height: auto;
-     display: block;
-}
-
-/* Slides */
-.mySlides, .mySlides-mobile {
-    position: relative; /* For positioning captions and buttons */
-    display: none; /* Hidden by default, shown via JS */
-    width: 100%;
-    animation: fade 1.5s; /*  Fade-in animation */
-
-}
-
-/* Caption text */
-.slide-caption {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    background-color: rgba(0, 0, 0, 0.7); /* Semi-transparent black */
-    color: white;
-    padding: 10px;
-    text-align: center;
-    font-size: 1em;
+.shows-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+    padding-top: 80px;
     box-sizing: border-box;
 }
 
+.filters-container {
+    display: flex;
+    flex-wrap: wrap; /* Allow wrapping on smaller screens */
+    justify-content: space-between;
+    margin-bottom: 20px;
+    border-bottom: 1px solid #333;
+    padding-bottom: 10px;
+     align-items: flex-end; /* Align items to the bottom */
+}
 
-/* Fading animation */
-@keyframes fade {
-  from {opacity: .4}
-  to {opacity: 1}
+.sort-options {
+    display: flex;
+    align-items: center;
+    margin-bottom: 10px; /* Add margin to create space */
+
+}
+
+.sort-options a {
+    margin-right: 15px;
+    color: #fff;
+    font-size: 0.9em;
+    text-decoration: none;
+    padding: 6px 10px;
+    border-radius: 4px;
+    background-color: #333;
+    border: 1px solid #555;
+    transition: background-color 0.3s ease;
+    display: inline-block; /* Allows for padding/margin on all sides */
+}
+.sort-options a:hover {
+   text-decoration:underline;
+}
+.active-sort{
+    font-weight: bold;
+    color: #e50914; /* Netflix Red */
+    text-decoration: none;
+
+}
+
+.filter-group {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 10px;
+}
+
+.filter-group label {
+    color: #fff;
+    font-size: 0.9em;
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+
+/* New styles for select dropdown */
+.filter-group select {
+    padding: 8px;
+    border: 1px solid #555;
+    background-color: #333;
+    color: white;
+    border-radius: 4px;
+    font-size: 0.9em;
+    appearance: none; /* Remove default OS styling */
+    -webkit-appearance: none; /* For older browsers */
+    -moz-appearance: none;
+    cursor: pointer;
+    width: 100%; /* Full width of its container */
+    box-sizing: border-box; /* Include padding/border in width */
+}
+
+/* Style the dropdown arrow (using a background image) */
+.filter-group select {
+  background-image:
+    linear-gradient(45deg, transparent 50%, #fff 50%),
+    linear-gradient(135deg, #fff 50%, transparent 50%);
+  background-position:
+    calc(100% - 20px) calc(1em + 2px),
+    calc(100% - 15px) calc(1em + 2px),
+    calc(100% - 2.5em) 0.5em;
+  background-size:
+    5px 5px,
+    5px 5px,
+    1px 1.5em;
+  background-repeat: no-repeat;
+}
+
+
+/* Hover and focus styles for select */
+.filter-group select:hover,
+.filter-group select:focus {
+    border-color: #e50914;
+    outline: none; /* Remove default focus outline */
+}
+
+.filter-form button { /* Style for filter buttons */
+    background-color: #e50914; /* Netflix red */
+    color: white;
+    border: none;
+    padding: 8px 15px;
+    cursor: pointer;
+    border-radius: 4px;
+     margin-top: 5px;  /* Align with select dropdown */
+    font-size: 0.9em; /* Match font size of select */
+}
+.filter-form button:hover {
+    background-color: #b20710;
+}
+
+.shows-list {
+    list-style: none;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); /* Responsive columns */
+    gap: 15px;
+}
+
+.show-item {
+     text-align: center;
+}
+
+.show-link {
+    background-color: #222;
+    color: #fff;
+    padding: 15px;
+    border-radius: 8px;
+    text-decoration: none;
+    transition: background-color 0.3s ease, transform 0.2s ease; /* Added transform */
+    display: block; /* Make the link fill the container */
+    font-size: 1em;
+    font-weight: bold;
+    font-family: 'Netflix Sans', sans-serif;
+    border: 1px solid #333;
+    height: 100%; /* Make the link fill the list item */
+    box-sizing: border-box; /* Include padding and border in height */
+}
+
+.show-link:hover {
+    background-color: #333;
+     transform: scale(1.05);
+}
+
+/* --- Loader --- */
+
+.telegram-loader {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    position: relative;
+    animation: rotate 1s linear infinite;
+}
+
+.telegram-loader::before,
+.telegram-loader::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    border: 5px solid #fff;
+    animation: pulse 1.5s ease-out infinite;
+}
+
+.telegram-loader::after {
+    border-color: #007bff;
+    animation-delay: 1s;
+}
+
+@keyframes rotate {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+@keyframes pulse {
+    0%, 100% { transform: scale(0); opacity: 1; }
+    50% { transform: scale(1); opacity: 0.5; }
 }
 
 /* --- Pagination --- */
@@ -368,7 +505,7 @@ h2 {
 .pagination {
     text-align: center;
     margin-top: 20px;
-    display: flex; /*  flexbox for layout */
+    display: flex; /* Use flexbox for layout */
     justify-content: center; /* Center horizontally */
     align-items: center; /* Center vertically */
     gap: 10px; /* Spacing between elements */
@@ -381,136 +518,123 @@ h2 {
     border: 1px solid #ddd;
     border-radius: 5px;
     background-color: #222;
-    transition: background-color 0.3s;
+     transition: background-color 0.3s;
 }
 
 .pagination a:hover {
     background-color: #ddd;
     color: black;
 }
-
-.pagination span {  /* Style for the current page number */
-  background-color: #e50914;
-  color: white;
-  border-color: #e50914;
+.pagination span{
+    background-color: #e50914;
+    color: white;
+    border-color: #e50914;
 }
 
+/* --- PART 2 END --- */
+/* --- tv_app/static/style.css --- */
+/* --- PART 3 START (Styles for show_details.html and 404/500) --- */
 
 /* --- Show Details Page --- */
 
 .show-details-container {
-    max-width: 800px;
-    margin: auto;
     padding: 20px;
-    background-color: #141414;
-    border-radius: 8px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.6);
-    display: flex;
-    flex-direction: column; /*  stack content vertically */
+    max-width: 800px; /* Limit width on larger screens */
+    margin: 0 auto;  /* Center the container */
+    padding-top: 80px; /*For the fixed Navbar*/
+
 }
-.show-details-header {
-    display: flex;
-    align-items: flex-start;
+
+/* Banner area at the top */
+.show-details-banner {
+    width: 100%;
+    background-color: rgba(0, 0, 0, 0.5); /* Semi-transparent black */
+    padding: 20px;
+    text-align: center; /* Center the title and episode title */
     margin-bottom: 20px;
+    border-radius: 5px; /* Consistent rounding */
+}
 
-}
-.show-details-poster{
-    width: 100%; /*   full width on smaller screens */
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
-     max-width: 200px; /* Limit poster size on larger screens*/
-     margin-right: auto;  /* Push poster to the left */
-     margin-left: auto; /* Push poster to the center */
-}
-.show-details-info {
-    flex: 1;  /* Occupy remaining width */
-    padding-left: 20px;
-    margin-top: auto;
-    margin-bottom: auto;
-}
-.show-details-container h2,
-.show-details-container h3 {
-    color: #e50914;
-    font-family: 'Netflix Sans', sans-serif;
+.show-details-banner h1 {
+    font-size: 2.5em;
     margin-bottom: 10px;
-}
-.show-details-container h2 {
-    font-size: 1.5em;
-}
-.show-details-container h3{
-     font-size: 1.2em;
-}
-.show-details-container p {
-    font-size: 1em;
-    color: #ddd;
-    margin-bottom: 8px;
-    line-height: 1.4;
-}
-.show-details-overview {
-    margin-bottom: 15px;
-    border-bottom: 1px solid #333;
-    padding-bottom: 15px;
-    font-style: italic;
-    color: #ccc;
-    text-align: justify;
-}
-.show-details-genres {
-    font-weight: bold;
-    color: #fff;
+    color: #e50914; /* Netflix red */
+    font-family: 'Netflix Sans', sans-serif;
 }
 
-.show-details-button {
-    display: inline-block; /* Allows setting width/height */
+.episode-title {
+    font-size: 1.2em;
+    color: #aaa; /* Lighter color for episode title */
+     font-weight: normal; /* Assuming you want it less bold than the heading */
+}
+
+/* Main content area (image and info) */
+.show-details-content {
+    display: flex;          /* Flexbox for layout */
+    flex-direction: column; /* Default: Stack image above info */
+    gap: 20px;             /* Space between image and info */
+}
+
+.show-image-container {
+    width: 100%;          /* Full width in column layout */
+    text-align: center;   /* Center the image */
+}
+
+.show-image {
+    max-width: 100%;   /* Image won't overflow its container */
+    height: auto;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.6); /* Shadow for depth */
+}
+
+.show-info {
+    width: 100%;           /* Full width in column layout */
+}
+
+/* Style the paragraphs within show-info */
+.show-info p {
+    margin-bottom: 15px;
+	 color:#fff; /* Consistent text color */
+}
+
+.overview {
+    line-height: 1.4;
+    margin-bottom: 15px; /*Consistent spacing*/
+}
+
+/*Download button*/
+.download-button {
+    display: inline-block; /* Or block, depending on layout */
     padding: 10px 20px;
+    font-size: 1.1em;
     background-color: #e50914; /* Netflix red */
     color: white;
     text-decoration: none;
     border-radius: 5px;
-    font-weight: bold;
-    text-align: center; /* Center text */
     transition: background-color 0.3s ease;
-     margin-top: 20px; /* Space above the button */
-     align-self: center;  /* Center button horizontally */
-     width: auto; /* Fit content, allow shrinking */
-      max-width: 200px; /* Prevent button stretching too wide */
+    border: none;
+    cursor: pointer;
+    margin-top:10px; /*Margin to the overview*/
 }
 
-.show-details-button:hover {
+.download-button:hover {
     background-color: #b20710; /* Darker red on hover */
 }
 
-.seasons-section{
-    margin-top: auto;
-}
+/* --- Responsive Adjustments (show_details.html) --- */
 
-.seasons-heading {
-    margin-bottom: 0.5em;
-    font-size: 1em;
-    color: #e50914;
-}
+@media (min-width: 769px) {
+    .show-details-content {
+        flex-direction: row;  /* Side-by-side layout on larger screens */
+    }
 
-.season-pills {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5em;
-}
+    .show-image-container {
+        width: 300px;        /* Fixed width for image container */
+        flex-shrink: 0;       /* Prevent image container from shrinking */
+    }
 
-.season-pill {
-    background-color: #333;
-    color: #fff;
-    padding: 0.25em 0.75em;
-    border-radius: 1em;
-    font-size: 0.7em;
-    display: inline-block;
-}
-
-/* --- Larger screens --- */
-@media (min-width: 768px) {
-    .show-details-poster{
-    width: auto; /* Reset to auto on larger screens */
-    max-width: 300px; /* Limit poster size on larger screens*/
-    margin-right: 20px;  /* Push poster to the left */
-    margin-left: 0; /* Push poster to the left */
+    .show-info {
+        width: auto;          /* Info takes remaining space */
     }
 }
 /* --- 404 and 500 Pages --- */
@@ -544,4 +668,4 @@ h2 {
 .back-home-link:hover {
     background-color: #b20710;
 }
-/* --- PART 2 END --- */
+/* --- END OF PART 3 --- */
