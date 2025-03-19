@@ -35,9 +35,9 @@
         <div class="filter-group">
           <label for="year-filter">Filter By Year:</label>
             <a href="{{ url_for('list_shows', sort=sort_by, genre=filter_genre, rating=filter_rating) }}">All</a> |
-                {% for year in range(2024, 1999, -1) %}
-                <a href="{{ url_for('list_shows', sort=sort_by, genre=filter_genre, year=year, rating=filter_rating) }}">{{ year }}</a> |
-            {% endfor %}
+                {% for year in range(now.year + 1, now.year - 21, -1) %} {# Dynamically generate years #}
+                    <a href="{{ url_for('list_shows', sort=sort_by, genre=filter_genre, year=year, rating=filter_rating) }}">{{ year }}</a> |
+                {% endfor %}
             <form action="{{ url_for('list_shows') }}" method="GET" class="filter-form">
                 <input type="hidden" name="sort" value="{{ sort_by }}">
                 <input type="hidden" name="genre" value="{{ filter_genre }}">
