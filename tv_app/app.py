@@ -199,23 +199,23 @@ def list_shows():
     # Start with a base query
     query = TVShow.query
 
-    # Apply filtering
-    if filter_genre:
+    # Apply filtering. Handle 'all' option.
+    if filter_genre and filter_genre != "all":
         query = query.filter(TVShow.genre.ilike(f"%{filter_genre}%"))
 
-    if filter_year:
+    if filter_year and filter_year != "all":
         try:
             filter_year = int(filter_year)
             query = query.filter(TVShow.year == filter_year)
         except ValueError:
-            pass
+            pass  # Ignore invalid year
 
-    if filter_rating:
+    if filter_rating and filter_rating != "all":
         try:
             filter_rating = float(filter_rating)
             query = query.filter(TVShow.vote_average >= filter_rating)
         except ValueError:
-            pass
+            pass #Ignore invalid rating input
 
     # Apply sorting *before* distinct
     if sort_by == "name":
@@ -232,7 +232,8 @@ def list_shows():
 
     # Paginate the query *after* filtering, sorting, and distinct
     shows_paginated = query.paginate(page=page, per_page=per_page, error_out=False)
-     # Get all unique genres for the filter (from existing shows)
+
+    #Get unique genres for the filter (from existing shows)
     all_genres = set()
     for show in TVShow.query.all():  # Consider optimizing if you have many shows
         if show.genre:  # Check if genre is not None
@@ -247,7 +248,7 @@ def list_shows():
         filter_genre=filter_genre,  # Pass current genre filter
         filter_year=filter_year,   # Pass current year filter
         filter_rating=filter_rating,  # Pass current rating filter
-        now = now, # Pass now to template
+        now = now, # Pass now to template,
         all_genres = all_genres
     )
 
