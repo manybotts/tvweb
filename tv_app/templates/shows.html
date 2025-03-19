@@ -1,69 +1,80 @@
 {% extends "base.html" %}
 
+{% block title %}Available Shows{% endblock %}
+
 {% block content %}
 <div class="shows-container">
-    <h2><span class="show-label-icon"></span>Available Shows</h2>
+
+    <h2><span class="show-label-icon"></span>Available TV Shows</h2>
 
     <div class="filters-container">
+
         <div class="sort-options">
-            <span>Sort by:</span>
-            <a href="{{ url_for('list_shows', sort='name', genre=current_genre, year=current_year, rating=current_rating, page=1) }}" {% if sort_by == 'name' %}class="active-sort"{% endif %}>Name</a>
-            <a href="{{ url_for('list_shows', sort='year', genre=current_genre, year=current_year, rating=current_rating, page=1) }}" {% if sort_by == 'year' %}class="active-sort"{% endif %}>Year</a>
-            <a href="{{ url_for('list_shows', sort='rating', genre=current_genre, year=current_year, rating=current_rating, page=1) }}" {% if sort_by == 'rating' %}class="active-sort"{% endif %}>Rating</a>
+            Sort by:
+            <a href="{{ url_for('list_shows', sort='name', genre=filter_genre, year=filter_year, rating=filter_rating) }}" {% if sort_by == 'name' %}class="active-sort"{% endif %}>Name</a> |
+            <a href="{{ url_for('list_shows', sort='popularity', genre=filter_genre, year=filter_year, rating=filter_rating) }}" {% if sort_by == 'popularity' %}class="active-sort"{% endif %}>Popularity</a> |
+            <a href="{{ url_for('list_shows', sort='year', genre=filter_genre, year=filter_year, rating=filter_rating) }}" {% if sort_by == 'year' %}class="active-sort"{% endif %}>Year</a> |
+            <a href="{{ url_for('list_shows', sort='rating', genre=filter_genre, year=filter_year, rating=filter_rating) }}" {% if sort_by == 'rating' %}class="active-sort"{% endif %}>Rating</a>
         </div>
 
-        <div class="filter-group">
-            <label for="genre-filter">Genre:</label>
-			<a href="{{ url_for('list_shows', sort=sort_by, genre='all', year=current_year, rating=current_rating, page=1) }}">All</a>
-            {% for genre in all_genres %}
-                <a href="{{ url_for('list_shows', sort=sort_by, genre=genre, year=current_year, rating=current_rating, page=1) }}" {% if genre == current_genre %}class="active-sort"{% endif %}>{{ genre }}</a>
-            {% endfor %}
-        </div>
+        <form action="{{ url_for('list_shows') }}" method="GET" class="filter-form">
+            <input type="hidden" name="sort" value="{{ sort_by }}">
 
-        <div class="filter-group">
-			<label for="year-filter">Year:</label>
-			<a href="{{ url_for('list_shows', sort=sort_by, genre=current_genre, year='all', rating=current_rating, page=1) }}">All</a>
-			{% for year in range(now.year + 1, now.year - 21, -1) %} {# Dynamically generate years #}
-                <a href="{{ url_for('list_shows', sort=sort_by, genre=current_genre, year=year, rating=current_rating, page=1) }}" {% if year|string == current_year %}class="active-sort"{% endif %}>{{ year }}</a>
-            {% endfor %}
-		</div>
+            <div class="filter-group">
+                <label for="genre-filter">Genre:</label>
+                <select name="genre" id="genre-filter" onchange="this.form.submit()">
+                    <option value="all" {% if filter_genre == 'all' %}selected{% endif %}>All</option>
+                    {% for genre_option in all_genres %}
+                        <option value="{{ genre_option }}" {% if genre_option == filter_genre %}selected{% endif %}>{{ genre_option }}</option>
+                    {% endfor %}
+                </select>
+            </div>
 
-        <div class="filter-group">
-			<label for="rating-filter">Rating:</label>
-			 <a href="{{ url_for('list_shows', sort=sort_by, genre=current_genre, year=current_year, rating='all', page=1) }}">All</a>
-			<form action="{{ url_for('list_shows') }}" method="get" class="filter-form">
-                <input type="hidden" name="sort" value="{{ sort_by }}">
-                <input type="hidden" name="genre" value="{{ current_genre }}">
-                <input type="hidden" name="year" value="{{ current_year }}">
-                <input type="number" id="rating-filter" name="rating" min="0" max="10" step="0.1" placeholder="Min Rating" value="{{ current_rating if current_rating != 'all' }}">
-                <button type="submit">Filter</button>
-            </form>
-		</div>
+            <div class="filter-group">
+                <label for="year-filter">Year:</label>
+                <select name="year" id="year-filter" onchange="this.form.submit()">
+                    <option value="all" {% if filter_year == 'all' %}selected{% endif %}>All</option>
+                    {% for year_option in range(now.year + 1, now.year - 51, -1) %}
+                        <option value="{{ year_option }}" {% if year_option|string == filter_year %}selected{% endif %}>{{ year_option }}</option>
+                    {% endfor %}
+                </select>
+           </div>
+
+            <div class="filter-group">
+                <label for="rating-filter">Rating:</label>
+                 <select name="rating" id="rating-filter" onchange="this.form.submit()">
+                    <option value="all" {% if filter_rating == 'all' %}selected{% endif %}>All</option>
+                     {% for rating_option in range(10, 0, -1) %}
+                        <option value="{{ rating_option }}" {% if rating_option|string == filter_rating %} selected {% endif %}>{{ rating_option }}+</option>
+                     {% endfor %}
+
+                </select>
+
+            </div>
+             <noscript><button type="submit" class="filter-button">Filter</button></noscript>
+        </form>
     </div>
 
-    {% if shows.items %}
-		<ul class="shows-list">
-			{% for show in shows.items %}
-			<li class="show-item">
-				<a href="{{ url_for('show_details', show_id=show.id) }}" class="show-link">
-					{{ show.name }}
-				</a>
-			</li>
-			{% endfor %}
-		</ul>
-	{% else %}
-        <p>No shows found matching your criteria.</p>
-    {% endif %}
 
+    <ul class="shows-list">
+      {% for show in shows.items %}
+        <li class="show-item">
+            <a href="{{ url_for('show_details', show_id=show.id) }}" class="show-link">
+                {{ show.show_name }}
+            </a>
+          </li>
+      {% endfor %}
+    </ul>
+
+    {# Pagination links (using Flask-SQLAlchemy's built-in pagination) #}
     <div class="pagination">
         {% if shows.has_prev %}
-            <a href="{{ url_for('list_shows', page=shows.prev_num, sort=sort_by, genre=current_genre, year=current_year, rating=current_rating) }}">&lt; Previous</a>
+            <a href="{{ url_for('list_shows', page=shows.prev_num, sort=sort_by, genre=filter_genre, year=filter_year, rating=filter_rating) }}">&laquo; Previous</a>
         {% endif %}
-			<span>Page {{ shows.page }} of {{ shows.pages }}</span>
+        <span>Page {{ shows.page }} of {{ shows.pages }}</span>
         {% if shows.has_next %}
-            <a href="{{ url_for('list_shows', page=shows.next_num, sort=sort_by, genre=current_genre, year=current_year, rating=current_rating) }}">Next &gt;</a>
+            <a href="{{ url_for('list_shows', page=shows.next_num, sort=sort_by, genre=filter_genre, year=filter_year, rating=filter_rating) }}">Next &raquo;</a>
         {% endif %}
     </div>
-
 </div>
 {% endblock %}
