@@ -5,7 +5,7 @@
     <p class="message">{{ message }}</p>  {# Display message #}
     {% endif %}
 
-  {% if not search_query %}
+    {% if not search_query %}
     <h2><span class="eye-icon"></span>Most Watched Today</h2>
         <div class="slideshow-container">
              <div class="desktop-slideshow">
@@ -71,7 +71,7 @@
         {% endfor %}
     </div>
     {% else %}
-    <h2>Search Results for "{{ search_query }}"</h2> {# Corrected heading #}
+    <h2>Search Results for "{{ search_query }}"</h2>
     <div class="tv-shows">
         {% for show in shows.items %}
             <div class="show-card">
