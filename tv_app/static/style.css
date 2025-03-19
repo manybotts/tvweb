@@ -1,5 +1,5 @@
 /* --- tv_app/static/style.css --- */
-/* --- PART 1 START (Revised - Preserving Original, with index.html fixes) --- */
+/* --- PART 1 START (Revised - Corrected Index Page Grid) --- */
 
 /* --- General Styles --- */
 
@@ -72,7 +72,7 @@ h2 {
 .nav-links {
     display: flex;
     align-items: center;
-    margin-right: auto; /* Push iBOX TV and search to the right */
+    margin-right: auto;  /* Push iBOX TV and search to the right */
     margin-left: 20px;
 }
 
@@ -223,18 +223,19 @@ h2 {
 }
 
 /* --- Show Card Styles (for Newly Added and Search Results) --- */
-/* These styles are now applied on index.html */
+/* These styles *are* used on index.html, both for "Newly Added" and search results */
 
 .tv-shows {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); /* Responsive columns */
-    gap: 20px;
-    padding: 20px 0;  /*Padding at top and bottom, not sides*/
+     display: grid; /* Use CSS Grid */
+    grid-template-columns: repeat(2, 1fr); /* Two columns by default */
+    gap: 4vw; /* Responsive gap */
+    padding: 4vw; /* Responsive padding */
+
 }
-/*Show Card*/
+
 .show-card {
     border: 1px solid #333;
-    padding: 15px;  /*Reduce padding*/
+    padding: 4vw;  /*Responsive Padding*/
     box-sizing: border-box;
     background-color: #222;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.6);
@@ -243,8 +244,8 @@ h2 {
     overflow: hidden;
     display: flex;
     flex-direction: column;
-    margin-bottom: 20px;
-     height: 100%;
+    margin-bottom: 4vw; /* Add margin at the bottom */
+    height: 100%; /* Ensure cards fill grid cell height */
 }
 .show-card:hover {
 	transform: translateY(-7px);
@@ -253,7 +254,7 @@ h2 {
 .show-card a {
     text-decoration: none;
     color: inherit;
-    display: block;
+     display: block;
      flex-grow: 1; /* Allow the link to fill the card */
      display: flex;
      flex-direction: column;
@@ -274,7 +275,7 @@ h2 {
     font-family: 'Netflix Sans', sans-serif;
     text-align: center; /* Center-align show titles */
     margin-top: auto; /* Title at the bottom */
-     padding: 0 10px;
+    padding: 0 10px; /* Horizontal padding */
 }
 
 .show-card p {
@@ -282,8 +283,8 @@ h2 {
     color: #aaa;
     margin-bottom: 0;
      margin-top: auto;
-      padding: 0 10px 10px 10px; /* Add some padding */
-       text-align: center;
+     padding: 0 10px 10px 10px;
+     text-align: center;
 }
 /* Centered Episode Title */
 .episode-title{
@@ -294,28 +295,42 @@ h2 {
 
 /* --- Larger screens --- */
 /* On larger screens, use a multi-column layout */
-/*@media (min-width: 769px) {
+@media (min-width: 769px) {
    .tv-shows{
-     grid-template-columns: repeat(2, 1fr);
+     grid-template-columns: repeat(2, 1fr); /* Two columns on tablets */
         padding: 15px;
         gap: 15px;
    }
-
+    .show-card {
+        width: auto; /* Let width be determined by grid */
+        padding: 15px;
+        margin-bottom: 20px;
+    }
+    .show-card h3{
+        font-size: 1.2em;
+    }
+     .show-card p{
+        font-size: 0.9em;
+    }
 }
 
 @media (min-width: 992px) {
-
+    .show-card {
+        width: auto;
+    }
     .tv-shows {
-        grid-template-columns: repeat(3, 1fr);
+        grid-template-columns: repeat(3, 1fr); /* Three columns on larger screens */
     }
 }
 
 @media (min-width: 1200px) {
-
-    .tv-shows {
-        grid-template-columns: repeat(4, 1fr);
+    .show-card{
+        width: auto;
     }
-}*/
+    .tv-shows {
+        grid-template-columns: repeat(4, 1fr); /* Four columns on very large screens */
+    }
+}
 /* --- PART 1 END --- */
 /* --- tv_app/static/style.css --- */
 /* --- PART 2 START (Slideshow, Pagination, and /shows page styles) --- */
@@ -344,9 +359,8 @@ h2 {
     align-items: center; /* Vertically center links */
     margin-bottom: 10px; /* Space below sort options */
 }
-
 .sort-options a {
-    margin-right: 15px;
+	margin-right:15px; /* Space between links*/
 	color: #fff;
 	font-size: 0.9em;
 }
@@ -356,8 +370,7 @@ h2 {
     flex-direction: column; /* Stack label and form vertically */
     margin-bottom: 10px; /* Space between filter groups */
 }
-
-.filter-group label {
+.filter-group label{
 	color: #fff;
 	font-size: 0.9em;
 	font-weight: bold;
@@ -369,7 +382,6 @@ h2 {
     align-items: center; /* Vertically center items */
     margin-top: 5px;
 }
-
 .filter-form input, .filter-form button{
 	padding: 6px 10px;
 	border-radius: 4px;
@@ -399,46 +411,41 @@ h2 {
   	text-decoration:underline;
   }
 
-/* Style the "All" links to stand out a bit less */
-.filter-group a[href*="sort="] { /* Selects links containing "sort=" */
-    color: #aaa; /* Lighter color */
-    font-weight: normal; /* Not bold */
-}
-
 .shows-list {
     list-style: none; /* Remove bullet points */
     padding: 0;
-    display: grid;  /* Use a grid layout */
+    display: grid;
     grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); /* Responsive columns */
-    gap: 15px; /* Spacing between show items */
+    gap: 15px;
 }
 
 .show-item {
-    text-align: center; /* Center the link text */
+    /* Removed background and border, as those are on the link */
+    text-align: center; /* Center the link inside the item */
 }
 
 .show-link {
-    background-color: #222; /* Dark background */
+    background-color: #222; /* Dark background for link */
     color: #fff;
     padding: 15px;
     border-radius: 8px;
     text-decoration: none;
-    transition: background-color 0.3s ease, transform 0.2s ease; /* Smooth transitions */
-    display: block; /* Fill the container */
+    transition: background-color 0.3s ease, transform 0.2s ease; /* Added transform */
+    display: block; /* Make the link fill the container */
     font-size: 1em;
     font-weight: bold;
-    font-family: 'Netflix Sans', sans-serif; /* Consistent font */
-    border: 1px solid #333; /* Subtle border */
-    height: 100%; /* Fill the grid cell */
-    box-sizing: border-box;
+    font-family: 'Netflix Sans', sans-serif;
+    border: 1px solid #333;
+     height: 100%; /* Make the link fill the list item */
+    box-sizing: border-box; /* Include padding and border in height */
 }
 
 .show-link:hover {
-    background-color: #333; /* Slightly lighter on hover */
+    background-color: #333;
     transform: scale(1.05); /* Slightly enlarge on hover */
 }
 
-/* Active Sort Link */
+/*Active Sort Link*/
 .active-sort {
     font-weight: bold;
     color: #e50914;
@@ -446,8 +453,8 @@ h2 {
 }
 
 /* --- Loader --- */
-/* Styles for loading indicator (optional, you can remove it if not used) */
-.telegram-loader {
+
+.telegram-loader { /*  Keep, but you'll need to add/remove this class dynamically */
     width: 48px;
     height: 48px;
     border-radius: 50%;
@@ -480,8 +487,7 @@ h2 {
     50% { transform: scale(1); opacity: 0.5; }
 }
 
-/* --- Pagination Styles --- */
-/* Container for all pagination links */
+/* --- Pagination --- */
 
 .pagination {
     text-align: center;
@@ -522,6 +528,7 @@ h2 {
 }
 
 /* --- Download Button --- */
+
 .download-button {
     display: inline-block; /* Or block, depending on layout */
     padding: 10px 20px;
@@ -530,14 +537,16 @@ h2 {
     color: white;
     text-decoration: none;
     border-radius: 5px;
-    transition: background-color 0.3s ease;
+    transition: background-color: 0.3s ease;
     border: none;
     cursor: pointer;
     margin-top: 10px;
 }
+
 .download-button:hover {
-     background-color: #b20710;
+    background-color: #b20710; /* Darker red on hover */
 }
+
 /* --- Slideshow --- */
 /*Keep slideshow styles*/
 .slideshow-container {
@@ -871,14 +880,14 @@ h2 {
 
 /*Download button*/
 .download-button {
-    display: inline-block;
+    display: inline-block; /* Or block, depending on layout */
     padding: 10px 20px;
     font-size: 1.1em;
-    background-color: #e50914;
+    background-color: #e50914; /* Netflix red */
     color: white;
     text-decoration: none;
     border-radius: 5px;
-    transition: background-color 0.3s ease;
+    transition: background-color: 0.3s ease;
     border: none;
     cursor: pointer;
     margin-top:10px; /*Margin to the overview*/
