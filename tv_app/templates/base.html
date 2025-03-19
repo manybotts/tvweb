@@ -7,35 +7,37 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" integrity="sha512-9usAa10IRO0HhonpyAIVpjrylPvoDwiPUiKdWk5t3PyolY1cOd4DSE0Ga+ri4AuTroPR5aQvXU9xC6qOPnzFeg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
     <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v={{ range(1, 10000) | random }}">
-    <script src="{{ url_for('static', filename='script.js') }}?v={{ range(1, 10000) | random }}"></script>
+
 </head>
 <body>
-    <nav class="navbar">
-        <div class="navbar-container">
-            <a href="{{ url_for('index') }}" class="navbar-brand">
-                <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" class="logo">
-            </a>
-            <div class="nav-links">
-                <a href="{{ url_for('index') }}" class="nav-link"><i class="fas fa-home"></i><span class="link-text">Home</span></a>
-                <a href="{{ url_for('list_shows') }}" class="nav-link"><i class="fas fa-tv"></i><span class="link-text">Shows</span></a>
-                <span class="brand-text"><span class="ibox-text">iBOX</span><span class="tv-text">TV</span></span>
-                <button type="button" class="search-icon-button">
-                    <i class="fas fa-search"></i>
-                </button>
-            </div>
-             <div class="floating-search">
-                <form action="{{ url_for('index') }}" method="GET">
-                    <input type="text" name="search" placeholder="Search for shows..." class="search-input">
-                    <button type="submit" class="search-button"><i class="fas fa-search"></i></button>
-                </form>
-            </div>
+    <header>
+        <nav class="navbar">
+            <div class="navbar-container">
+                <a href="{{ url_for('index') }}" class="navbar-brand">
+                    <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" class="logo">
+                </a>
+                <div class="nav-links">
+                    <a href="{{ url_for('index') }}" class="nav-link"><i class="fas fa-home"></i><span class="link-text">Home</span></a>
+                    <a href="{{ url_for('list_shows') }}" class="nav-link"><i class="fas fa-tv"></i><span class="link-text">Shows</span></a>
+                    <span class="brand-text"><span class="ibox-text">iBOX</span><span class="tv-text">TV</span></span>
+                    <button type="button" class="search-icon-button">
+                        <i class="fas fa-search"></i>
+                    </button>
+                </div>
+                 <div class="floating-search">
+                    <form action="{{ url_for('index') }}" method="GET">
+                        <input type="text" name="search" placeholder="Search for shows..." class="search-input">
+                        <button type="submit" class="search-button"><i class="fas fa-search"></i></button>
+                    </form>
+                </div>
 
-        </div>
-    </nav>
+            </div>
+        </nav>
+    </header>
 
-    <div class="container">
+    <main class="container">
         {% block content %}{% endblock %}
-    </div>
-
+    </main>
+    <script src="{{ url_for('static', filename='script.js') }}?v={{ range(1, 10000) | random }}" defer></script>
 </body>
 </html>
