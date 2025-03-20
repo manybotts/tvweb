@@ -1,8 +1,8 @@
-# init_db.py
+# tv_app/init_db.py
 import os
 from dotenv import load_dotenv
-from tv_app.app import app
-from tv_app.models import db, Show, User, Episodes  # Corrected import: Show, not TVShow
+from tv_app.app import app  # Import the app instance
+from tv_app.models import db, Show, Episodes, User  # Import ALL models
 from sqlalchemy import inspect
 
 load_dotenv()
@@ -12,7 +12,7 @@ def init_db():
         inspector = inspect(db.engine)
         # Check for the existence of *either* table.  If *either* exists, assume
         # the database is initialized.  This is more robust.
-        if not (inspector.has_table("tv_shows") or inspector.has_table("episodes")):
+        if not (inspector.has_table("tv_shows") or inspector.has_table("episodes") or inspector.has_table("user")):
             db.create_all()
             print("Database tables created successfully!")
 
@@ -20,7 +20,7 @@ def init_db():
             try:
                 admin = User.query.filter_by(username='admin').first()
                 if not admin:
-                    admin = User(username='admin')
+                    admin = User(username='admin', email="admin@example.com") #Added email
                     admin.set_password('admin')  # CHANGE THIS IN PRODUCTION!!!
                     db.session.add(admin)
                     db.session.commit()
