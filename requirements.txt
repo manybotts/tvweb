@@ -2,7 +2,7 @@ Flask==3.0.0
 Flask-SQLAlchemy==3.1.1
 SQLAlchemy==2.0.23
 python-dotenv==1.0.0
-requests==2.31.0
+requests==2.31.0  # Kept, even though it's now only used for TMDB fallback
 redis==5.0.1
 celery==5.3.6
 flower==2.0.1
@@ -22,3 +22,12 @@ Pillow==10.1.0
 typing-extensions==4.8.0
 psycopg2-binary==2.9.9
 gevent==23.9.1
+aiohttp==3.9.1  # Added aiohttp
+aiohttp-retry==2.8.3 #Recommended when using aiohttp
+async-timeout==4.0.3 #Dependency of aiohttp
+attrs==23.1.0 #Dependency of aiohttp
+charset-normalizer==3.3.2#Dependency of aiohttp
+frozenlist==1.4.0#Dependency of aiohttp
+idna==3.6#Dependency of aiohttp, and requests
+multidict==6.0.4#Dependency of aiohttp
+yarl==1.9.4#Dependency of aiohttp
