@@ -4,7 +4,7 @@ from flask import Flask, render_template, request, jsonify, redirect, url_for
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import func, text  # Import 'text'
 from .models import db, TVShow  # Import db and TVShow from models
-from .tasks import update_tv_shows, normalize_string  # Import normalize_string, REMOVE test_task
+from .tasks import update_tv_shows, normalize_string  # Import normalize_string
 import logging
 from thefuzz import process, fuzz
 
@@ -24,6 +24,59 @@ logger = logging.getLogger(__name__)
 def get_trending_shows(limit=5):
     """Retrieves the top 'limit' trending shows, ordered by clicks."""
     return TVShow.query.order_by(TVShow.clicks.desc()).limit(limit).all()
+
+# --- Pagination ---
+def paginate_results(results, page, per_page):
+    """Paginates a list of results manually."""
+    from flask_sqlalchemy import pagination
+
+    start = (page - 1) * per_page
+    end = start + per_page
+    paginated_items = results[start:end]
+
+    # Create a CustomPagination object
+    pagination_obj = CustomPagination(page, per_page, len(results), paginated_items)
+    return pagination_obj
+
+class CustomPagination:
+    """
+    A custom pagination class to mimic Flask-SQLAlchemy's Pagination object
+    for use with pre-fetched lists of results.
+    """
+    def __init__(self, page, per_page, total, items):
+        self.page = page
+        self.per_page = per_page
+        self.total = total
+        self.items = items
+        self.grouped_items = {} # For grouped display
+
+    @property
+    def pages(self):
+        """Total number of pages."""
+        return (self.total + self.per_page - 1) // self.per_page
+
+    @property
+    def has_prev(self):
+        """True if there's a previous page."""
+        return self.page > 1
+
+    @property
+    def has_next(self):
+        """True if there's a next page."""
+        return self.page < self.pages
+
+    def iter_pages(self, left_edge=2, left_current=2, right_current=5, right_edge=2):
+        """Iterates over page numbers for pagination controls."""
+        last = 0
+        for num in range(1, self.pages + 1):
+            if num <= left_edge or \
+               (num > self.page - left_current - 1 and num < self.page + right_current) or \
+               num > self.pages - right_edge:
+                if last + 1 != num:
+                    yield None  # Represents a gap (...)
+                yield num
+                last = num
+
 
 # --- Routes ---
 
@@ -152,17 +205,13 @@ def redirect_to_download(show_id):
 
 @app.route('/shows')
 def list_shows():
-    """Displays a list of all available TV show names, with pagination."""
     page = request.args.get('page', 1, type=int)
-    per_page = 30  # Number of show *names* per page
-
-    # Corrected query:  Order by show_name *first*, then distinct.
+    per_page = 30
     shows_paginated = TVShow.query.order_by(TVShow.show_name).distinct(TVShow.show_name).paginate(page=page, per_page=per_page, error_out=False)
-
-    # Extract show names from the paginated result.  This is efficient.
     show_names = [show.show_name for show in shows_paginated.items]
+    return render_template('shows.html', show_names=show_names, shows=shows_paginated)
 
-    return render_template('shows.html', show_names=show_names, shows=shows_paginated) #Pass the pagination object
+
 
 @app.route('/update', methods=['POST'])
 def update():
