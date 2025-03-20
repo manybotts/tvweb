@@ -18,3 +18,4 @@ amqp==5.2.0
 vine==5.1.0
 fuzzywuzzy==0.18.0
 Flask-Login==0.6.3
+ratelimit
