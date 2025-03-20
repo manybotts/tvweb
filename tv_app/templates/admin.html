@@ -1,0 +1,134 @@
+{# templates/admin.html #}
+{% extends "base.html" %}
+
+{% block title %}Admin Panel{% endblock %}
+
+{% block content %}
+    <h1>Admin Panel</h1>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <ul class=flashes>
+                {% for category, message in messages %}
+                    <li class="{{ category }}">{{ message }}</li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+    {% endwith %}
+
+    <h2>Add New Show</h2>
+    <form method="POST" action="{{ url_for('admin') }}">
+        {{ add_show_form.hidden_tag() }}
+        {{ add_show_form.title.label }} {{ add_show_form.title() }}
+        {{ add_show_form.overview.label }} {{ add_show_form.overview() }}
+        {{ add_show_form.release_year.label }} {{ add_show_form.release_year() }}
+        {{ add_show_form.genre.label }} {{ add_show_form.genre() }}
+        {{ add_show_form.image_url.label }} {{ add_show_form.image_url() }}
+        {{ add_show_form.trailer_url.label }} {{ add_show_form.trailer_url() }}
+        {{ add_show_form.imdb_id.label }} {{ add_show_form.imdb_id() }}
+        {{ add_show_form.download_link.label }} {{ add_show_form.download_link() }}
+        {{ add_show_form.available_seasons.label }} {{ add_show_form.available_seasons() }}
+        <div class="form-check">
+            {{ add_show_form.is_new.label(class="form-check-label") }}
+            {{ add_show_form.is_new(class="form-check-input") }}
+        </div>
+
+        <div class="form-check">
+           {{ add_show_form.on_slider.label(class="form-check-label") }}
+           {{ add_show_form.on_slider(class="form-check-input")}}
+        </div>
+
+        {{ add_show_form.submit() }}
+    </form>
+
+<h2>Add New Episode</h2>
+    <form method="POST" action="{{ url_for('admin') }}">
+      {{ add_episode_form.hidden_tag() }}
+      {{ add_episode_form.title.label }} {{ add_episode_form.title() }}
+      {{ add_episode_form.episode_number.label }} {{ add_episode_form.episode_number() }}
+      {{ add_episode_form.season_number.label }} {{ add_episode_form.season_number() }}
+      {{ add_episode_form.show_id.label }} {{ add_episode_form.show_id() }}
+      {{ add_episode_form.download_link.label }} {{ add_episode_form.download_link() }}
+      {{ add_episode_form.overview.label }} {{ add_episode_form.overview() }}
+      {{ add_episode_form.submit() }}
+
+    </form>
+
+
+    <h2>Existing Shows</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Title</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for show in shows %}
+            <tr>
+                <td>{{ show.id }}</td>
+                <td>{{ show.title }}</td>
+                <td>
+                    <form action="{{ url_for('delete_show', show_id=show.id) }}" method="post">
+                        <button type="submit" onclick="return confirm('Are you sure you want to delete this show and all its episodes?');">Delete Show</button>
+                    </form>
+                     <a href="{{ url_for('edit_show', show_id=show.id) }}">Edit Show</a>
+                     {% if show.on_slider %}
+                       <form action="{{ url_for('remove_from_slider', show_id=show.id) }}" method="post">
+                         <button type="submit">Remove from Slider</button>
+                       </form>
+                    {% else %}
+                       <form action="{{ url_for('add_to_slider', show_id=show.id) }}" method="post">
+                         <button type="submit">Add to Slider</button>
+                       </form>
+                    {% endif %}
+
+                    {% if show.is_new %}
+                      <form action="{{ url_for('unmark_as_new', show_id=show.id) }}" method="post">
+                        <button type="submit">Unmark as New</button>
+                      </form>
+                    {% else %}
+                      <form action="{{ url_for('mark_as_new', show_id=show.id) }}" method="post">
+                        <button type="submit">Mark as New</button>
+                      </form>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+<h2>Existing Episodes</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Show</th>
+                <th>Season</th>
+                <th>Episode</th>
+                <th>Title</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+             {% for episode in episodes %}
+            <tr>
+                <td>{{ episode.id }}</td>
+                <td>{{ episode.show.title}}</td>
+                <td>{{ episode.season_number }}</td>
+                <td>{{ episode.episode_number }}</td>
+                <td>{{ episode.title if episode.title else 'N/A' }}</td>
+                <td>
+                   <form action= "{{ url_for('delete_episode', episode_id=episode.id) }}" method="post">
+                       <button type = "submit" onclick="return confirm('Sure to delete?');">Delete Episode</button>
+                   </form>
+                   <a href="{{ url_for('edit_episode', episode_id=episode.id) }}">Edit Episode</a>
+                </td>
+            </tr>
+            {% endfor %}
+
+        </tbody>
+</table>
+
+<p><a href="{{ url_for('admin_logout') }}">Logout</a></p>
+
+{% endblock %}
