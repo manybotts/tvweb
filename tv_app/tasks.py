@@ -17,6 +17,10 @@ from thefuzz import process, fuzz
 from .models import db, Show, Episodes  # Correct relative import
 from sqlalchemy import func
 import json
+#Import app context
+from tv_app.app import app
+
+
 
 load_dotenv()
 
@@ -216,99 +220,107 @@ def update_tv_shows(self):
         bot = telegram.Bot(token=TELEGRAM_BOT_TOKEN)
         posts = asyncio.run(fetch_new_telegram_posts(bot))
 
-        for post in posts:
-            post_data = parse_telegram_post(post.caption)
-            if post_data:
-                logger.info(f"Parsed post data: {post_data}")
-                show_name = post_data['show_name']
-                season_number = post_data['season']
-                episode_number = post_data['episode']
-                download_link = post_data['download_link']
+        with app.app_context():
+            for post in posts:
+                # --- Check if message ID has been processed ---
+                if redis_client.sismember("processed_messages", post.message_id):
+                    logger.info(f"Message ID {post.message_id} already processed. Skipping.")
+                    continue
 
-                show = db.session.query(Show).filter(
-                    func.lower(Show.title) == func.lower(show_name)).first()
+                post_data = parse_telegram_post(post.caption)
+                if post_data:
+                    logger.info(f"Parsed post data: {post_data}")
+                    show_name = post_data['show_name']
+                    season_number = post_data['season']
+                    episode_number = post_data['episode']
+                    download_link = post_data['download_link']
 
-                if show:
-                    logger.info(f"Show '{show_name}' found (ID: {show.id}).")
-                    existing_episode = db.session.query(Episodes).filter_by(show_id=show.id,
-                                                                          season_number=season_number,
-                                                                          episode_number=episode_number).first()
-                    if not existing_episode:
-                        new_episode = Episodes(title=None, episode_number=episode_number,
-                                               season_number=season_number, show_id=show.id,
-                                               download_link=download_link, overview=None)
-                        db.session.add(new_episode)
 
-                        if season_number == 1 and episode_number == 1 and not show.imdb_id:
-                            tmdb_id = get_tmdb_id_by_title(show.title)
-                            if tmdb_id:
-                                tmdb_url = f"https://api.themoviedb.org/3/tv/{tmdb_id}?language=en-US"
-                                show_details = get_tmdb_data(tmdb_url)
-                                if show_details:
-                                    show.overview = show_details.get('overview')
-                                    show.genre = ', '.join([genre['name'] for genre in show_details.get('genres', [])])
-                                    show.image_url = (f"https://image.tmdb.org/t/p/w500{show_details.get('poster_path')}"
-                                                      if show_details.get('poster_path') else None)
-                                    show.trailer_url = (
-                                        f"https://www.youtube.com/watch?v={get_trailer(tmdb_id)}"
-                                        if get_trailer(tmdb_id) else None)
-                                    show.imdb_id = str(tmdb_id)
-                                    show.available_seasons = show_details.get('number_of_seasons', 1)
-                    else:
-                        logger.info(
-                            f"Episode S{season_number:02d}E{episode_number:02d} of '{show_name}' already exists.")
+                    show = db.session.query(Show).filter(
+                        func.lower(Show.title) == func.lower(show_name)).first()
 
-                else:
-                    logger.info(f"Show '{show_name}' not found.  Fetching from TMDB...")
-                    tmdb_id = get_tmdb_id_by_title(show_name)
-                    if tmdb_id:
-                        tmdb_url = f"https://api.themoviedb.org/3/tv/{tmdb_id}?language=en-US"
-                        show_details = get_tmdb_data(tmdb_url)
-
-                        if show_details:
-                            new_show = Show(
-                                title=show_details.get('name'),
-                                overview=show_details.get('overview'),
-                                release_year=int(show_details.get('first_air_date', '0000-00-00').split('-')[0]) if
-                                show_details.get('first_air_date') else None,
-                                genre=', '.join([genre['name'] for genre in show_details.get('genres', [])]),
-                                image_url=f"https://image.tmdb.org/t/p/w500{show_details.get('poster_path')}" if
-                                show_details.get('poster_path') else None,
-                                trailer_url=f"https://www.youtube.com/watch?v={get_trailer(tmdb_id)}" if
-                                get_trailer(tmdb_id) else None,
-                                imdb_id=str(tmdb_id),
-                                download_link=None,
-                                available_seasons=show_details.get('number_of_seasons', 1)
-                            )
-                            db.session.add(new_show)
-                            db.session.flush()
-
-                            new_episode = Episodes(
-                                title=None,
-                                episode_number=episode_number,
-                                season_number=season_number,
-                                show_id=new_show.id,
-                                download_link=download_link,
-                                overview=None,
-                            )
+                    if show:
+                        logger.info(f"Show '{show_name}' found (ID: {show.id}).")
+                        existing_episode = db.session.query(Episodes).filter_by(show_id=show.id,
+                                                                            season_number=season_number,
+                                                                            episode_number=episode_number).first()
+                        if not existing_episode:
+                            new_episode = Episodes(title=None, episode_number=episode_number,
+                                                season_number=season_number, show_id=show.id,
+                                                download_link=download_link, overview=None)
                             db.session.add(new_episode)
+
+                            if season_number == 1 and episode_number == 1 and not show.imdb_id:
+                                tmdb_id = get_tmdb_id_by_title(show.title)
+                                if tmdb_id:
+                                    tmdb_url = f"https://api.themoviedb.org/3/tv/{tmdb_id}?language=en-US"
+                                    show_details = get_tmdb_data(tmdb_url)
+                                    if show_details:
+                                        show.overview = show_details.get('overview')
+                                        show.genre = ', '.join([genre['name'] for genre in show_details.get('genres', [])])
+                                        show.image_url = (f"https://image.tmdb.org/t/p/w500{show_details.get('poster_path')}"
+                                                        if show_details.get('poster_path') else None)
+                                        show.trailer_url = (
+                                            f"https://www.youtube.com/watch?v={get_trailer(tmdb_id)}"
+                                            if get_trailer(tmdb_id) else None)
+                                        show.imdb_id = str(tmdb_id)
+                                        show.available_seasons = show_details.get('number_of_seasons', 1)
                         else:
-                            logger.warning(f"Could not retrieve details for show ID {tmdb_id} from TMDB.")
+                            logger.info(
+                                f"Episode S{season_number:02d}E{episode_number:02d} of '{show_name}' already exists.")
                     else:
-                        logger.warning(f"Could not find TMDB ID for show: {show_name}")
+                        logger.info(f"Show '{show_name}' not found.  Fetching from TMDB...")
+                        tmdb_id = get_tmdb_id_by_title(show_name)
+                        if tmdb_id:
+                            tmdb_url = f"https://api.themoviedb.org/3/tv/{tmdb_id}?language=en-US"
+                            show_details = get_tmdb_data(tmdb_url)
 
-                try:
+                            if show_details:
+                                new_show = Show(
+                                    title=show_details.get('name'),
+                                    overview=show_details.get('overview'),
+                                    release_year=int(show_details.get('first_air_date', '0000-00-00').split('-')[0]) if
+                                    show_details.get('first_air_date') else None,
+                                    genre=', '.join([genre['name'] for genre in show_details.get('genres', [])]),
+                                    image_url=f"https://image.tmdb.org/t/p/w500{show_details.get('poster_path')}" if
+                                    show_details.get('poster_path') else None,
+                                    trailer_url=f"https://www.youtube.com/watch?v={get_trailer(tmdb_id)}" if
+                                    get_trailer(tmdb_id) else None,
+                                    imdb_id=str(tmdb_id),
+                                    download_link=None,
+                                    available_seasons=show_details.get('number_of_seasons', 1)
+                                    )
+
+                                db.session.add(new_show)
+                                # Add the episode immediately
+                                new_episode = Episodes(
+                                    title=None,
+                                    episode_number=episode_number,
+                                    season_number=season_number,
+                                    show_id=new_show.id,  # Use the newly created show's ID
+                                    download_link=download_link,
+                                    overview=None
+                                )
+                                db.session.add(new_episode)
+
+
                     db.session.commit()
-                    logger.info("Changes committed to the database.")
-                except OperationalError as e:
-                    db.session.rollback()
-                    logger.exception(f"Database operational error: {e}")
-                    self.retry(exc=e, countdown=60)
-                except Exception as e:
-                    db.session.rollback()
-                    logger.exception(f"An error occurred: {e}")
-                    self.retry(exc=e, countdown=120)
+                    logger.info(f"Database updated for show: {show_name}")
+                    # Add to processed messages set
+                    redis_client.sadd("processed_messages", post.message_id)
 
+    except OperationalError as e:
+        logger.error(f"Database operational error: {e}. Retrying...")
+        self.retry(exc=e, countdown=60)
+    except (RetryAfter, TimedOut, NetworkError) as e:
+        logger.error(f"Telegram API error: {e}. Retrying...")
+        if isinstance(e, RetryAfter):
+            self.retry(countdown=e.retry_after)  # Respect RetryAfter
+        else:
+            self.retry(countdown=30)  # Retry after a delay
+    except Exception as e:
+        logger.exception(f"An unexpected error occurred: {e}")
+        self.retry(countdown=60)  # Retry after a delay
     finally:
         lock.release()
-        logger.info("update_tv_shows task finished.")
+        logger.info("Lock released.")
