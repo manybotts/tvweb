@@ -1,3 +1,4 @@
+# app.py
 # -*- coding: utf-8 -*-
 # BEGIN APP.PY PART 1 - DO NOT CHANGE INDENTATION
 
@@ -14,13 +15,13 @@ from thefuzz import process, fuzz
 import datetime
 from functools import wraps
 from urllib.parse import urlparse, urljoin
-from forms import AdminLoginForm, AddShowForm, AddEpisodeForm
+from .forms import AdminLoginForm, AddShowForm, AddEpisodeForm  # Import forms
 
 load_dotenv()
 
 app = Flask(__name__)
-app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "your_secret_key")
-app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL", "sqlite:///tv_shows.db")
+app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "your_secret_key")  # Use a strong secret key
+app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL", "sqlite:///tv_shows.db").replace("postgres://", "postgresql://")
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 db.init_app(app)
 
@@ -36,7 +37,8 @@ def load_user(user_id):
 # --- Helper Functions ---
 
 def get_trending_shows(limit=5):
-    return TVShow.query.order_by(TVShow.clicks.desc()).limit(limit).all()
+    #  Corrected to use the Show model
+    return Show.query.order_by(Show.clicks.desc()).limit(limit).all()
 
 def is_safe_url(target):
     ref_url = urlparse(request.host_url)
@@ -63,10 +65,12 @@ def index():
 
     if search_query:
         normalized_query = normalize_string(search_query)
-        exact_match = TVShow.query.filter(TVShow.show_name == normalized_query).first()
-        partial_matches = TVShow.query.filter(TVShow.show_name.ilike(f"%{normalized_query}%")).all()
-        all_show_names = [show.show_name for show in TVShow.query.all()]
-        fuzzy_matches = process.extract(normalized_query, all_show_names)
+        # Corrected to use the Show model
+        exact_match = Show.query.filter(func.lower(Show.title) == normalized_query).first()
+        # Corrected to use ilike with Show.title
+        partial_matches = Show.query.filter(Show.title.ilike(f"%{normalized_query}%")).all()
+        all_show_names = [show.title for show in Show.query.all()]
+        fuzzy_matches = process.extract(normalized_query, all_show_names, scorer=fuzz.token_set_ratio)
 
         results = []
         if exact_match:
@@ -76,27 +80,30 @@ def index():
                 results.append(show)
         for show_name, score in fuzzy_matches:
             if score >= 60:
-                show = TVShow.query.filter_by(show_name=show_name).first()
+                show = Show.query.filter(func.lower(Show.title) == normalize_string(show_name)).first()
                 if show and show not in results:
                     results.append(show)
+
         shows = paginate_results(results, page, per_page)
 
         if not shows.items:
             message = (
                 f"No shows found matching '{search_query}'. Here are some similar shows:"
             )
-            shows = paginate_results(results, page, per_page)
-            if not shows.items:
-                message = f"No shows found matching '{search_query}'. Displaying all shows."
-                shows = (
-                    TVShow.query.order_by(TVShow.created_at.desc())
+            #  If no matches, you might want to show *some* results, maybe trending.
+            #  For now, I'll show all, but you can adjust this.
+            shows = Show.query.order_by(Show.clicks.desc()).paginate(page=page, per_page=per_page, error_out=False)
+            if not shows.items:  # Still no shows?  Show all, as before.
+               message = f"No shows found matching '{search_query}'. Displaying all shows."
+               shows = (
+                    Show.query.order_by(Show.id.desc())  # Simple ID-based ordering
                     .paginate(page=page, per_page=per_page, error_out=False)
                 )
-        trending_shows = []
+        trending_shows = [] #No trending shows if search query exists
 
     else:
         shows = (
-            TVShow.query.order_by(TVShow.created_at.desc())
+            Show.query.order_by(Show.id.desc())  # Use a simple ordering, like ID.
             .paginate(page=page, per_page=per_page, error_out=False)
         )
         trending_shows = get_trending_shows()
@@ -111,7 +118,7 @@ def index():
     )
 
 def paginate_results(results, page, per_page):
-    from flask_sqlalchemy import pagination
+    from flask_sqlalchemy import pagination  # Import if not already imported
 
     start = (page - 1) * per_page
     end = start + per_page
@@ -126,15 +133,19 @@ class CustomPagination:
         self.per_page = per_page
         self.total = total
         self.items = items
+
     @property
     def pages(self):
         return (self.total + self.per_page - 1) // self.per_page
+
     @property
     def has_prev(self):
         return self.page > 1
+
     @property
     def has_next(self):
         return self.page < self.pages
+
     def iter_pages(self, left_edge=2, left_current=2, right_current=5, right_edge=2):
         last = 0
         for num in range(1, self.pages + 1):
@@ -146,18 +157,29 @@ class CustomPagination:
 
 @app.route("/show/<int:show_id>")
 def show_details(show_id):
-    show = TVShow.query.get_or_404(show_id)
-    show.clicks += 1
+    show = Show.query.get_or_404(show_id)
+    show.clicks += 1  # Increment clicks
     db.session.commit()
+    #  Fetch episodes related to the show, ordered by season and episode number
     episodes = Episodes.query.filter_by(show_id=show.id).order_by(Episodes.season_number, Episodes.episode_number).all()
     return render_template("show_details.html", show=show, episodes=episodes)
 
-@app.route("/redirect/<int:show_id>")
-def redirect_to_download(show_id):
-    show = TVShow.query.get_or_404(show_id)
-    if show.download_link:
-        return redirect(show.download_link)
-    return "Show or link not found", 404
+@app.route("/episode/<int:episode_id>")
+def episode_details(episode_id):
+    episode = Episodes.query.get_or_404(episode_id)
+    #  You might want to increment clicks on the *show*, not the episode,
+    #  or you could add a clicks counter to the Episodes model as well.
+    episode.show.clicks += 1  # Increment clicks on the *show*
+    db.session.commit()
+    return render_template("episode_details.html", episode=episode)  # You'll need an episode_details.html template
+
+
+@app.route("/redirect/<int:episode_id>")  # Redirect to episode, not show
+def redirect_to_download(episode_id):
+    episode = Episodes.query.get_or_404(episode_id)  # Get the episode
+    if episode.download_link:
+        return redirect(episode.download_link)
+    return "Episode or link not found", 404
 # END APP.PY PART 1 - DO NOT CHANGE INDENTATION
 # -*- coding: utf-8 -*-
 # BEGIN APP.PY PART 2 - CAREFULLY COMBINE WITH PART 1
@@ -173,49 +195,38 @@ def list_shows():
     sort_by = request.args.get("sort", "name")  # Default sort by name
     filter_genre = request.args.get("genre")
     filter_year = request.args.get("year")
-    filter_rating = request.args.get("rating")
-    now = datetime.datetime.now()  # Get current datetime
 
     # Start with a base query
-    query = TVShow.query
+    query = Show.query
 
-    # Apply filtering. Handle 'all' option.
+    # Apply filtering.  Handle 'all' option.
     if filter_genre and filter_genre != "all":
-        query = query.filter(TVShow.genre.ilike(f"%{filter_genre}%"))
+        query = query.filter(Show.genre.ilike(f"%{filter_genre}%"))
 
     if filter_year and filter_year != "all":
         try:
             filter_year = int(filter_year)
-            query = query.filter(TVShow.year == filter_year)
+            query = query.filter(Show.release_year == filter_year)
         except ValueError:
             pass  # Ignore invalid year
 
-    if filter_rating and filter_rating != "all":
-        try:
-            filter_rating = float(filter_rating)
-            query = query.filter(TVShow.vote_average >= filter_rating)
-        except ValueError:
-            pass #Ignore invalid rating input
-
     # Apply sorting *before* distinct
     if sort_by == "name":
-        query = query.order_by(TVShow.show_name)
+        query = query.order_by(Show.title)
     elif sort_by == "popularity":
-        query = query.order_by(TVShow.clicks.desc(), TVShow.show_name)  # Sort by name within popularity
+        query = query.order_by(Show.clicks.desc(), Show.title)  # Sort by title within popularity
     elif sort_by == "year":
-        query = query.order_by(TVShow.year.desc(), TVShow.show_name)  # Sort by name within year
-    elif sort_by == "rating":
-        query = query.order_by(TVShow.vote_average.desc(), TVShow.show_name)  # Sort by name within rating
+        query = query.order_by(Show.release_year.desc(), Show.title)  # Sort by title within year
 
-    # *Now* apply distinct, after filtering and sorting, AND order by show_name FIRST
-    query = query.distinct(TVShow.show_name).order_by(TVShow.show_name)
 
-    # Paginate the query *after* filtering, sorting, and distinct
+    # Paginate the query *after* filtering and sorting
     shows_paginated = query.paginate(page=page, per_page=per_page, error_out=False)
 
-    # Get unique genres for the filter, from the *filtered* query.  Much more efficient.
-    all_genres = db.session.query(TVShow.genre).distinct().all()
+    # Get unique genres for the filter, from the *entire* table (not just the filtered results).
+    all_genres = db.session.query(Show.genre).distinct().all()
     all_genres = sorted({g for sublist in all_genres for g in (sublist[0] or '').split(', ') if g})
+    all_years = sorted(db.session.query(Show.release_year).distinct().all(), reverse=True)
+    all_years = [year[0] for year in all_years if year[0] is not None]
 
 
     return render_template(
@@ -224,9 +235,8 @@ def list_shows():
         sort_by=sort_by,
         filter_genre=filter_genre,  # Pass current genre filter
         filter_year=filter_year,   # Pass current year filter
-        filter_rating=filter_rating,  # Pass current rating filter
-        now = now, # Pass now to template,
-        all_genres = all_genres
+        all_genres = all_genres,
+        all_years = all_years
     )
 
 @app.route("/update", methods=["POST"])
@@ -243,21 +253,25 @@ def update():
 @admin_required
 def test_celery():
     """Triggers a test Celery task (for debugging)."""
-    result = test_task.delay()
+    result = update_tv_shows.delay() #Use your main task
     return f"Celery test task initiated. Check logs/flower. Task ID: {result.id}", 200
 
 @app.route("/delete_all", methods=["POST"])
 @login_required
 @admin_required
 def delete_all_shows():
-    """Deletes ALL TV shows from the database (use with caution!)."""
+    """Deletes ALL TV shows and episodes from the database (use with extreme caution!)."""
     try:
-        num_rows_deleted = db.session.query(TVShow).delete()
+        # Delete all episodes first (due to foreign key constraints)
+        num_episodes_deleted = db.session.query(Episodes).delete()
+        # Then delete all shows
+        num_shows_deleted = db.session.query(Show).delete()
         db.session.commit()
-        return jsonify({"message": f"All {num_rows_deleted} shows deleted."}), 200
+        flash(f'All shows ({num_shows_deleted}) and episodes ({num_episodes_deleted}) deleted.', 'success')
+        return jsonify({"message": f"All shows and episodes deleted."}), 200
     except Exception as e:
         db.session.rollback()
-        return jsonify({"message": f"Error deleting shows: {str(e)}"}), 500
+        return jsonify({"message": f"Error deleting shows/episodes: {str(e)}"}), 500
 
 @app.route('/admin', methods=['GET', 'POST'])
 @login_required
@@ -267,7 +281,7 @@ def admin():
     add_episode_form = AddEpisodeForm()
     add_episode_form.show_id.choices = [(show.id, show.title) for show in Show.query.all()]
 
-    if add_show_form.validate_on_submit() and add_show_form.submit.data:
+    if add_show_form.validate_on_submit() and add_show_form.submit_show.data:
         new_show = Show(
             title=add_show_form.title.data,
             overview=add_show_form.overview.data,
@@ -286,7 +300,7 @@ def admin():
         flash('New show added successfully!', 'success')
         return redirect(url_for('admin'))
 
-    if add_episode_form.validate_on_submit() and add_episode_form.submit.data:
+    if add_episode_form.validate_on_submit() and add_episode_form.submit_episode.data:
         new_episode = Episodes(
             title = add_episode_form.title.data,
             episode_number = add_episode_form.episode_number.data,
