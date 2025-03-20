@@ -6,7 +6,7 @@ from datetime import datetime
 
 db = SQLAlchemy()
 
-class User(db.Model, UserMixin):  # UserMixin provides default implementations for Flask-Login
+class User(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     password_hash = db.Column(db.String(128))
@@ -17,42 +17,39 @@ class User(db.Model, UserMixin):  # UserMixin provides default implementations f
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
 
-    def __repr__(self):  #  representation for debugging
+    def __repr__(self):
         return f'<User {self.username}>'
 
 class Show(db.Model):
-    __tablename__ = 'tv_shows'  # Good practice to specify table name
-
+    __tablename__ = 'tv_shows'
     id = db.Column(db.Integer, primary_key=True)
-    message_id = db.Column(db.String, nullable=True, index=True) # Made nullable.
-    show_name = db.Column(db.String, nullable=False, index=True)
-    episode_title = db.Column(db.String, default=None)
-    download_link = db.Column(db.String, default=None)
+    title = db.Column(db.String, nullable=False, index=True)
     overview = db.Column(db.Text)
-    vote_average = db.Column(db.Float)
-    poster_path = db.Column(db.String, default=None)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    clicks = db.Column(db.Integer, default=0)
-    content_hash = db.Column(db.String(64), nullable=True, unique=True, index=True) #Made nullable.
-    genre = db.Column(db.Text)  # Added genre, using Text for comma-separated list
-    year = db.Column(db.Integer)  # Added year
-    season_range = db.Column(db.Text) # Added season_range
-    #Relationship
-    episodes = db.relationship('Episodes', backref='show', lazy=True) #Relationship
+    release_year = db.Column(db.Integer)
+    genre = db.Column(db.Text)  # Comma-separated list of genres
+    image_url = db.Column(db.String)
+    trailer_url = db.Column(db.String)
+    imdb_id = db.Column(db.String) #Keep it as string
+    download_link = db.Column(db.String) #This will hold the general show's page link or null
+    available_seasons = db.Column(db.Integer)
+    is_new = db.Column(db.Boolean, default=False) #is new
+    on_slider = db.Column(db.Boolean, default=False) #is on slider
+    clicks = db.Column(db.Integer, default=0)  # For tracking popularity
+
+    episodes = db.relationship('Episodes', backref='show', lazy=True, cascade="all, delete-orphan")
 
     def __repr__(self):
-        return f'<Show {self.show_name} - {self.episode_title}>'
+        return f'<Show {self.title}>'
 
-#Added episodes model
 class Episodes(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    title = db.Column(db.String(255))
-    episode_number = db.Column(db.Integer)
-    season_number = db.Column(db.Integer)
+    title = db.Column(db.String(255))  # Episode title (can be null)
+    episode_number = db.Column(db.Integer, nullable=False)
+    season_number = db.Column(db.Integer, nullable=False)
     show_id = db.Column(db.Integer, db.ForeignKey('tv_shows.id'), nullable=False)
-    download_link = db.Column(db.String(255))
-    overview = db.Column(db.Text)
-    air_date = db.Column(db.DateTime) #Air date
+    download_link = db.Column(db.String(255)) # Episode-specific download link
+    overview = db.Column(db.Text)  # Episode-specific overview
+    air_date = db.Column(db.DateTime)
 
     def __repr__(self):
-        return f'<Episode {self.show_id} - S{self.season_number}E{self.episode_number}>'
+        return f'<Episode {self.show.title} - S{self.season_number:02d}E{self.episode_number:02d}>'
