@@ -13,7 +13,7 @@ import telegram
 from telegram.error import RetryAfter, TimedOut, NetworkError
 from sqlalchemy.exc import OperationalError
 from fuzzywuzzy import process, fuzz
-from .models import db, Show, Episode  # Import your models
+from .models import db, Show, Episodes  # Corrected: Changed Episode to Episodes
 from sqlalchemy import func
 
 load_dotenv()
@@ -200,10 +200,10 @@ def update_tv_shows(self):
 
                 if show:
                     logger.info(f"Show '{show_name}' found (ID: {show.id}).")
-                    existing_episode = Episode.query.filter_by(show_id=show.id, season_number=season_number, episode_number=episode_number).first()
+                    existing_episode = Episodes.query.filter_by(show_id=show.id, season_number=season_number, episode_number=episode_number).first()
 
                     if not existing_episode:
-                        new_episode = Episode(title = None, episode_number=episode_number, season_number=season_number, show_id=show.id, download_link=download_link, overview = None)
+                        new_episode = Episodes(title = None, episode_number=episode_number, season_number=season_number, show_id=show.id, download_link=download_link, overview = None)
                         db.session.add(new_episode)
                         if season_number == 1 and episode_number == 1 and not show.imdb_id:
                             tmdb_id = get_tmdb_id_by_title(show.title)
@@ -242,7 +242,7 @@ def update_tv_shows(self):
                             )
                             db.session.add(new_show)
                             #  Add the episode
-                            new_episode = Episode(
+                            new_episode = Episodes(
                                 title = None,
                                 episode_number=episode_number,
                                 season_number=season_number,
