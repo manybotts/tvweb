@@ -4,6 +4,20 @@ from datetime import datetime
 
 db = SQLAlchemy()
 
+# --- Association Table for Many-to-Many Relationship (TVShow <-> Genre) ---
+show_genres = db.Table('show_genres',
+    db.Column('tvshow_id', db.Integer, db.ForeignKey('tv_shows.id'), primary_key=True),
+    db.Column('genre_id', db.Integer, db.ForeignKey('genres.id'), primary_key=True)
+)
+
+class Genre(db.Model):
+    __tablename__ = 'genres'
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(50), unique=True, nullable=False)  # e.g., "Action", "Comedy"
+
+    def __repr__(self):
+        return f'<Genre {self.name}>'
+
 class TVShow(db.Model):
     __tablename__ = 'tv_shows'
 
@@ -18,6 +32,12 @@ class TVShow(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
     clicks = db.Column(db.Integer, default=0)
     content_hash = db.Column(db.String(64), nullable=False, index=True)
+    year = db.Column(db.Integer)  # Add release year
+    rating = db.Column(db.Float) # Add rating
+
+    # Relationship to Genre (Many-to-Many)
+    genres = db.relationship('Genre', secondary=show_genres, backref=db.backref('tv_shows', lazy='dynamic'))
+
 
     __table_args__ = (
         db.Index('ix_show_name_episode_title', 'show_name', 'episode_title'),
