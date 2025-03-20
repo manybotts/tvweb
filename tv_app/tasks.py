@@ -1,4 +1,4 @@
-# tv_app/tasks.py (Part 1 of 2) - with processed_messages TTL
+# tv_app/tasks.py (Part 1 of 2) - Populating year, rating, and genres
 # --- Start of Part 1 ---
 from celery import Celery
 from celery.exceptions import MaxRetriesExceededError, Retry
@@ -29,9 +29,9 @@ logger = logging.getLogger(__name__)
 
 # --- Celery Configuration ---
 celery = Celery(__name__)
-celery.config_from_object('celeryconfig')  # Load config!
+celery.config_from_object('celeryconfig')
 
-# --- Constants (Consider moving to a separate config file) ---
+# --- Constants ---
 TMDB_CALLS_PER_SECOND = 4
 TMDB_PERIOD = 1
 TMDB_BASE_URL = "https://api.themoviedb.org/3"
@@ -162,7 +162,7 @@ def parse_telegram_post(post: Update) -> Optional[Dict]:
                 'show_name': normalized_show_name,
                 'season_episode': season_episode,
                 'download_link': download_link,
-                'message_id': post.message_id,
+                'message_id': int(post.message_id),  # Cast to integer
             }
         else:
             logger.warning(f"No show name found in post: {post.message_id}")
@@ -171,9 +171,8 @@ def parse_telegram_post(post: Update) -> Optional[Dict]:
     except Exception as e:
         logger.exception(f"Error during parsing: {e}")
         return None
-
 # --- End of Part 1 ---
-# tv_app/tasks.py (Part 2 of 2) - with processed_messages TTL
+# tv_app/tasks.py (Part 2 of 2) - Populating year, rating, and genres
 # --- Start of Part 2 ---
 
 @sleep_and_retry
@@ -186,7 +185,12 @@ async def fetch_tmdb_data(show_name: str, language: str = 'en-US') -> Optional[D
 
     if cached_data:
         logger.info(f"Using cached TMDb data for: {show_name}")
-        return json.loads(cached_data)
+        try:
+            return json.loads(cached_data)
+        except json.JSONDecodeError:
+            logger.warning(f"Invalid JSON in cache for key: {cache_key}.  Fetching fresh data.")
+            pass
+
 
     try:
         logger.info(f"Fetching TMDb data for: {show_name}")
@@ -233,11 +237,28 @@ async def fetch_tmdb_data(show_name: str, language: str = 'en-US') -> Optional[D
             latest_episode_number = details_data['last_episode_to_air']['episode_number'] if details_data.get('last_episode_to_air') else None
             latest_season_episode = f"S{str(latest_season_number).zfill(2)}E{str(latest_episode_number).zfill(2)}" if latest_season_number is not None and latest_episode_number is not None else None
 
+            # --- Extract Year and Rating ---
+            year = None
+            if details_data.get('first_air_date'):
+                try:
+                    year = int(details_data['first_air_date'][:4])  # Extract year from date string
+                except (ValueError, TypeError):
+                    logger.warning(f"Invalid year format for show: {show_name}")
+
+            rating = details_data.get('vote_average')
+
+            # --- Extract Genres ---
+            genres_list = [genre['name'] for genre in details_data.get('genres', [])]
+
+
             tmdb_info = {
                 'poster_path': f"{TMDB_IMAGE_BASE_URL}{details_data.get('poster_path')}" if details_data.get('poster_path') else None,
                 'overview': details_data.get('overview'),
                 'vote_average': details_data.get('vote_average'),
-                'latest_season_episode': latest_season_episode
+                'latest_season_episode': latest_season_episode,
+                'year': year,  # Add year
+                'rating': rating,  # Add rating
+                'genres': genres_list  # Add genres
             }
 
             redis_client.setex(cache_key, 86400, json.dumps(tmdb_info))
@@ -271,21 +292,19 @@ def update_tv_shows(self):
 
         from tv_app.app import app
         with app.app_context():
-            from tv_app.models import db, TVShow
+            from tv_app.models import db, TVShow, Genre  # Import Genre
 
             for post in posts:
-                # --- Handle Duplicates (Message ID) and Set TTL ---
                 processed_key = "processed_messages:" + str(post.message_id)
                 if redis_client.exists(processed_key):
                     logger.info(f"Message {post.message_id} already processed, skipping.")
                     continue
 
-                # --- Handle edited messages ---
-                existing_message = TVShow.query.filter_by(message_id=post.message_id).first()
+                existing_message = TVShow.query.filter_by(message_id=int(post.message_id)).first()
                 if existing_message:
-                  logger.info("Edited message, deleting it first")
-                  db.session.delete(existing_message)
-                  db.session.commit()
+                    logger.info("Edited message, deleting it first")
+                    db.session.delete(existing_message)
+                    # Don't commit here; commit after all shows
 
                 parsed_data: Optional[Dict] = parse_telegram_post(post)
                 if not parsed_data:
@@ -304,20 +323,42 @@ def update_tv_shows(self):
                 )
 
                 existing_show = TVShow.query.filter_by(show_name=parsed_data['show_name']).first()
-
                 episode_title = parsed_data['season_episode'] or tmdb_data.get('latest_season_episode')
 
                 if existing_show:
                     logger.info(f"Updating existing show: {parsed_data['show_name']}")
                     existing_show.episode_title = episode_title
                     existing_show.download_link = parsed_data['download_link']
-                    existing_show.message_id = post.message_id
+                    existing_show.message_id = int(post.message_id)
                     existing_show.overview = tmdb_data.get('overview')
                     existing_show.vote_average = tmdb_data.get('vote_average')
                     existing_show.poster_path = tmdb_data.get('poster_path')
                     existing_show.content_hash = new_content_hash
 
-                    db.session.commit()
+                    # --- Update Year and Rating ---
+                    existing_show.year = tmdb_data.get('year')
+                    existing_show.rating = tmdb_data.get('rating')
+
+                    # --- Update Genres (Many-to-Many) ---
+                    existing_genres = {genre.name for genre in existing_show.genres}
+                    new_genres = set(tmdb_data.get('genres', []))
+
+                    # Add new genres
+                    for genre_name in new_genres - existing_genres:
+                        genre = Genre.query.filter_by(name=genre_name).first()
+                        if not genre:
+                            genre = Genre(name=genre_name)
+                            db.session.add(genre)  # Add to session if it's new
+                        existing_show.genres.append(genre)
+
+                    # Remove old genres (that are no longer present)
+                    for genre in existing_show.genres:
+                        if genre.name not in new_genres:
+                            existing_show.genres.remove(genre)
+
+
+                    # Don't commit here
+                    # db.session.commit()
                     logger.info(f"Successfully updated: {parsed_data['show_name']}")
 
                 else:
@@ -326,28 +367,38 @@ def update_tv_shows(self):
                         'show_name': parsed_data['show_name'],
                         'episode_title': episode_title,
                         'download_link': parsed_data['download_link'],
-                        'message_id': post.message_id,
+                        'message_id': int(post.message_id),
                         'overview': tmdb_data.get('overview'),
                         'vote_average': tmdb_data.get('vote_average'),
                         'poster_path': tmdb_data.get('poster_path'),
                         'content_hash': new_content_hash,
+                        'year': tmdb_data.get('year'),  # Add year
+                        'rating': tmdb_data.get('rating')  # Add rating
                     }
                     new_show = TVShow(**show_data)
+
+                    # --- Add Genres (Many-to-Many) ---
+                    for genre_name in tmdb_data.get('genres', []):
+                        genre = Genre.query.filter_by(name=genre_name).first()
+                        if not genre:
+                            genre = Genre(name=genre_name)
+                            db.session.add(genre)  # Add to session if new
+                        new_show.genres.append(genre)  # Associate genre with show
+
                     db.session.add(new_show)
-                    db.session.commit()
+                    # Don't commit here
+                    #db.session.commit()
                     logger.info(f"Successfully inserted: {parsed_data['show_name']}")
 
-                # Set the processed message key with TTL
                 redis_client.set(processed_key, 1, ex=PROCESSED_MESSAGES_TTL)
-
-
+            db.session.commit() #Commit at once
             db.session.remove()
+
     except redis_exceptions.ConnectionError as e:
         logger.error(f"Redis connection error: {e}")
         self.retry(exc=e, countdown=60)
     except MaxRetriesExceededError:
         logger.error("Max retries exceeded for update_tv_shows task.")
-        # Consider sending to a Dead Letter Queue (DLQ) here
     except Exception as e:
         logger.exception(f"An unexpected error occurred in update_tv_shows: {e}")
         logger.error(f"Task ID: {self.request.id}")
