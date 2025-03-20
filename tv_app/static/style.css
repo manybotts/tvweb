@@ -665,7 +665,7 @@ h2 { /* For main page headings ONLY */
     color: white;
     font-weight: bold;
     font-size: 20px;
-    transition: background-color 0.6s ease; /* Smooth transition for hover effect */
+    transition: background-color: 0.6s ease; /* Smooth transition for hover effect */
     user-select: none;
     z-index: 3;
     background: rgba(0, 0, 0, 0.4);
@@ -802,6 +802,89 @@ h2 { /* For main page headings ONLY */
 
     .show-info {
         width: auto;
+    }
+}
+
+/* --- NEW: Styles for Filter Form on /shows --- */
+
+.filter-form {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 20px;
+    align-items: center;
+    border: 1px solid #333; /* Subtle border */
+    padding: 15px;
+    border-radius: 5px;
+    background-color: #222; /* Dark background */
+}
+
+.filter-group {
+    display: flex;
+    flex-direction: row; /* label and input on the same line */
+    align-items: center; /* Vertically center */
+    margin-bottom: 0; /* Remove the bottom margin */
+}
+
+
+.filter-group label {
+    margin-right: 5px;
+    font-weight: bold;
+    color: #fff; /* White text for labels */
+}
+
+.filter-form select,
+.filter-form input[type="number"] {
+    padding: 8px;
+    border: 1px solid #555;
+    background-color: #333;
+    color: white;
+    border-radius: 4px;
+    flex-grow: 1; /* Allow input/select to grow */
+    min-width: 100px; /* Prevent shrinking too much */
+}
+.filter-form select{
+    height: 36px; /* Make the height the same to input for consistency */
+}
+
+.filter-form button[type="submit"],
+.filter-form .reset-button
+ {
+    padding: 8px 12px;
+    background-color: #e50914; /* Netflix red */
+    color: white;
+    border: none;
+    cursor: pointer;
+    border-radius: 4px;
+    font-size: 1em;
+    transition: background-color 0.3s ease;
+    white-space: nowrap; /* Prevent text wrapping */
+}
+
+
+.filter-form button[type="submit"]:hover,
+.filter-form .reset-button:hover
+ {
+    background-color: #b20709; /* Darker red on hover */
+}
+.filter-form .reset-button{
+    text-decoration: none; /* Remove underline */
+    display: inline-block; /* Treat like a button */
+
+}
+
+/* Make filter options responsive */
+@media (max-width: 768px) {
+    .filter-form {
+        flex-direction: column; /* Stack items vertically on small screens */
+        align-items: stretch;  /* Stretch items to full width */
+    }
+    .filter-group{
+      width: 100%; /* Full width */
+    }
+     .filter-form select,
+    .filter-form input[type="number"] {
+        width: 100%; /* Full width on smaller screen */
     }
 }
 /* --- PART 3 END --- */
