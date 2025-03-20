@@ -13,7 +13,7 @@ import telegram
 from telegram.error import RetryAfter, TimedOut, NetworkError
 from sqlalchemy.exc import OperationalError
 from fuzzywuzzy import process
-from .models import db, Show, Episode  # Import your models
+from .models import db, TVShow  # Import your models  # Changed Show, Episode to TVShow
 
 
 load_dotenv()
@@ -179,17 +179,17 @@ def update_tv_shows(self):
                 episode_number = post_data['episode']
                 download_link = post_data['download_link']
 
-                show = Show.query.filter(func.lower(Show.title) == func.lower(show_name)).first()
+                show = TVShow.query.filter(func.lower(TVShow.show_name) == func.lower(show_name)).first()
 
                 if show:
                     logger.info(f"Show '{show_name}' found (ID: {show.id}).")
-                    existing_episode = Episode.query.filter_by(show_id=show.id, season_number=season_number, episode_number=episode_number).first()
+                    existing_episode = TVShow.query.filter_by(show_id=show.id, season_number=season_number, episode_number=episode_number).first()
 
                     if not existing_episode:
-                        new_episode = Episode(title = None, episode_number=episode_number, season_number=season_number, show_id=show.id, download_link=download_link, overview = None)
+                        new_episode = TVShow(episode_title = None, episode_number=episode_number, season_range=season_number, show_id=show.id, download_link=download_link, overview = None)
                         db.session.add(new_episode)
-                        if season_number == 1 and episode_number == 1 and not show.imdb_id:
-                            tmdb_id = get_tmdb_id_by_title(show.title)
+                        if season_number == 1 and episode_number == 1 and not show.content_hash:
+                            tmdb_id = get_tmdb_id_by_title(show.show_name)
                             if tmdb_id:
                                 tmdb_url = f"https://api.themoviedb.org/3/tv/{tmdb_id}?language=en-US"
                                 show_details = get_tmdb_data(tmdb_url)
@@ -197,10 +197,11 @@ def update_tv_shows(self):
                                 if show_details:
                                      show.overview = show_details.get('overview')
                                      show.genre = ', '.join([genre['name'] for genre in show_details.get('genres', [])])
-                                     show.image_url = f"https://image.tmdb.org/t/p/w500{show_details.get('poster_path')}" if show_details.get('poster_path') else None
-                                     show.trailer_url = f"https://www.youtube.com/watch?v={get_trailer(tmdb_id)}" if get_trailer(tmdb_id) else None
-                                     show.imdb_id = str(tmdb_id)
-                                     show.available_seasons = show_details.get('number_of_seasons', 1)
+                                     show.poster_path = f"https://image.tmdb.org/t/p/w500{show_details.get('poster_path')}" if show_details.get('poster_path') else None
+                                     show.vote_average = show_details.get('vote_average')
+                                     show.content_hash = str(tmdb_id)
+                                     show.year = int(show_details.get('first_air_date', '0000-00-00').split('-')[0]) if show_details.get('first_air_date') else None,
+                                     show.season_range = show_details.get('number_of_seasons', 1)
                     else:
                         logger.info(f"Episode S{season_number:02d}E{episode_number:02d} of '{show_name}' already exists.")
 
@@ -212,23 +213,23 @@ def update_tv_shows(self):
                         show_details = get_tmdb_data(tmdb_url)
 
                         if show_details:
-                            new_show = Show(
-                                title=show_details.get('name'),
+                            new_show = TVShow(
+                                show_name=show_details.get('name'),
                                 overview=show_details.get('overview'),
-                                release_year=int(show_details.get('first_air_date', '0000-00-00').split('-')[0]) if show_details.get('first_air_date') else None,
+                                year=int(show_details.get('first_air_date', '0000-00-00').split('-')[0]) if show_details.get('first_air_date') else None,
                                 genre=', '.join([genre['name'] for genre in show_details.get('genres', [])]),
-                                image_url=f"https://image.tmdb.org/t/p/w500{show_details.get('poster_path')}" if show_details.get('poster_path') else None,
-                                trailer_url=f"https://www.youtube.com/watch?v={get_trailer(tmdb_id)}" if get_trailer(tmdb_id) else None,
-                                imdb_id=str(tmdb_id),
+                                poster_path=f"https://image.tmdb.org/t/p/w500{show_details.get('poster_path')}" if show_details.get('poster_path') else None,
+                                vote_average=show_details.get('vote_average'),
+                                content_hash=str(tmdb_id),
                                 download_link=None,  # The show itself has no direct download link
-                                available_seasons = show_details.get('number_of_seasons', 1)
+                                season_range = show_details.get('number_of_seasons', 1)
                             )
                             db.session.add(new_show)
                             #  Add the episode
-                            new_episode = Episode(
-                                title = None,
+                            new_episode = TVShow(
+                                episode_title = None,
                                 episode_number=episode_number,
-                                season_number=season_number,
+                                season_range=season_number,
                                 show_id=new_show.id,
                                 download_link=download_link,
                                 overview = None,
@@ -239,6 +240,7 @@ def update_tv_shows(self):
                     else:
                         logger.warning(f"Could not find TMDB ID for show: {show_name}")
 
+                # --- CORRECTED INDENTATION HERE ---
                 try:
                     db.session.commit()
                     logger.info("Changes committed to the database.")
@@ -250,13 +252,18 @@ def update_tv_shows(self):
                     db.session.rollback()
                     logger.exception(f"An error occurred: {e}")
 
-        except Exception as e:
-            logger.exception(f"An unexpected error occurred in update_tv_shows: {e}")
-            logger.error(f"Task ID: {self.request.id}")
-            self.retry(exc=e, countdown=120)
-        finally:
-            lock.release()
-            logger.info("update_tv_shows task finished.")
+    except Exception as e:
+        logger.exception(f"An unexpected error occurred in update_tv_shows: {e}")
+        logger.error(f"Task ID: {self.request.id}")
+        self.retry(exc=e, countdown=120)
+    finally:
+        lock.release()
+        logger.info("update_tv_shows task finished.")
 
     else:
         logger.info("update_tv_shows task is already running. Skipping.")
+
+def normalize_string(input_string):
+    if input_string is None:
+        return ""  # Handle None gracefully
+    return re.sub(r'\W+', '', input_string).lower()
