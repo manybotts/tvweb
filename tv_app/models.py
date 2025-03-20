@@ -15,12 +15,13 @@ class TVShow(db.Model):
     overview = db.Column(db.Text)
     vote_average = db.Column(db.Float)
     poster_path = db.Column(db.String, default=None)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)  # Added index=True
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
     clicks = db.Column(db.Integer, default=0)
     content_hash = db.Column(db.String(64), nullable=False, index=True)
 
     __table_args__ = (
-        db.Index('ix_show_name_episode_title', 'show_name', 'episode_title'),  # Combined index
+        db.Index('ix_show_name_episode_title', 'show_name', 'episode_title'),
+        db.Index('ix_show_name_trgm', 'show_name', postgresql_using='gin', postgresql_ops={'show_name': 'gin_trgm_ops'}),
     )
 
     def __repr__(self):
