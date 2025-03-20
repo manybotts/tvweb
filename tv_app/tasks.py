@@ -1,4 +1,4 @@
-# tv_app/tasks.py
+# --- Start of Part 1 ---
 import re
 import os
 import time
@@ -14,10 +14,9 @@ import telegram
 from telegram.error import RetryAfter, TimedOut, NetworkError
 from sqlalchemy.exc import OperationalError
 from thefuzz import process, fuzz
-from .models import db, Show, Episodes  # Correct relative import
 from sqlalchemy import func
 import json
-import datetime  # Import datetime
+import datetime
 import unicodedata
 import hashlib
 from ratelimit import limits, sleep_and_retry
@@ -349,10 +348,4 @@ def update_tv_shows(self):
     else:
         logger.info("Could not acquire lock, task is likely already running.")
 
-@celery.task
-def log_current_time():
-    """Logs the current time (for testing)."""
-    current_time = redis_client.time()  # Use Redis for accurate time
-    dt = datetime.datetime.fromtimestamp(current_time[0])  # Convert to datetime
-    logger.info(f"Current time according to Celery: {dt.isoformat()}+00:00")
 # --- End of Part 2 ---
