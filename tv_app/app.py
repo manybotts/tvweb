@@ -176,54 +176,69 @@ def redirect_to_download(episode_id):
 
 @app.route("/shows")
 def list_shows():
-    page = request.args.get("page", 1, type=int)
-    per_page = 30
-    sort_by = request.args.get("sort", "name")
-    filter_genre = request.args.get("genre")
-    filter_year = request.args.get("year")
-
+    page = request.args.get('page', 1, type=int)
+    per_page = 10  # Or whatever number of shows per page you want
+    sort_by = request.args.get('sort', 'name', type=str)
+    filter_genre = request.args.get('genre', 'all', type=str)
+    filter_year = request.args.get('year', 'all', type=str)
+    filter_rating = request.args.get('rating', 'all', type=str)  # Get rating filter
 
     query = Show.query
 
+    # Filtering
+    if filter_genre != 'all':
+        query = query.filter(Show.genre.ilike(f"%{filter_genre}%"))  # Use ilike for case-insensitive
 
-    if filter_genre and filter_genre != "all":
-        query = query.filter(Show.genre.ilike(f"%{filter_genre}%"))
-
-    if filter_year and filter_year != "all":
+    if filter_year != 'all':
         try:
-            filter_year = int(filter_year)
-            query = query.filter(Show.release_year == filter_year)
+            filter_year_int = int(filter_year)
+            query = query.filter(Show.release_year == filter_year_int)
         except ValueError:
+            # Handle the case where filter_year isn't a valid integer.
+            # You could show an error, or default to 'all', or redirect.
+            # Here, we're just going to ignore the invalid year.
             pass
 
-    if sort_by == "name":
-        query = query.order_by(Show.title)
-    elif sort_by == "popularity":
-        query = query.order_by(Show.clicks.desc(), Show.title)
-    elif sort_by == "year":
-        query = query.order_by(Show.release_year.desc(), Show.title)
+    if filter_rating != 'all':
+        try:
+            filter_rating_int = int(filter_rating)
+            # Assuming you have a way to get a show's rating.  This is a placeholder.
+            # You *might* need a separate 'ratings' table, or a computed property.
+            # Replace this with your actual rating logic.
+             query = query.filter(Show.clicks >= filter_rating_int) #Changed this to click
 
+        except ValueError:
+            pass  # Ignore invalid rating values
 
-    shows_paginated = query.paginate(page=page, per_page=per_page, error_out=False)
+    # Sorting
+    if sort_by == 'name':
+        query = query.order_by(Show.title.asc())
+    elif sort_by == 'popularity':
+        query = query.order_by(Show.clicks.desc()) #Sort by popularity
+    elif sort_by == 'year':
+        query = query.order_by(Show.release_year.desc())
+    # Add other sorting options here (e.g., 'rating') if you have a rating field.
 
+    shows = query.paginate(page=page, per_page=per_page, error_out=False)
 
-    all_genres = db.session.query(Show.genre).distinct().all()
-    all_genres = sorted({g for sublist in all_genres for g in (sublist[0] or '').split(', ') if g})
+    # Get all genres for the filter dropdown
+    all_genres = [g[0] for g in db.session.query(Show.genre).distinct().all() if g[0]]
+    # Remove duplicates and handle None values
+    all_genres = list({genre for genres in all_genres for genre in (genres.split(',') if genres else [])})
+    all_genres.sort()  # Alphabetical order
+
+    # Get all the years
     all_years = sorted(db.session.query(Show.release_year).distinct().all(), reverse=True)
     all_years = [year[0] for year in all_years if year[0] is not None]
 
-    now = datetime.datetime.now()
+    return render_template('shows.html', shows=shows, sort_by=sort_by,
+                           filter_genre=filter_genre, all_genres=all_genres, filter_year=filter_year,filter_rating = filter_rating, all_years = all_years, now=datetime.datetime.now()) # Pass now to template
 
-    return render_template(
-        "shows.html",
-        shows=shows_paginated,
-        sort_by=sort_by,
-        filter_genre=filter_genre,
-        filter_year=filter_year,
-        all_genres = all_genres,
-        all_years = all_years,
-        now = now
-    )
+
+# ---- END OF PART 1 ----
+# tv_app/app.py
+
+# ---- BEGINNING OF PART 2 ----
 
 @app.route("/update", methods=["POST"])
 @login_required
@@ -239,7 +254,7 @@ def update():
 @admin_required
 def test_celery():
     """Triggers a test Celery task (for debugging)."""
-    result = update_tv_shows.delay()
+    result = update_tv_shows.delay()  # Use your actual task
     return f"Celery test task initiated. Check logs/flower. Task ID: {result.id}", 200
 
 @app.route("/delete_all", methods=["POST"])
@@ -258,11 +273,6 @@ def delete_all_shows():
     except Exception as e:
         db.session.rollback()
         return jsonify({"message": f"Error deleting shows/episodes: {str(e)}"}), 500
-
-# ---- END OF PART 1 ----
-# tv_app/app.py
-
-# ---- BEGINNING OF PART 2 ----
 
 @app.route('/admin', methods=['GET', 'POST'])
 @login_required
