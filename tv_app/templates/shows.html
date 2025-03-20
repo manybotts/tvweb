@@ -3,10 +3,48 @@
 {% block content %}
     <h2><span class="show-label-icon"></span>Available TV Shows</h2>
 
+    {# --- FILTER FORM --- #}
+    <form method="GET" action="{{ url_for('list_shows') }}" class="filter-form">
+        <div class="filter-group">
+            <label for="genre">Genre:</label>
+            <select id="genre" name="genre">
+                <option value="">All Genres</option>
+                {% for genre in genres %}
+                    <option value="{{ genre.name }}" {% if request.args.get('genre') == genre.name %}selected{% endif %}>{{ genre.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="filter-group">
+            <label for="rating">Minimum Rating:</label>
+            <input type="number" id="rating" name="rating" min="0" max="10" step="0.1" value="{{ request.args.get('rating', '') }}">
+        </div>
+
+        <div class="filter-group">
+            <label for="year">Year:</label>
+            <input type="number" id="year" name="year" min="{{ min_year }}" max="{{ current_year }}" step="1" value="{{ request.args.get('year', '') }}">
+        </div>
+
+        <div class="filter-group">
+            <label for="sort_by">Sort By:</label>
+            <select id="sort_by" name="sort_by">
+                <option value="name_asc" {% if request.args.get('sort_by') == 'name_asc' %}selected{% endif %}>Name (A-Z)</option>
+                <option value="name_desc" {% if request.args.get('sort_by') == 'name_desc' %}selected{% endif %}>Name (Z-A)</option>
+                <option value="date_asc" {% if request.args.get('sort_by') == 'date_asc' %}selected{% endif %}>Date (Oldest)</option>
+                <option value="date_desc" {% if request.args.get('sort_by') == 'date_desc' %}selected{% endif %}>Date (Newest)</option>
+                <option value="rating_asc" {% if request.args.get('sort_by') == 'rating_asc' %}selected{% endif %}>Rating (Lowest)</option>
+                <option value="rating_desc" {% if request.args.get('sort_by') == 'rating_desc' %}selected{% endif %}>Rating (Highest)</option>
+            </select>
+        </div>
+
+        <button type="submit">Filter</button>
+        <a href="{{ url_for('list_shows') }}" class="reset-button">Reset</a>
+    </form>
+
     {# Pagination Links (TOP) #}
     <div class="pagination">
         {% if shows.has_prev %}
-            <a href="{{ url_for('list_shows', page=shows.prev_num) }}">Previous</a>
+            <a href="{{ url_for('list_shows', page=shows.prev_num, genre=request.args.get('genre'), rating=request.args.get('rating'), year=request.args.get('year'), sort_by=request.args.get('sort_by')) }}">Previous</a>
         {% else %}
             <span class="disabled">Previous</span>
         {% endif %}
@@ -16,7 +54,7 @@
                 {% if shows.page == page_num %}
                     <span class="current-page">{{ page_num }}</span>
                 {% else %}
-                    <a href="{{ url_for('list_shows', page=page_num) }}">{{ page_num }}</a>
+                     <a href="{{ url_for('list_shows', page=page_num, genre=request.args.get('genre'), rating=request.args.get('rating'), year=request.args.get('year'), sort_by=request.args.get('sort_by')) }}">{{ page_num }}</a>
                 {% endif %}
             {% else %}
                 <span class="ellipsis">…</span>
@@ -24,7 +62,7 @@
         {% endfor %}
 
         {% if shows.has_next %}
-            <a href="{{ url_for('list_shows', page=shows.next_num) }}">Next</a>
+            <a href="{{ url_for('list_shows', page=shows.next_num, genre=request.args.get('genre'), rating=request.args.get('rating'), year=request.args.get('year'), sort_by=request.args.get('sort_by')) }}">Next</a>
         {% else %}
             <span class="disabled">Next</span>
         {% endif %}
@@ -32,20 +70,21 @@
 
 
     <div class="show-list">
-    {% for show_name in show_names %}
-        <a href="{{ url_for('index', search=show_name) }}" class="show-item">
-            {{ show_name }}
-        </a>
-    {% endfor %}
-     {% if not show_names %}
-        <p>No Shows found</p>
-     {% endif %}
+        {# Reverted to original display format #}
+        {% for show in shows.items %}
+            <a href="{{ url_for('index', search=show.show_name) }}" class="show-item">
+                {{ show.show_name }}
+            </a>
+        {% endfor %}
+        {% if not shows.items %}
+            <p>No Shows found</p>
+        {% endif %}
     </div>
 
-    {# Pagination Links (BOTTOM) - identical to the top #}
+    {# Pagination Links (BOTTOM) #}
     <div class="pagination">
         {% if shows.has_prev %}
-            <a href="{{ url_for('list_shows', page=shows.prev_num) }}">Previous</a>
+             <a href="{{ url_for('list_shows', page=shows.prev_num, genre=request.args.get('genre'), rating=request.args.get('rating'), year=request.args.get('year'), sort_by=request.args.get('sort_by')) }}">Previous</a>
         {% else %}
             <span class="disabled">Previous</span>
         {% endif %}
@@ -55,7 +94,7 @@
                 {% if shows.page == page_num %}
                     <span class="current-page">{{ page_num }}</span>
                 {% else %}
-                    <a href="{{ url_for('list_shows', page=page_num) }}">{{ page_num }}</a>
+                    <a href="{{ url_for('list_shows', page=page_num, genre=request.args.get('genre'), rating=request.args.get('rating'), year=request.args.get('year'), sort_by=request.args.get('sort_by')) }}">{{ page_num }}</a>
                 {% endif %}
             {% else %}
                 <span class="ellipsis">…</span>
@@ -63,7 +102,7 @@
         {% endfor %}
 
         {% if shows.has_next %}
-            <a href="{{ url_for('list_shows', page=shows.next_num) }}">Next</a>
+           <a href="{{ url_for('list_shows', page=shows.next_num, genre=request.args.get('genre'), rating=request.args.get('rating'), year=request.args.get('year'), sort_by=request.args.get('sort_by')) }}">Next</a>
         {% else %}
             <span class="disabled">Next</span>
         {% endif %}
