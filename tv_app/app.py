@@ -6,7 +6,7 @@ from .models import db, TVShow, Genre  # Import Genre
 from sqlalchemy import desc, func, and_
 from dotenv import load_dotenv
 import logging
-from datetime import datetime
+from datetime import datetime  # Import datetime
 
 load_dotenv()
 
@@ -102,8 +102,11 @@ def list_shows():
     min_year_result = db.session.query(func.min(TVShow.year)).scalar()  # Get min year
     min_year = min_year_result if min_year_result is not None else 1900  # Default to 1900 if no shows
 
+    # Create a list of years for the dropdown
+    years = list(range(current_year, min_year - 1, -1))  # Descending order
 
-    return render_template('shows.html', shows=shows_paginated, genres=all_genres, current_year=current_year, min_year=min_year)
+
+    return render_template('shows.html', shows=shows_paginated, genres=all_genres, years=years, selected_year=year_filter)
 
 @app.route('/update', methods=['POST'])
 def update():
