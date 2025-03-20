@@ -1,6 +1,4 @@
 # tv_app/tasks.py
-
-# ---- BEGINNING OF PART 1 ----
 import re
 import os
 import time
@@ -220,11 +218,11 @@ def update_tv_shows(self):
 
     try:
         bot = telegram.Bot(token=TELEGRAM_BOT_TOKEN)
-        # Keeping Mock telegram
+        #Keeping mock telegram
         posts = asyncio.run(fetch_new_telegram_posts(bot))
 
         # Use the application context for database operations
-        from tv_app.app import app
+        from tv_app.app import app #Import here
         with app.app_context():
             for post in posts:
                 # --- Check if message ID has been processed ---
@@ -333,39 +331,3 @@ def update_tv_shows(self):
 @celery.task
 def log_current_time():
     logger.info(f"Current time according to Celery: {datetime.datetime.now(datetime.timezone.utc)}")
-
-# ---- END OF PART 1 ----
-# tv_app/tasks.py
-
-# ---- BEGINNING OF PART 2 ----
-                                    overview=None
-                                )
-                                db.session.add(new_episode)
-
-
-                    db.session.commit()
-                    logger.info(f"Database updated for show: {show_name}")
-                    # Add to processed messages set
-                    redis_client.sadd("processed_messages", post.message_id)
-
-    except OperationalError as e:
-        logger.error(f"Database operational error: {e}. Retrying...")
-        self.retry(exc=e, countdown=60)
-    except (RetryAfter, TimedOut, NetworkError) as e:
-        logger.error(f"Telegram API error: {e}. Retrying...")
-        if isinstance(e, RetryAfter):
-            self.retry(countdown=e.retry_after)  # Respect RetryAfter
-        else:
-            self.retry(countdown=30)  # Retry after a delay
-    except Exception as e:
-        logger.exception(f"An unexpected error occurred: {e}")
-        self.retry(countdown=60)  # Retry after a delay
-    finally:
-        lock.release()
-        logger.info("Lock released.")
-
-@celery.task
-def log_current_time():
-    logger.info(f"Current time according to Celery: {datetime.datetime.now(datetime.timezone.utc)}")
-
-# ---- END OF PART 2 ----
