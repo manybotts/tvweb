@@ -12,9 +12,9 @@ from redis import Redis
 import telegram
 from telegram.error import RetryAfter, TimedOut, NetworkError
 from sqlalchemy.exc import OperationalError
-from fuzzywuzzy import process
+from fuzzywuzzy import process, fuzz
 from .models import db, Show, Episode  # Import your models
-
+from sqlalchemy import func
 
 load_dotenv()
 
@@ -130,15 +130,17 @@ def parse_telegram_post(text):
     if match:
         season = int(match.group(1))
         episode = int(match.group(2))
-        show_name = match.group(3).strip()
+        show_name = match.group(3).strip()  # Extract and strip whitespace
         download_link = match.group(4)
+
         return {
             'show_name': show_name,
             'season': season,
             'episode': episode,
             'download_link': download_link
         }
-    return None
+    else:
+        return None
 
 async def fetch_new_telegram_posts(bot):
     """Fetches new posts from the specified Telegram channel."""
@@ -168,6 +170,8 @@ async def fetch_new_telegram_posts(bot):
         logger.exception(f"An unexpected error occurred fetching Telegram updates: {e}")
 
     return new_posts
+
+# --- Celery Tasks ---
 
 @celery.task(bind=True, retry_backoff=True, max_retries=5) # Added max_retries
 def update_tv_shows(self):
@@ -233,7 +237,7 @@ def update_tv_shows(self):
                                 image_url=f"https://image.tmdb.org/t/p/w500{show_details.get('poster_path')}" if show_details.get('poster_path') else None,
                                 trailer_url=f"https://www.youtube.com/watch?v={get_trailer(tmdb_id)}" if get_trailer(tmdb_id) else None,
                                 imdb_id=str(tmdb_id),
-                                download_link=None,
+                                download_link=None,  # The show itself has no direct download link
                                 available_seasons = show_details.get('number_of_seasons', 1)
                             )
                             db.session.add(new_show)
@@ -258,18 +262,11 @@ def update_tv_shows(self):
                 except OperationalError as e:
                     db.session.rollback()
                     logger.exception(f"Database operational error: {e}")
-                    self.retry(exc=e, countdown=60)
+                    self.retry(exc=e, countdown=60)  # Retry after 60 seconds
                 except Exception as e:
                     db.session.rollback()
                     logger.exception(f"An error occurred: {e}")
-
-        except Exception as e:
-            logger.exception(f"An unexpected error occurred in update_tv_shows: {e}")
-            logger.error(f"Task ID: {self.request.id}")
-            self.retry(exc=e, countdown=120)
+                    self.retry(exc=e, countdown=120)
         finally:
             lock.release()
             logger.info("update_tv_shows task finished.")
-
-    else:
-        logger.info("update_tv_shows task is already running. Skipping.")
