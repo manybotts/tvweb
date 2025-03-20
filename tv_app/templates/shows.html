@@ -22,7 +22,12 @@
 
         <div class="filter-group">
             <label for="year">Year:</label>
-            <input type="number" id="year" name="year" min="{{ min_year }}" max="{{ current_year }}" step="1" value="{{ request.args.get('year', '') }}">
+            <select id="year" name="year">
+                <option value="">All Years</option> {# Add an "All Years" option #}
+                {% for year in years %}
+                    <option value="{{ year }}" {% if year == selected_year %}selected{% endif %}>{{ year }}</option>
+                {% endfor %}
+            </select>
         </div>
 
         <div class="filter-group">
@@ -68,9 +73,7 @@
         {% endif %}
     </div>
 
-
     <div class="show-list">
-        {# Reverted to original display format #}
         {% for show in shows.items %}
             <a href="{{ url_for('index', search=show.show_name) }}" class="show-item">
                 {{ show.show_name }}
