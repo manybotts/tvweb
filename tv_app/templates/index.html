@@ -81,44 +81,4 @@
                         {% if show.poster_path %}
                             <img src="{{ show.poster_path }}" alt="{{ show.show_name }}" loading="lazy">
                         {% else %}
-                            <div class="telegram-loader"></div>
-                        {% endif %}
-                        <h3>{{ show.show_name }}</h3>
-                        <p class="episode-title">{{ show.episode_title or 'N/A' }}</p>
-                    </a>
-                </div>
-            {% endfor %}
-        </div>
-     {% else %}
-         <p>No shows Found</p>
-    {% endif %}
-
-
-    {# --- Pagination Links (using the pagination object) --- #}
-    <div class="pagination">
-      {% if pagination.has_prev %}
-          <a href="{{ url_for('index', page=pagination.page - 1, search=search_query) }}">Previous</a>
-      {% else %}
-          <span class="disabled">Previous</span>
-      {% endif %}
-
-      {% for page_num in pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
-        {% if page_num %}
-          {% if pagination.page == page_num %}
-            <span class="current-page">{{ page_num }}</span>
-          {% else %}
-            <a href="{{ url_for('index', page=page_num, search=search_query) }}">{{ page_num }}</a>
-          {% endif %}
-        {% else %}
-          <span class="ellipsis">…</span>
-        {% endif %}
-      {% endfor %}
-
-      {% if pagination.has_next %}
-          <a href="{{ url_for('index', page=pagination.page + 1, search=search_query) }}">Next</a>
-      {% else %}
-          <span class="disabled">Next</span>
-      {% endif %}
-    </div>
-
-{% endblock %}
+                            <div class="
