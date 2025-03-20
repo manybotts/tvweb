@@ -13,7 +13,6 @@ Werkzeug==3.0.1
 psycopg2-binary==2.9.9
 Flask-WTF==1.2.1
 WTForms==3.1.2
-billiard==4.2.0.2
 kombu==5.3.4
 amqp==5.2.0
 vine==5.1.0
