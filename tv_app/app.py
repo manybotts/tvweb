@@ -205,7 +205,7 @@ def list_shows():
             # Assuming you have a way to get a show's rating.  This is a placeholder.
             # You *might* need a separate 'ratings' table, or a computed property.
             # Replace this with your actual rating logic.
-             query = query.filter(Show.clicks >= filter_rating_int) #Changed this to click
+        query = query.filter(Show.clicks >= filter_rating_int) #Changed this to click
 
         except ValueError:
             pass  # Ignore invalid rating values
