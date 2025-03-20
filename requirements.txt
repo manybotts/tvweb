@@ -1,20 +1,20 @@
-Flask==3.0.0  # Keeping - core of the application
-Flask-SQLAlchemy==3.1.1  # Keeping - database integration
-SQLAlchemy==2.0.23 # Keeping - ORM
-python-dotenv==1.0.0 # Keeping - loading environment variables
-requests==2.31.0 # Keeping - Used for TMDB API calls
-redis==5.0.1 # Keeping - Used for caching and Celery
-celery==5.3.6  # Keeping - Task queue
-flower==2.0.1  # Keeping - Celery monitoring (even if unused, it's related to celery)
-gunicorn==21.2.0 # Keeping - WSGI server for production
-thefuzz==0.20.0  # Keeping, likely a fuzzywuzzy alias
-python-telegram-bot==20.7  # Keeping - Telegram integration
-Werkzeug==3.0.1  # Keeping original version - was incorrectly downgraded
-psycopg2-binary==2.9.9  # Keeping - PostgreSQL adapter
-Flask-WTF==1.2.1  # Keeping - Form handling
-WTForms==3.1.2  # Keeping - Form handling
-kombu==5.3.4 # Keeping (Celery dependency)
-amqp==5.2.0 # Keeping (Celery dependency)
-vine==5.1.0 # Keeping (Celery dependency)
-fuzzywuzzy==0.18.0  # Keeping - Used for fuzzy matching
-Flask-Login==0.6.3  # UPGRADED: This resolves the Werkzeug conflict.
+Flask==3.0.0
+Flask-SQLAlchemy==3.1.1
+SQLAlchemy==2.0.23
+python-dotenv==1.0.0
+requests==2.31.0
+redis==5.0.1
+celery==5.3.6
+flower==2.0.1
+gunicorn==21.2.0
+thefuzz==0.20.0
+python-telegram-bot==20.7
+Werkzeug==3.0.1
+psycopg2-binary==2.9.9
+Flask-WTF==1.2.1
+WTForms==3.1.2
+kombu==5.3.4
+amqp==5.2.0
+vine==5.1.0
+fuzzywuzzy==0.18.0
+Flask-Login==0.6.3
