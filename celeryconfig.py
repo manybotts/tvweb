@@ -23,11 +23,20 @@ timezone = 'UTC'
 beat_schedule = {
     'log-time-every-15-seconds': {  # Keep this for debugging
         'task': 'tv_app.tasks.log_current_time',
-        'schedule': 15.0,
+        'schedule': 15.0,  # Every 15 seconds
     },
-    'update-tv-shows-every-45-seconds': {  # Changed to 45 seconds
+    'update-tv-shows-every-minute': {  # Changed name for clarity
         'task': 'tv_app.tasks.update_tv_shows',
-        'schedule': 45.0,  # Run every 45 seconds
+        'schedule': crontab(minute='*/1'),  # Run every minute
+        #  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        #  CHANGE THIS FOR DIFFERENT SCHEDULES.
+        #  Examples:
+        #    - Every 5 minutes:  crontab(minute='*/5')
+        #    - Every 10 minutes: crontab(minute='*/10')
+        #    - Every hour at minute 0:  crontab(minute='0', hour='*')
+        #    - Every day at 3:30 AM: crontab(minute='30', hour='3')
+        #    - See Celery documentation for more crontab options:
+        #      https://docs.celeryq.dev/en/stable/userguide/periodic-tasks.html#crontab-schedules
     },
 }
 
