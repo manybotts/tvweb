@@ -58,14 +58,16 @@ def get_tmdb_data(url, params=None):
 
         if response.status_code == 200:
             return response.json()
-        elif response.status_code in (429, 401):  # Rate limit or unauthorized
+        elif response.status_code == 429 or response.status_code == 401:  # Rate limit or unauthorized
+             # 401 is also very important, it will occur when key is invalid.
             logger.warning(f"API Key {API_KEYS[current_api_key_index][:4]}... failed (status {response.status_code}). Trying next key...")
             current_api_key_index = (current_api_key_index + 1) % len(API_KEYS)  # Cycle
         else:
+            # Handle other errors (e.g., 500 Internal Server Error)
             logger.error(f"TMDB API error: {response.status_code} - {response.text}")
-            return None
+            return None  # Or raise an exception
 
-    logger.error("All API keys failed.")
+    logger.error("All API keys have failed.")
     return None
 
 def get_tmdb_id_by_title(show_title, language='en-US'):
@@ -118,19 +120,29 @@ def get_trailer(tmdb_id):
     return None
 
 def parse_telegram_post(text):
-    # Exclude lines starting with '#' or '#_'
+    """
+    Parses a Telegram post text to extract show name, season, episode, and download link.
+    Returns a dictionary with the extracted data, or None if parsing fails.
+    Excludes lines starting with '#' or '#_'.
+    """
     match = re.search(r"^(?!#|_#).*S(\d{2})E(\d{2})\s*(.*?)\s*-\s*(https?://\S+)", text, re.MULTILINE | re.IGNORECASE)
 
     if match:
+        season = int(match.group(1))
+        episode = int(match.group(2))
+        show_name = match.group(3).strip()
+        download_link = match.group(4)
         return {
-            'show_name': match.group(3).strip(),
-            'season': int(match.group(1)),
-            'episode': int(match.group(2)),
-            'download_link': match.group(4)
+            'show_name': show_name,
+            'season': season,
+            'episode': episode,
+            'download_link': download_link
         }
     return None
 
 async def fetch_new_telegram_posts(bot):
+    """Fetches new posts from the specified Telegram channel."""
+
     channel_id = TELEGRAM_CHANNEL_ID
     if not channel_id:
         logger.error("TELEGRAM_CHANNEL_ID environment variable not set!")
@@ -149,17 +161,18 @@ async def fetch_new_telegram_posts(bot):
         logger.error(f"Network error fetching Telegram updates: {e}")
     except RetryAfter as e:
         logger.warning(f"Rate limit exceeded. Retrying after {e.retry_after} seconds.")
-        time.sleep(e.retry_after)
+        time.sleep(e.retry_after)  # Wait before retrying.
     except TimedOut as e:
         logger.error(f"Telegram API request timed out: {e}")
     except Exception as e:
         logger.exception(f"An unexpected error occurred fetching Telegram updates: {e}")
+
     return new_posts
 
 @celery.task(bind=True, retry_backoff=True, max_retries=5) # Added max_retries
 def update_tv_shows(self):
     logger.info("Starting update_tv_shows task...")
-    lock = redis_client.lock("update_tv_shows_lock", timeout=600)
+    lock = redis_client.lock("update_tv_shows_lock", timeout=600)  # 600-second lock timeout
 
     if not lock.acquire(blocking=False):
         logger.info("Could not acquire lock, task is likely already running.")
@@ -220,7 +233,7 @@ def update_tv_shows(self):
                                 image_url=f"https://image.tmdb.org/t/p/w500{show_details.get('poster_path')}" if show_details.get('poster_path') else None,
                                 trailer_url=f"https://www.youtube.com/watch?v={get_trailer(tmdb_id)}" if get_trailer(tmdb_id) else None,
                                 imdb_id=str(tmdb_id),
-                                download_link=None,  # The show itself has no direct download link
+                                download_link=None,
                                 available_seasons = show_details.get('number_of_seasons', 1)
                             )
                             db.session.add(new_show)
@@ -245,7 +258,7 @@ def update_tv_shows(self):
                 except OperationalError as e:
                     db.session.rollback()
                     logger.exception(f"Database operational error: {e}")
-                    self.retry(exc=e, countdown=60)  # Retry after 60 seconds
+                    self.retry(exc=e, countdown=60)
                 except Exception as e:
                     db.session.rollback()
                     logger.exception(f"An error occurred: {e}")
