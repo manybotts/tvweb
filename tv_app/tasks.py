@@ -267,6 +267,6 @@ def update_tv_shows(self):
                     db.session.rollback()
                     logger.exception(f"An error occurred: {e}")
                     self.retry(exc=e, countdown=120)
-        finally:
-            lock.release()
-            logger.info("update_tv_shows task finished.")
+    finally:
+        lock.release()
+        logger.info("update_tv_shows task finished.")
