@@ -14,12 +14,9 @@ import telegram
 from telegram.error import RetryAfter, TimedOut, NetworkError
 from sqlalchemy.exc import OperationalError
 from thefuzz import process, fuzz
-from .models import db, Show, Episodes  # Correct relative import
+from .models import db, Show, Episodes  # Correct relative import!
 from sqlalchemy import func
 import json
-#Import app context
-from tv_app.app import app
-
 
 
 load_dotenv()
@@ -220,6 +217,8 @@ def update_tv_shows(self):
         bot = telegram.Bot(token=TELEGRAM_BOT_TOKEN)
         posts = asyncio.run(fetch_new_telegram_posts(bot))
 
+        # Use the application context for database operations
+        from tv_app.app import app
         with app.app_context():
             for post in posts:
                 # --- Check if message ID has been processed ---
@@ -258,7 +257,7 @@ def update_tv_shows(self):
                                     if show_details:
                                         show.overview = show_details.get('overview')
                                         show.genre = ', '.join([genre['name'] for genre in show_details.get('genres', [])])
-                                        show.image_url = (f"https://image.tmdb.org/t/p/w500{show_details.get('poster_path')}"
+                                        show.image_url = (f"https://image.themoviedb.org/t/p/w500{show_details.get('poster_path')}"
                                                         if show_details.get('poster_path') else None)
                                         show.trailer_url = (
                                             f"https://www.youtube.com/watch?v={get_trailer(tmdb_id)}"
