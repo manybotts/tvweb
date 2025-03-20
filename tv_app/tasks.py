@@ -84,8 +84,9 @@ async def fetch_new_telegram_posts():
         return []
 
 def parse_telegram_post(post):
-    """Parses a Telegram post, prioritizing structured data, using targeted regex,
-    ignoring lines starting with '#' OR containing '#_', and robustly extracting hyperlinks.
+    """Parses a Telegram post, prioritizing structured data and links
+    towards the bottom of the post, ignoring lines starting with '#'
+    or containing '#_', and robustly extracting hyperlinks.
     """
     try:
         text = post.caption
@@ -99,7 +100,7 @@ def parse_telegram_post(post):
         # --- 1. Attempt Structured Parsing ---
         for i, line in enumerate(lines):
             line = line.strip()
-            if line.startswith('#') or '#_' in line:  # KEY CHANGE: Ignore lines with #_
+            if line.startswith('#') or '#_' in line:
                 continue
 
             if i == 0 and show_name is None:
@@ -109,36 +110,36 @@ def parse_telegram_post(post):
                 season_episode = line
                 logger.info(f"Initial Season/Episode: {season_episode or 'None'}")
 
-        # --- 2. Link Extraction (Prioritize Entities) ---
-        download_link = next((entity.url for entity in post.caption_entities if entity.type == 'text_link'), None) if post.caption_entities else None
-        logger.info(f"Initial Download Link (from entities): {download_link or 'Not Found'}")
+        # --- 2. Link Extraction (Prioritize Entities, Bottom-Up) ---
+        if post.caption_entities:
+            # Iterate in reverse order (bottom-up)
+            for entity in reversed(post.caption_entities):
+                if entity.type == 'text_link':
+                    entity_text = text[entity.offset:entity.offset + entity.length]
+                    if '#_' not in entity_text:
+                        download_link = entity.url
+                        logger.info(f"Entity found Download Link: {download_link}")
+                        break  # Stop after finding the FIRST valid entity (from the bottom)
 
-        # --- 3. Fallback to Regex (if needed) ---
+        # --- 3. Fallback to Regex (if needed, Bottom-Up) ---
         normalized_text = normalize_string(text)
 
         if not season_episode:
             season_episode_match = re.search(r'(?:s|season)\s*(\d+)\s*(?:e|episode)\s*(\d+)|(\d+)[xX](\d+)', normalized_text, re.IGNORECASE)
             if season_episode_match:
-                if season_episode_match.group(1) and season_episode_match.group(2):
-                    season_episode = f"S{season_episode_match.group(1).zfill(2)}E{season_episode_match.group(2).zfill(2)}"
-                elif season_episode_match.group(3) and season_episode_match.group(4):
-                    season_episode = f"{season_episode_match.group(3)}x{season_episode_match.group(4).zfill(2)}"
+                season_episode = f"S{season_episode_match.group(1).zfill(2)}E{season_episode_match.group(2).zfill(2)}" if season_episode_match.group(1) and season_episode_match.group(2) else f"{season_episode_match.group(3)}x{season_episode_match.group(4).zfill(2)}"
                 logger.info(f"Regex found Season/Episode: {season_episode}")
 
         if not download_link:
-            # Simplified Regex - No need for complex line checks
-            for match in re.finditer(r'(https?://\S+)', text, re.MULTILINE):
-                line_start = text.rfind('\n', 0, match.start())
-                line_start = 0 if line_start == -1 else line_start + 1
-                line_end = text.find('\n', match.end())
-                if line_end == -1: line_end = len(text)
-                line = text[line_start:line_end].strip()
-
-                # Simplest and most robust check:
+            # Iterate through lines in reverse order (bottom-up)
+            for line in reversed(lines):
+                line = line.strip()
                 if '#_' not in line:
-                    download_link = match.group(1)
-                    logger.info(f"Regex found Download Link: {download_link}")
-                    break
+                    match = re.search(r'(https?://\S+)', line)
+                    if match:
+                        download_link = match.group(1)
+                        logger.info(f"Regex found Download Link: {download_link}")
+                        break  # Stop after finding the FIRST valid link (from the bottom)
 
         # --- 4. Validation and Normalization ---
         if show_name:
