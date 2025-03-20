@@ -7,6 +7,8 @@ from dotenv import load_dotenv
 import telegram
 from telegram.error import NetworkError, RetryAfter, TimedOut
 import asyncio
+import re
+from datetime import datetime
 
 # Load environment variables
 load_dotenv()
@@ -89,7 +91,9 @@ async def fetch_new_telegram_posts(bot):
 
     logger.info(f"Returning {len(new_posts)} new posts") # Log how many posts
     return new_posts
-    def parse_telegram_post(text: str):
+
+
+def parse_telegram_post(text: str):
     """
     Parses a Telegram post caption to extract show name, season, episode, and download link.
 
