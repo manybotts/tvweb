@@ -4,7 +4,7 @@ from flask import Flask, render_template, request, jsonify, redirect, url_for
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import func, text  # Import 'text'
 from .models import db, TVShow  # Import db and TVShow from models
-from .tasks import update_tv_shows, normalize_string  # Import normalize_string
+from .tasks import update_tv_shows, normalize_string  # Import normalize_string, REMOVE test_task
 import logging
 from thefuzz import process, fuzz
 
@@ -19,63 +19,11 @@ db.init_app(app)  # Initialize db with the app
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-
 # --- Helper Functions ---
+
 def get_trending_shows(limit=5):
-	"""Retrieves the top 'limit' trending shows, ordered by clicks."""
-	return TVShow.query.order_by(TVShow.clicks.desc()).limit(limit).all()
-
-# --- Pagination ---
-def paginate_results(results, page, per_page):
-    """Paginates a list of results manually."""
-    from flask_sqlalchemy import pagination
-
-    start = (page - 1) * per_page
-    end = start + per_page
-    paginated_items = results[start:end]
-
-    # Create a CustomPagination object
-    pagination_obj = CustomPagination(page, per_page, len(results), paginated_items)
-    return pagination_obj
-
-class CustomPagination:
-    """
-    A custom pagination class to mimic Flask-SQLAlchemy's Pagination object
-    for use with pre-fetched lists of results.
-    """
-    def __init__(self, page, per_page, total, items):
-        self.page = page
-        self.per_page = per_page
-        self.total = total
-        self.items = items
-        self.grouped_items = {} # For grouped display
-
-    @property
-    def pages(self):
-        """Total number of pages."""
-        return (self.total + self.per_page - 1) // self.per_page
-
-    @property
-    def has_prev(self):
-        """True if there's a previous page."""
-        return self.page > 1
-
-    @property
-    def has_next(self):
-        """True if there's a next page."""
-        return self.page < self.pages
-    
-    def iter_pages(self, left_edge=2, left_current=2, right_current=5, right_edge=2):
-        last = 0
-        for num in range(1, self.pages + 1):
-            if num <= left_edge or \
-               (num > self.page - left_current - 1 and num < self.page + right_current) or \
-               num > self.pages - right_edge:
-                if last + 1 != num:
-                    yield None
-                yield num
-                last = num
-
+    """Retrieves the top 'limit' trending shows, ordered by clicks."""
+    return TVShow.query.order_by(TVShow.clicks.desc()).limit(limit).all()
 
 # --- Routes ---
 
@@ -87,43 +35,58 @@ def index():
     message = None  # Initialize message
 
     if search_query:
-        normalized_query = normalize_string(search_query)
+        normalized_query = normalize_string(search_query)  # Normalize the query
 
-        # --- FULL-TEXT SEARCH (PostgreSQL) ---
-        sql = text("""
-            SELECT * FROM tv_show
-            WHERE search_vector @@ to_tsquery(:query)
-            ORDER BY ts_rank(search_vector, to_tsquery(:query)) DESC;
-        """)
-        result = db.session.execute(sql, {"query": f"{normalized_query}:*"})
-        shows = result.fetchall()
-        shows = [TVShow(**dict(row)) for row in shows]  # Convert to TVShow objects
+        # 1. Exact Match (Highest Priority)
+        exact_match = (
+            TVShow.query.filter(func.lower(TVShow.show_name) == func.lower(normalized_query)).first()
+        )
+        # 2. Partial Match (Using SQLAlchemy's ilike)
+        partial_matches = TVShow.query.filter(
+            TVShow.show_name.ilike(f'%{normalized_query}%')
+        ).all()
 
-        # --- FUZZY SEARCH (for "Related Shows") ---
-        # Only if full-text search returns fewer than per_page results
-        if len(shows) < per_page:
-            all_show_names = [show.show_name for show in TVShow.query.all() if show.show_name]  # Ensure show.show_name is not None
-            fuzzy_matches = process.extract(normalized_query, all_show_names, limit=per_page * 2)  # Fetch more, we'll filter
-            related_shows = []
-            for show_name, score in fuzzy_matches:
-                if score >= 60: # reasonable threshold
-                    show = TVShow.query.filter_by(show_name=show_name).first()
-                    if show and show not in shows: # Avoid duplicates
-                        related_shows.append(show)
-
-            shows.extend(related_shows)  # Combine, prioritizing full-text search results
-
-        # --- PAGINATION (after combining results) ---
-        if not shows:
-                message = f"No shows found matching '{search_query}'."
-                # If no results, don't try to paginate an empty list
-                trending_shows = [] # No trending for failed search
-                pagination = CustomPagination(page, per_page, 0, []) # Empty pagination object
-                return render_template('index.html', grouped_shows={}, trending_shows=trending_shows, search_query=search_query, message=message, pagination=pagination)
+        # 3. Fuzzy Matching (for Related Results)
+        all_show_names = [show.show_name for show in TVShow.query.all() if show.show_name]  # Ensure show.show_name is not None
+        # NO LIMIT HERE
+        fuzzy_matches = process.extract(normalized_query, all_show_names)
 
 
-        pagination = CustomPagination(page, per_page, len(shows), shows[(page-1)*per_page : page*per_page])
-        trending_shows = [] # No trending shows when searching
+        # Combine and Prioritize Results
+        results = []
+        if exact_match:
+            results.append(exact_match)
+        for show in partial_matches:
+            if show not in results:
+                results.append(show)
+
+        # --- ADDED SCORE THRESHOLD ---
+        for show_name, score in fuzzy_matches:
+            if score >= 60:  #  Only include fuzzy matches with a score of 60 or higher
+                show = TVShow.query.filter_by(show_name=show_name).first()
+                if show and show not in results:
+                    results.append(show)
+
+        # Paginate the combined results
+        shows = paginate_results(results, page, per_page)
+
+        # Check if any results were found
+        if not shows.items:
+            message = (
+                f"No shows found matching '{search_query}'. Here are some similar shows:"
+            )
+            # If no exact or partial matches, show related (fuzzy) results
+            shows = paginate_results(
+                results, page, per_page
+            )  # paginate all results, including fuzzy.
+            if not shows.items:  # still empty after fuzzy?
+                message = f"No shows found matching '{search_query}'. Displaying all shows."
+                shows = (
+                    TVShow.query.order_by(TVShow.created_at.desc())
+                    .paginate(page=page, per_page=per_page, error_out=False)
+                )
+
+        trending_shows = [] # No trending shows if it's a search
 
     else:  # No search query
         # --- ALPHABETICAL GROUPING ---
@@ -156,7 +119,8 @@ def index():
         trending_shows = get_trending_shows()
         total_shows = sum(len(shows) for shows in grouped_shows.values())
         pagination = CustomPagination(page, per_page, total_shows, [])  # Empty items list
-        pagination.grouped_items = paginated_groups
+        pagination.grouped_items = paginated_groups # Pass grouped items instead
+
         return render_template('index.html', grouped_shows=paginated_groups, trending_shows=trending_shows, search_query=search_query, message=message, pagination=pagination)
 
     return render_template('index.html', shows=pagination.items, search_query=search_query, trending_shows=trending_shows, pagination=pagination,message=message)
@@ -172,9 +136,9 @@ def show_details(show_id):
 
     seasons = {}
     for episode in episodes:
-      if episode.season_range not in seasons:
-          seasons[episode.season_range] = []
-      seasons[episode.season_range].append(episode)
+        if episode.season_range not in seasons:
+            seasons[episode.season_range] = []
+        seasons[episode.season_range].append(episode)
 
     return render_template('show_details.html', show=show, seasons=seasons)
 
@@ -225,3 +189,47 @@ def page_not_found(e):
 @app.errorhandler(500)
 def internal_server_error(e):
     return render_template('500.html'), 500
+
+# --- Custom Pagination Class ---
+
+class CustomPagination:
+    """
+    A custom pagination class to mimic Flask-SQLAlchemy's Pagination object
+    for use with pre-fetched lists of results.
+    """
+    def __init__(self, page, per_page, total, items):
+        self.page = page
+        self.per_page = per_page
+        self.total = total
+        self.items = items
+        self.grouped_items = {} # For grouped display
+
+    @property
+    def pages(self):
+        """Total number of pages."""
+        return (self.total + self.per_page - 1) // self.per_page
+
+    @property
+    def has_prev(self):
+        """True if there's a previous page."""
+        return self.page > 1
+
+    @property
+    def has_next(self):
+        """True if there's a next page."""
+        return self.page < self.pages
+
+    def iter_pages(self, left_edge=2, left_current=2, right_current=5, right_edge=2):
+        """Iterates over page numbers for pagination controls."""
+        last = 0
+        for num in range(1, self.pages + 1):
+            if num <= left_edge or \
+               (num > self.page - left_current - 1 and num < self.page + right_current) or \
+               num > self.pages - right_edge:
+                if last + 1 != num:
+                    yield None  # Represents a gap (...)
+                yield num
+                last = num
+
+if __name__ == '__main__':
+    app.run(debug=True)
