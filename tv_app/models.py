@@ -37,6 +37,22 @@ class Show(db.Model):
     genre = db.Column(db.Text)  # Added genre, using Text for comma-separated list
     year = db.Column(db.Integer)  # Added year
     season_range = db.Column(db.Text) # Added season_range
+    #Relationship
+    episodes = db.relationship('Episodes', backref='show', lazy=True) #Relationship
 
     def __repr__(self):
         return f'<Show {self.show_name} - {self.episode_title}>'
+
+#Added episodes model
+class Episodes(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(255))
+    episode_number = db.Column(db.Integer)
+    season_number = db.Column(db.Integer)
+    show_id = db.Column(db.Integer, db.ForeignKey('tv_shows.id'), nullable=False)
+    download_link = db.Column(db.String(255))
+    overview = db.Column(db.Text)
+    air_date = db.Column(db.DateTime) #Air date
+
+    def __repr__(self):
+        return f'<Episode {self.show_id} - S{self.season_number}E{self.episode_number}>'
