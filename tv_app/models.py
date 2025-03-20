@@ -1,53 +1,50 @@
 # tv_app/models.py
-from tv_app import db  # Import the db object from __init__.py
-from flask_login import UserMixin
-from werkzeug.security import generate_password_hash, check_password_hash
-import datetime
+from . import db  # Import db from the same package (__init__.py)
+from flask_login import UserMixin  # Import UserMixin
+from sqlalchemy import event
+from sqlalchemy.engine import Engine
+import logging
+# Configure logging at the top of the file
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
+#Added UserMixin for login
 class User(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
+    password = db.Column(db.String(200), nullable=False) #Consider hashing
     email = db.Column(db.String(120), unique=True, nullable=False)
-    password_hash = db.Column(db.String(256))  # CORRECTED: Increased length
 
-    def set_password(self, password):
-        self.password_hash = generate_password_hash(password)
-
-    def check_password(self, password):
-        return check_password_hash(self.password_hash, password)
-
-    def __repr__(self):  # Added for easier debugging
-        return f"<User(username='{self.username}')>"
+    def __repr__(self):
+        return f'<User {self.username}>'
 
 class Show(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    title = db.Column(db.String(255), nullable=False, index=True)
+    title = db.Column(db.String(200), nullable=False)
     overview = db.Column(db.Text, nullable=True)
     release_year = db.Column(db.Integer, nullable=True)
-    genre = db.Column(db.String(255), nullable=True)
+    genre = db.Column(db.String(100), nullable=True)
     image_url = db.Column(db.String(255), nullable=True)
     trailer_url = db.Column(db.String(255), nullable=True)
-    imdb_id = db.Column(db.String(255), nullable=True)
-    download_link = db.Column(db.String(255), nullable=True)  # Global download link (optional)
-    available_seasons = db.Column(db.Integer, default=1)
-    clicks = db.Column(db.Integer, default=0) #For tracking the popularity
-    episodes = db.relationship('Episodes', backref='show', lazy=True, cascade="all, delete-orphan")
-    is_new = db.Column(db.Boolean, default=False)
-    on_slider = db.Column(db.Boolean, default=False)  # For the slider
+    imdb_id = db.Column(db.String(20), nullable=True)
+    available_seasons = db.Column(db.Integer, nullable=True)
+    clicks = db.Column(db.Integer, default=0)
+    is_new = db.Column(db.Boolean, default=True)
+    on_slider = db.Column(db.Boolean, default=False)
+    episodes = db.relationship('Episodes', backref='show', lazy=True)
 
-    def __repr__(self):  # Added for easier debugging
-        return f"<Show(title='{self.title}')>"
+    def __repr__(self):
+        return f'<Show {self.title}>'
 
 
 class Episodes(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    title = db.Column(db.String(255), nullable=True) #Episode title, null if not
-    episode_number = db.Column(db.Integer, nullable=False)
-    season_number = db.Column(db.Integer, nullable=False)
     show_id = db.Column(db.Integer, db.ForeignKey('show.id'), nullable=False)
-    download_link = db.Column(db.String(255), nullable=False) #Episode download link
-    overview = db.Column(db.Text, nullable=True)
-    added_date = db.Column(db.DateTime, default=datetime.datetime.utcnow)
+    title = db.Column(db.String(200), nullable=False)  # Make title non-nullable
+    season_number = db.Column(db.Integer, nullable=False)
+    episode_number = db.Column(db.Integer, nullable=False)
+    download_link = db.Column(db.String(255), nullable=True)
+    # show = db.relationship('Show', backref=db.backref('episodes', lazy=True)) #Removed, using backref
 
-    def __repr__(self):  # Added for easier debugging
-        return f"<Episode(show_id={self.show_id}, season={self.season_number}, episode={self.episode_number})>"
+    def __repr__(self):
+        return f'<Episode S{self.season_number}E{self.episode_number} of {self.show.title}>' #Use backref
