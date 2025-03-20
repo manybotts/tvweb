@@ -1,8 +1,9 @@
 {% extends "base.html" %}
-
-{% block title %}TV Show Updates{% endblock %}
-
+{% block title %}TV Show Tracker{% endblock %}
 {% block content %}
+    {% if message %}
+    <p class="message">{{ message }}</p>  {# Display message #}
+    {% endif %}
 
     {% if not search_query %}
     <h2><span class="eye-icon"></span>Most Watched Today</h2>
@@ -51,34 +52,56 @@
         </div>
     {% endif %}
 
-    {# --- Conditionally display either grouped shows or search results --- #}
-    {% if pagination.grouped_items %}
-        <h2><span class="new-icon"></span>Newly Added</h2>
-        {% for letter, shows in pagination.grouped_items.items() %}
-            <h3>{{ letter }}</h3>
-            <div class="tv-shows">  {# Added a container for the group #}
-                {% for show in shows %}
-                    <div class="show-card">
-                        <a href="{{ url_for('show_details', show_id=show.id) }}">
-                            {% if show.poster_path %}
-                                <img src="{{ show.poster_path }}" alt="{{ show.show_name }}" loading="lazy">
-                            {% else %}
-                                <div class="telegram-loader"></div>
-                            {% endif %}
-                            <h3>{{ show.show_name }}</h3>
-                            <p class="episode-title">{{ show.episode_title or 'N/A' }}</p>
-                        </a>
-                    </div>
-                {% endfor %}
-            </div>
+    {# --- Conditionally display either "Newly Added" or search results --- #}
+    {% if not search_query %}
+    <h2><span class="new-icon"></span>Newly Added</h2>
+    <div class="tv-shows">
+        {% for show in shows.items %}
+        <div class="show-card">
+            <a href="{{ url_for('show_details', show_id=show.id) }}">
+                {% if show.poster_path %}
+                <img src="{{ show.poster_path }}" alt="{{ show.show_name }}" loading="lazy">
+                {% else %}
+                <div class="telegram-loader"></div>
+                {% endif %}
+                <h3>{{ show.show_name }}</h3>
+                <p class="episode-title">{{ show.episode_title or 'N/A' }}</p>
+            </a>
+        </div>
         {% endfor %}
-    {% elif pagination.items %}
-        <h2>Search Results for "{{ search_query }}"</h2>
-        <div class="tv-shows">
-            {% for show in pagination.items %}
-                <div class="show-card">
-                    <a href="{{ url_for('show_details', show_id=show.id) }}">
-                        {% if show.poster_path %}
-                            <img src="{{ show.poster_path }}" alt="{{ show.show_name }}" loading="lazy">
-                        {% else %}
-                            <div class="
+    </div>
+    {% else %}
+    <h2>Search Results for "{{ search_query }}"</h2>
+    <div class="tv-shows">
+        {% for show in shows.items %}
+            <div class="show-card">
+                <a href="{{ url_for('show_details', show_id=show.id) }}">
+                    {% if show.poster_path %}
+                    <img src="{{ show.poster_path }}" alt="{{ show.show_name }}" loading="lazy">
+                    {% else %}
+                    <div class="telegram-loader"></div>
+                    {% endif %}
+                    <h3>{{ show.show_name }}</h3>
+                    <p class="episode-title">{{ show.episode_title or 'N/A' }}</p>
+                </a>
+            </div>
+
+        {% else %}
+            <p>No shows found.</p>
+         {% endfor %}
+    </div>
+    {% endif %}
+
+
+    {# Pagination Links #}
+    <div class="pagination">
+        {% if shows.has_prev %}
+            <a href="{{ url_for('index', page=shows.prev_num, search=search_query) }}">&laquo; Previous</a>
+        {% endif %}
+        <span>Page {{ shows.page }} of {{ shows.pages }}</span>
+        {% if shows.has_next %}
+            <a href="{{ url_for('index', page=shows.next_num, search=search_query) }}">Next &raquo;</a>
+        {% endif %}
+    </div>
+
+{% endblock %}
