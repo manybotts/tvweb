@@ -6,6 +6,7 @@ from .models import db, TVShow, Genre  # Import Genre
 from sqlalchemy import desc, func, and_
 from dotenv import load_dotenv
 import logging
+from datetime import datetime
 
 load_dotenv()
 
@@ -96,11 +97,17 @@ def list_shows():
     # --- Get All Genres for Dropdown ---
     all_genres = Genre.query.order_by(Genre.name).all() # Get all genres for dropdown
 
-    return render_template('shows.html', shows=shows_paginated, genres=all_genres)
+     # --- Dynamic Year Range ---
+    current_year = datetime.now().year
+    min_year_result = db.session.query(func.min(TVShow.year)).scalar()  # Get min year
+    min_year = min_year_result if min_year_result is not None else 1900  # Default to 1900 if no shows
+
+
+    return render_template('shows.html', shows=shows_paginated, genres=all_genres, current_year=current_year, min_year=min_year)
 
 @app.route('/update', methods=['POST'])
 def update():
-    update_tv_shows.delay()
+    update_tv_shows.delay()  # Run the task asynchronously
     return jsonify({'message': 'Update initiated'}), 202
 
 @app.route('/test_celery')
