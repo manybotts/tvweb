@@ -12,9 +12,10 @@ from redis import Redis
 import telegram
 from telegram.error import RetryAfter, TimedOut, NetworkError
 from sqlalchemy.exc import OperationalError
-from fuzzywuzzy import process, fuzz
+from thefuzz import process, fuzz  # Corrected import
 from .models import db, Show, Episodes  # Import your models
 from sqlalchemy import func
+import json # JSON import
 
 load_dotenv()
 
@@ -59,8 +60,7 @@ def get_tmdb_data(url, params=None):
         if response.status_code == 200:
             return response.json()
         elif response.status_code == 429 or response.status_code == 401:  # Rate limit or unauthorized
-             # 401 is also very important, it will occur when key is invalid.
-            logger.warning(f"API Key {API_KEYS[current_api_key_index][:4]}... failed (status {response.status_code}). Trying next key...")
+            logger.warning(f"API Key index {current_api_key_index} failed (status {response.status_code}). Trying next key...") #Corrected log
             current_api_key_index = (current_api_key_index + 1) % len(API_KEYS)  # Cycle
         else:
             # Handle other errors (e.g., 500 Internal Server Error)
@@ -99,12 +99,10 @@ def get_tmdb_id_by_title(show_title, language='en-US'):
             if score >= 80 and best_match == most_popular['name']:  # Use name from most_popular
                 tmdb_id = most_popular['id']
                 logger.info(f"Fuzzy match (high popularity): {most_popular['name']} (ID: {tmdb_id}, Score: {score})")
-                redis_client.setex(cache_key, 604800, tmdb_id)
+                redis_client.setex(cache_key, 604800, str(tmdb_id)) #Always store as string
                 return tmdb_id
             else:
                 logger.warning(f"Fuzzy match score too low ({score}) or not most popular for: {show_title}")
-                # We *could* return the most popular here, even if score < 80,
-                # but it's safer to require a good fuzzy match *and* popularity.
                 return None
     else:
         logger.warning(f"No results found in TMDB for show: {show_title}")
@@ -161,13 +159,17 @@ async def fetch_new_telegram_posts(bot):
 
     except NetworkError as e:
         logger.error(f"Network error fetching Telegram updates: {e}")
+        return [] # Return empty list on network error
     except RetryAfter as e:
         logger.warning(f"Rate limit exceeded. Retrying after {e.retry_after} seconds.")
         time.sleep(e.retry_after)  # Wait before retrying.
+        return [] # Return empty list
     except TimedOut as e:
         logger.error(f"Telegram API request timed out: {e}")
+        return [] # Return empty list on timeout.
     except Exception as e:
         logger.exception(f"An unexpected error occurred fetching Telegram updates: {e}")
+        return [] # Return empty list on other exceptions.
 
     return new_posts
 
@@ -268,7 +270,6 @@ def update_tv_shows(self):
                     logger.exception(f"An error occurred: {e}")
                     self.retry(exc=e, countdown=120)
         finally:
-            # The finally block MUST be at the same indentation level as try/except
             lock.release()
             logger.info("update_tv_shows task finished.")
 
