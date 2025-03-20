@@ -2,60 +2,50 @@
 import os
 from flask import Flask, render_template, redirect, url_for, request, jsonify
 from .tasks import update_tv_shows, test_task, normalize_string  # Import normalize_string
-from .models import db, TVShow
-from sqlalchemy import desc, func
+from .models import db, TVShow  # Relative import, and correct Model name.
+from sqlalchemy import desc, func  # Corrected import
 from dotenv import load_dotenv
-import logging
+import logging  # Import logging
 from thefuzz import process, fuzz  # Import thefuzz
-import datetime  # Import datetime
-
+import datetime
 
 load_dotenv()
 
 app = Flask(__name__)
-app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "your_secret_key")
-app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get(
-    "DATABASE_URL", "sqlite:///tv_shows.db"
-)  # Default to SQLite
-app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your_secret_key')
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///tv_shows.db')  # Default to SQLite
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db.init_app(app)
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-# --- Database Operations ---
-
+# --- Database Operations (using SQLAlchemy's built-in features) ---
 
 def get_trending_shows(limit=5):
     """Retrieves the top 'limit' trending shows, ordered by clicks."""
     return TVShow.query.order_by(TVShow.clicks.desc()).limit(limit).all()
 
-
 # --- Routes ---
 
-
-@app.route("/")
+@app.route('/')
 def index():
-    """Homepage: displays TV shows with pagination, improved search, and trending shows."""
-    search_query = request.args.get("search", "")
-    page = request.args.get("page", 1, type=int)
+    """Homepage: displays TV shows with pagination and search, plus trending shows."""
+    search_query = request.args.get('search', '')
+    page = request.args.get('page', 1, type=int)
     per_page = 10
-    message = None  # Initialize message
 
     if search_query:
         normalized_query = normalize_string(search_query)  # Normalize the query
 
         # 1. Exact Match (Highest Priority)
         exact_match = (
-            TVShow.query.filter(TVShow.show_name == normalized_query).first()
+            TVShow.query.filter(func.lower(TVShow.show_name) == func.lower(normalized_query)).first()
         )
-
         # 2. Partial Match (Using SQLAlchemy's ilike)
         partial_matches = TVShow.query.filter(
-            TVShow.show_name.ilike(f"%{normalized_query}%")
+            TVShow.show_name.ilike(f'%{normalized_query}%')
         ).all()
 
         # 3. Fuzzy Matching (for Related Results)
@@ -98,25 +88,75 @@ def index():
                     .paginate(page=page, per_page=per_page, error_out=False)
                 )
 
-        trending_shows = []  # No trending shows if it's a search
+        trending_shows = [] # No trending shows if it's a search
 
     else:
-        # No search query: display all shows, ordered by creation date
-        shows = (
-            TVShow.query.order_by(TVShow.created_at.desc())
-            .paginate(page=page, per_page=per_page, error_out=False)
-        )
+        shows = TVShow.query.order_by(TVShow.created_at.desc()).paginate(page=page, per_page=per_page, error_out=False)
         trending_shows = get_trending_shows()
-        message = None
 
-    return render_template(
-        "index.html",
-        shows=shows,
-        search_query=search_query,
-        trending_shows=trending_shows,
-        message=message,
-    )
+    return render_template('index.html', shows=shows, search_query=search_query, trending_shows=trending_shows)
 
+
+@app.route('/show/<int:show_id>')
+def show_details(show_id):
+    """Displays details for a single TV show and increments its click count."""
+    show = TVShow.query.get_or_404(show_id)  # Use get_or_404 with the primary key
+    show.clicks += 1
+    db.session.commit()
+    return render_template('show_details.html', show=show)
+
+
+@app.route('/redirect/<int:show_id>')
+def redirect_to_download(show_id):
+    """Redirects to the download link for a TV show."""
+    show = TVShow.query.get_or_404(show_id)  # Use get_or_404 with the primary key
+    if show.download_link:
+        return redirect(show.download_link)
+    return "Show or link not found", 404
+
+@app.route('/shows')  # Keep this as is - it lists show *names*, not full details
+def list_shows():
+    """Displays a list of all available TV show names, with pagination."""
+    page = request.args.get('page', 1, type=int)
+    per_page = 30  # Number of show names per page
+
+    # Corrected query:  Order by show_name *first*, then distinct.
+    shows_paginated = TVShow.query.order_by(TVShow.show_name).distinct(TVShow.show_name).paginate(page=page, per_page=per_page, error_out=False)
+
+    # Extract show names from the paginated result.  This is efficient.
+    show_names = [show.show_name for show in shows_paginated.items]
+
+    return render_template('shows.html', show_names=show_names, shows=shows_paginated) #Pass the pagination object
+
+@app.route('/update', methods=['POST'])
+def update():
+    update_tv_shows.delay()  # Run the task asynchronously
+    return jsonify({'message': 'Update initiated'}), 202
+
+@app.route('/test_celery')
+def test_celery():
+    result = test_task.delay()
+    return f"Celery test task initiated. Check logs/flower. Task ID: {result.id}", 200
+
+@app.route('/delete_all', methods=['POST'])
+def delete_all_shows():
+    try:
+        num_rows_deleted = db.session.query(TVShow).delete()
+        db.session.commit()
+        return jsonify({'message': f'All {num_rows_deleted} shows deleted.'}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'message': f'Error deleting shows: {str(e)}'}), 500
+
+# --- Error Handlers ---
+
+@app.errorhandler(404)
+def page_not_found(e):
+    return render_template('404.html'), 404
+
+@app.errorhandler(500)
+def internal_server_error(e):
+    return render_template('500.html'), 500
 
 def paginate_results(results, page, per_page):
     """Paginates a list of results manually."""
@@ -167,122 +207,3 @@ class CustomPagination:
                     yield None  # Represents a gap (...)
                 yield num
                 last = num
-
-@app.route("/show/<int:show_id>")
-def show_details(show_id):
-    """Displays details for a single TV show and increments its click count."""
-    show = TVShow.query.get_or_404(show_id)  # Use get_or_404 with the primary key
-    show.clicks += 1
-    db.session.commit()
-    return render_template("show_details.html", show=show)
-
-
-@app.route("/redirect/<int:show_id>")
-def redirect_to_download(show_id):
-    """Redirects to the download link for a TV show."""
-    show = TVShow.query.get_or_404(show_id)  # Use get_or_404 with the primary key
-    if show.download_link:
-        return redirect(show.download_link)
-    return "Show or link not found", 404
-
-
-@app.route("/shows")
-def list_shows():
-    page = request.args.get("page", 1, type=int)
-    per_page = 30
-    sort_by = request.args.get("sort", "name")  # Default sort by name
-    filter_genre = request.args.get("genre")
-    filter_year = request.args.get("year")
-    filter_rating = request.args.get("rating")
-    now = datetime.datetime.now()  # Get current datetime
-
-    # Start with a base query
-    query = TVShow.query
-
-    # Apply filtering. Handle 'all' option.
-    if filter_genre and filter_genre != "all":
-        query = query.filter(TVShow.genre.ilike(f"%{filter_genre}%"))
-
-    if filter_year and filter_year != "all":
-        try:
-            filter_year = int(filter_year)
-            query = query.filter(TVShow.year == filter_year)
-        except ValueError:
-            pass  # Ignore invalid year
-
-    if filter_rating and filter_rating != "all":
-        try:
-            filter_rating = float(filter_rating)
-            query = query.filter(TVShow.vote_average >= filter_rating)
-        except ValueError:
-            pass #Ignore invalid rating input
-
-    # Apply sorting *before* distinct
-    if sort_by == "name":
-        query = query.order_by(TVShow.show_name)
-    elif sort_by == "popularity":
-        query = query.order_by(TVShow.clicks.desc())
-    elif sort_by == "year":
-        query = query.order_by(TVShow.year.desc())
-    elif sort_by == "rating":
-        query = query.order_by(TVShow.vote_average.desc())
-
-    # *Now* apply distinct, after filtering and sorting, AND order by show_name FIRST
-    query = query.distinct(TVShow.show_name).order_by(TVShow.show_name)
-
-    # Paginate the query *after* filtering, sorting, and distinct
-    shows_paginated = query.paginate(page=page, per_page=per_page, error_out=False)
-
-    #Get unique genres for the filter (from existing shows)
-    all_genres = set()
-    for show in TVShow.query.all():  # Consider optimizing if you have many shows
-        if show.genre:  # Check if genre is not None
-            all_genres.update(show.genre.split(', '))  # Split and add to set
-    all_genres = sorted(list(all_genres))
-
-
-    return render_template(
-        "shows.html",
-        shows=shows_paginated,  # Pass the pagination object
-        sort_by=sort_by,
-        filter_genre=filter_genre,  # Pass current genre filter
-        filter_year=filter_year,   # Pass current year filter
-        filter_rating=filter_rating,  # Pass current rating filter
-        now = now, # Pass now to template,
-        all_genres = all_genres
-    )
-
-@app.route("/update", methods=["POST"])
-def update():
-    update_tv_shows.delay()  # Run the task asynchronously
-    return jsonify({"message": "Update initiated"}), 202
-
-
-@app.route("/test_celery")
-def test_celery():
-    result = test_task.delay()
-    return f"Celery test task initiated. Check logs/flower. Task ID: {result.id}", 200
-
-
-@app.route("/delete_all", methods=["POST"])
-def delete_all_shows():
-    try:
-        num_rows_deleted = db.session.query(TVShow).delete()
-        db.session.commit()
-        return jsonify({"message": f"All {num_rows_deleted} shows deleted."}), 200
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({"message": f"Error deleting shows: {str(e)}"}), 500
-
-
-# --- Error Handlers ---
-
-
-@app.errorhandler(404)
-def page_not_found(e):
-    return render_template("404.html"), 404
-
-
-@app.errorhandler(500)
-def internal_server_error(e):
-    return render_template("500.html"), 500
