@@ -13,7 +13,7 @@ import telegram
 from telegram.error import RetryAfter, TimedOut, NetworkError
 from sqlalchemy.exc import OperationalError
 from fuzzywuzzy import process
-from .models import db, TVShow  # Import your models  # Changed Show, Episode to TVShow
+from .models import db, TVShow  # Import your models
 
 
 load_dotenv()
@@ -163,7 +163,7 @@ def update_tv_shows(self):
 
     if not lock.acquire(blocking=False):
         logger.info("Could not acquire lock, task is likely already running.")
-        return
+        return  # Exit early if lock acquisition fails
 
     try:
         bot = telegram.Bot(token=TELEGRAM_BOT_TOKEN)
@@ -240,7 +240,7 @@ def update_tv_shows(self):
                     else:
                         logger.warning(f"Could not find TMDB ID for show: {show_name}")
 
-                # --- CORRECTED INDENTATION HERE ---
+                # --- CORRECTED INDENTATION AND STRUCTURE HERE ---
                 try:
                     db.session.commit()
                     logger.info("Changes committed to the database.")
@@ -251,17 +251,18 @@ def update_tv_shows(self):
                 except Exception as e:
                     db.session.rollback()
                     logger.exception(f"An error occurred: {e}")
+                    self.retry(exc=e, countdown=60)  # Add a general retry
 
-    except Exception as e:
+    except Exception as e: #This is the outer Exception
         logger.exception(f"An unexpected error occurred in update_tv_shows: {e}")
         logger.error(f"Task ID: {self.request.id}")
         self.retry(exc=e, countdown=120)
-    finally:
+    finally: # The Finally block must be outside of the 'outer' try-except
         lock.release()
         logger.info("update_tv_shows task finished.")
 
-    else:
-        logger.info("update_tv_shows task is already running. Skipping.")
+
+
 
 def normalize_string(input_string):
     if input_string is None:
