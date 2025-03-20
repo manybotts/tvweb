@@ -62,18 +62,18 @@ def list_shows():
     page = request.args.get('page', 1, type=int)
     per_page = 30
     genre_filter = request.args.get('genre')
-    rating_filter = request.args.get('rating', type=float)
+    rating_filter = request.args.get('rating', type=float)  # Keep type conversion
     year_filter = request.args.get('year', type=int)
-    sort_by = request.args.get('sort_by', 'name_asc')  # Default sort by name ascending
+    sort_by = request.args.get('sort_by', 'name_asc')  # Default sort
 
     # Start with a base query
     query = TVShow.query
 
     # --- Filtering ---
     if genre_filter:
-        query = query.join(TVShow.genres).filter(Genre.name == genre_filter)  # Join and filter by genre name
+        query = query.join(TVShow.genres).filter(Genre.name == genre_filter)  # Join and filter
     if rating_filter:
-        query = query.filter(TVShow.rating >= rating_filter)
+        query = query.filter(TVShow.rating >= rating_filter) # Keep comparison
     if year_filter:
         query = query.filter(TVShow.year == year_filter)
 
@@ -95,18 +95,17 @@ def list_shows():
     shows_paginated = query.paginate(page=page, per_page=per_page, error_out=False)
 
     # --- Get All Genres for Dropdown ---
-    all_genres = Genre.query.order_by(Genre.name).all() # Get all genres for dropdown
+    all_genres = Genre.query.order_by(Genre.name).all() # Get all genres
 
      # --- Dynamic Year Range ---
     current_year = datetime.now().year
     min_year_result = db.session.query(func.min(TVShow.year)).scalar()  # Get min year
-    min_year = min_year_result if min_year_result is not None else 1900  # Default to 1900 if no shows
+    min_year = min_year_result if min_year_result is not None else 1900  # Default to 1900
 
     # Create a list of years for the dropdown
     years = list(range(current_year, min_year - 1, -1))  # Descending order
 
-
-    return render_template('shows.html', shows=shows_paginated, genres=all_genres, years=years, selected_year=year_filter)
+    return render_template('shows.html', shows=shows_paginated, genres=all_genres, years=years, selected_year=year_filter, selected_rating=rating_filter)
 
 @app.route('/update', methods=['POST'])
 def update():
