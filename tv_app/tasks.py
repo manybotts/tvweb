@@ -97,22 +97,19 @@ def parse_telegram_post(post):
         download_link = None
 
         # --- 1. Attempt Structured Parsing ---
-        # Iterate through lines, skipping those starting with '#'
         for i, line in enumerate(lines):
             line = line.strip()
             if line.startswith('#'):
-                continue  # Skip comment lines
+                continue
 
             if i == 0 and show_name is None:
                 show_name = line
                 logger.info(f"Initial Show Name: {show_name}")
             elif i == 1 and season_episode is None:
                 season_episode = line
-                logger.info(f"Initial Season/Episode: {season_episode or 'None (skipped # line)'}")
-            # You could add more lines if needed, always checking for '#'
+                logger.info(f"Initial Season/Episode: {season_episode or 'None'}")
 
         # --- 2. Link Extraction (Prioritize Entities) ---
-        # IMPORTANT:  Check for 'text_link' entities FIRST.
         download_link = next((entity.url for entity in post.caption_entities if entity.type == 'text_link'), None) if post.caption_entities else None
         logger.info(f"Initial Download Link (from entities): {download_link or 'Not Found'}")
 
@@ -128,11 +125,12 @@ def parse_telegram_post(post):
                     season_episode = f"{season_episode_match.group(3)}x{season_episode_match.group(4).zfill(2)}"
                 logger.info(f"Regex found Season/Episode: {season_episode}")
 
-        # Fallback for link (if not found in entities)
         if not download_link:
-            # CORRECTED REGEX:  Use finditer and check the line
             for match in re.finditer(r'(https?://\S+)', text, re.MULTILINE):
-                line_start = text.rfind('\n', 0, match.start()) + 1
+                # CORRECTED LINE START LOGIC:
+                line_start = text.rfind('\n', 0, match.start())
+                line_start = 0 if line_start == -1 else line_start + 1
+
                 line_end = text.find('\n', match.end())
                 if line_end == -1:
                     line_end = len(text)
@@ -141,8 +139,7 @@ def parse_telegram_post(post):
                 if not line.startswith('#'):
                     download_link = match.group(1)
                     logger.info(f"Regex found Download Link: {download_link}")
-                    break  # Important: Stop after finding the first valid link
-
+                    break
 
         # --- 4. Validation and Normalization ---
         if show_name:
