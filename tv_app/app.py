@@ -1,4 +1,6 @@
-# tv_app/app.py
+# -*- coding: utf-8 -*-
+# BEGIN APP.PY PART 1 - DO NOT CHANGE INDENTATION
+
 import os
 from flask import (Flask, render_template, redirect, url_for, request, jsonify,
                    flash, abort)
@@ -6,7 +8,7 @@ from flask_login import (LoginManager, login_user, logout_user, login_required,
                          current_user)
 from dotenv import load_dotenv
 from .models import db, User, Show, Episodes  # Import all models
-from .tasks import update_tv_shows, normalize_string  # Import tasks and helper functions
+from .tasks import update_tv_shows, normalize_string  # Import tasks
 from sqlalchemy import desc, func
 from thefuzz import process, fuzz
 import datetime
@@ -14,19 +16,18 @@ from functools import wraps
 from urllib.parse import urlparse, urljoin
 from forms import AdminLoginForm, AddShowForm, AddEpisodeForm
 
-
 load_dotenv()
 
 app = Flask(__name__)
-app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "your_secret_key")  # ALWAYS use environment variables for secrets!
-app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL", "sqlite:///tv_shows.db") # Use SQLite if no DB URL is set
-app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False  # Disable modification tracking
+app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "your_secret_key")
+app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL", "sqlite:///tv_shows.db")
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 db.init_app(app)
 
 # --- Flask-Login Setup ---
 login_manager = LoginManager()
 login_manager.init_app(app)
-login_manager.login_view = 'admin_login'  # Redirect to the login page if not authenticated
+login_manager.login_view = 'admin_login'
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -35,92 +36,65 @@ def load_user(user_id):
 # --- Helper Functions ---
 
 def get_trending_shows(limit=5):
-    """Retrieves the top 'limit' trending shows, ordered by clicks."""
     return TVShow.query.order_by(TVShow.clicks.desc()).limit(limit).all()
 
 def is_safe_url(target):
-    """Checks if the target URL is safe for redirection (prevents open redirects)."""
     ref_url = urlparse(request.host_url)
     test_url = urlparse(urljoin(request.host_url, target))
     return test_url.scheme in ('http', 'https') and ref_url.netloc == test_url.netloc
 
 def admin_required(f):
-    """Decorator for admin-only routes."""
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if not current_user.is_authenticated or current_user.username != 'admin':
             flash('You do not have permission to access this page.', 'danger')
-            return redirect(url_for('index'))  # Redirect to a safe page
+            return redirect(url_for('index'))
         return f(*args, **kwargs)
     return decorated_function
-
 
 # --- Routes ---
 
 @app.route("/")
 def index():
-    """Homepage: displays TV shows with pagination, improved search, and trending shows."""
     search_query = request.args.get("search", "")
     page = request.args.get("page", 1, type=int)
     per_page = 10
-    message = None  # Initialize message
+    message = None
 
     if search_query:
-        normalized_query = normalize_string(search_query)  # Normalize the query
-
-        # 1. Exact Match (Highest Priority)
-        exact_match = (
-            TVShow.query.filter(TVShow.show_name == normalized_query).first()
-        )
-
-        # 2. Partial Match (Using SQLAlchemy's ilike)
-        partial_matches = TVShow.query.filter(
-            TVShow.show_name.ilike(f"%{normalized_query}%")
-        ).all()
-
-        # 3. Fuzzy Matching (for Related Results)
+        normalized_query = normalize_string(search_query)
+        exact_match = TVShow.query.filter(TVShow.show_name == normalized_query).first()
+        partial_matches = TVShow.query.filter(TVShow.show_name.ilike(f"%{normalized_query}%")).all()
         all_show_names = [show.show_name for show in TVShow.query.all()]
         fuzzy_matches = process.extract(normalized_query, all_show_names)
 
-
-        # Combine and Prioritize Results
         results = []
         if exact_match:
             results.append(exact_match)
         for show in partial_matches:
             if show not in results:
                 results.append(show)
-
-        # --- ADDED SCORE THRESHOLD ---
         for show_name, score in fuzzy_matches:
-            if score >= 60:  #  Only include fuzzy matches with a score of 60 or higher
+            if score >= 60:
                 show = TVShow.query.filter_by(show_name=show_name).first()
                 if show and show not in results:
                     results.append(show)
-
-        # Paginate the combined results
         shows = paginate_results(results, page, per_page)
 
-        # Check if any results were found
         if not shows.items:
             message = (
                 f"No shows found matching '{search_query}'. Here are some similar shows:"
             )
-            # If no exact or partial matches, show related (fuzzy) results
-            shows = paginate_results(
-                results, page, per_page
-            )  # paginate all results, including fuzzy.
-            if not shows.items:  # still empty after fuzzy?
+            shows = paginate_results(results, page, per_page)
+            if not shows.items:
                 message = f"No shows found matching '{search_query}'. Displaying all shows."
                 shows = (
                     TVShow.query.order_by(TVShow.created_at.desc())
                     .paginate(page=page, per_page=per_page, error_out=False)
                 )
-
-        trending_shows = []  # No trending shows if it's a search
+        trending_shows = []
 
     else:
-        # No search query: display all shows, ordered by creation date
         shows = (
             TVShow.query.order_by(TVShow.created_at.desc())
             .paginate(page=page, per_page=per_page, error_out=False)
@@ -136,75 +110,61 @@ def index():
         message=message,
     )
 
-
 def paginate_results(results, page, per_page):
-    """Paginates a list of results manually."""
     from flask_sqlalchemy import pagination
 
     start = (page - 1) * per_page
     end = start + per_page
     paginated_items = results[start:end]
 
-    # Create a CustomPagination object
     pagination_obj = CustomPagination(page, per_page, len(results), paginated_items)
     return pagination_obj
 
 class CustomPagination:
-    """
-    A custom pagination class to mimic Flask-SQLAlchemy's Pagination object
-    for use with pre-fetched lists of results.
-    """
     def __init__(self, page, per_page, total, items):
         self.page = page
         self.per_page = per_page
         self.total = total
         self.items = items
-
     @property
     def pages(self):
-        """Total number of pages."""
         return (self.total + self.per_page - 1) // self.per_page
-
     @property
     def has_prev(self):
-        """True if there's a previous page."""
         return self.page > 1
-
     @property
     def has_next(self):
-        """True if there's a next page."""
         return self.page < self.pages
-
     def iter_pages(self, left_edge=2, left_current=2, right_current=5, right_edge=2):
-        """Iterates over page numbers for pagination controls."""
         last = 0
         for num in range(1, self.pages + 1):
-            if num <= left_edge or \
-               (num > self.page - left_current - 1 and num < self.page + right_current) or \
-               num > self.pages - right_edge:
+            if num <= left_edge or (num > self.page - left_current - 1 and num < self.page + right_current) or num > self.pages - right_edge:
                 if last + 1 != num:
-                    yield None  # Represents a gap (...)
+                    yield None
                 yield num
                 last = num
 
 @app.route("/show/<int:show_id>")
 def show_details(show_id):
-    """Displays details for a single TV show and increments its click count."""
-    show = TVShow.query.get_or_404(show_id)  # Use get_or_404 with the primary key
+    show = TVShow.query.get_or_404(show_id)
     show.clicks += 1
     db.session.commit()
     episodes = Episodes.query.filter_by(show_id=show.id).order_by(Episodes.season_number, Episodes.episode_number).all()
     return render_template("show_details.html", show=show, episodes=episodes)
 
-
 @app.route("/redirect/<int:show_id>")
 def redirect_to_download(show_id):
-    """Redirects to the download link for a TV show."""
-    show = TVShow.query.get_or_404(show_id)  # Use get_or_404 with the primary key
+    show = TVShow.query.get_or_404(show_id)
     if show.download_link:
         return redirect(show.download_link)
     return "Show or link not found", 404
+# END APP.PY PART 1 - DO NOT CHANGE INDENTATION
+# -*- coding: utf-8 -*-
+# BEGIN APP.PY PART 2 - CAREFULLY COMBINE WITH PART 1
 
+#  IMPORTANT: The following route definition MUST be at the SAME
+#  indentation level as the previous routes in Part 1.  There should
+#  be NO extra spaces or tabs at the beginning of these lines.
 
 @app.route("/shows")
 def list_shows():
@@ -268,7 +228,8 @@ def list_shows():
         now = now, # Pass now to template,
         all_genres = all_genres
     )
-   @app.route("/update", methods=["POST"])
+
+@app.route("/update", methods=["POST"])
 @login_required
 @admin_required
 def update():
@@ -347,7 +308,7 @@ def admin():
 def admin_login():
     """Admin login route."""
     if current_user.is_authenticated:
-        return redirect(url_for('admin'))  # Already logged in
+        return redirect(url_for('admin'))
     form = AdminLoginForm()
     if form.validate_on_submit():
         user = User.query.filter_by(username=form.username.data).first()
@@ -355,7 +316,7 @@ def admin_login():
             login_user(user)
             next_page = request.args.get('next')
             if not is_safe_url(next_page):
-                return abort(400)  # Prevent open redirects
+                return abort(400)
             flash('Login successful!', 'success')
             return redirect(next_page or url_for('admin'))
         else:
@@ -422,6 +383,7 @@ def edit_show(show_id):
 
     return render_template('edit_show.html', form=form, show=show)
 
+
 @app.route('/admin/edit-episode/<int:episode_id>', methods=['GET', 'POST'])
 @login_required
 @admin_required
@@ -458,3 +420,5 @@ def internal_server_error(e):
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
+# END APP.PY PART 2 - CAREFULLY COMBINE WITH PART 1
