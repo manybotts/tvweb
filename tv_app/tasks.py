@@ -13,205 +13,160 @@ import telegram
 from telegram.error import RetryAfter, TimedOut, NetworkError
 from sqlalchemy.exc import OperationalError
 from fuzzywuzzy import process
-from .models import db, TVShow  # Import your models
-
+from .models import db, TVShow
+import hashlib
+import unicodedata
 
 load_dotenv()
 
-# --- Celery Setup ---
 celery = Celery(__name__, broker=os.environ.get('REDIS_URL'), backend=os.environ.get('REDIS_URL'))
 logger = get_task_logger(__name__)
+celery.conf.task_routes = {
+    'tv_app.tasks.update_tv_shows': {'queue': 'updates'},
+    'tv_app.tasks.test_task': {'queue': 'default'},
+}
 
-# --- TMDB API ---
 TMDB_CALLS_PER_SECOND = 4
 TMDB_PERIOD = 1
 
-# --- Redis (for caching and locking) ---
 redis_client = Redis.from_url(os.environ.get('REDIS_URL'), decode_responses=True)
 
-# --- Telegram ---
 TELEGRAM_BOT_TOKEN = os.environ.get('TELEGRAM_BOT_TOKEN')
 TELEGRAM_CHANNEL_ID = os.environ.get('TELEGRAM_CHANNEL_ID')
 
-# --- API Key Management ---
-API_KEYS = [
-    os.environ.get('API_KEY_1'),
-    os.environ.get('API_KEY_2'),
-    os.environ.get('API_KEY_3'),
-    # Add more keys as needed
-]
-API_KEYS = [key for key in API_KEYS if key]  # Remove any None values
+API_KEYS = [os.environ.get('API_KEY_1'), os.environ.get('API_KEY_2'), os.environ.get('API_KEY_3')]
+API_KEYS = [key for key in API_KEYS if key]
 current_api_key_index = 0
 
-# --- Helper Functions ---
-
 def get_tmdb_data(url, params=None):
-    """Fetches data from TMDB, handling API key rotation."""
     global current_api_key_index
-
     if params is None:
         params = {}
-
-    for _ in range(len(API_KEYS)):  # Try each key
+    for _ in range(len(API_KEYS)):
         params['api_key'] = API_KEYS[current_api_key_index]
-        response = requests.get(url, params=params, timeout=10)  # Added timeout
-
+        response = requests.get(url, params=params, timeout=10)
         if response.status_code == 200:
             return response.json()
-        elif response.status_code in (429, 401):  # Rate limit or unauthorized
-            logger.warning(f"API Key {API_KEYS[current_api_key_index][:4]}... failed (status {response.status_code}). Trying next key...")
-            current_api_key_index = (current_api_key_index + 1) % len(API_KEYS)  # Cycle
+        elif response.status_code in (429, 401):
+            logger.warning(f"API Key {API_KEYS[current_api_key_index][:4]}... failed. Trying next.")
+            current_api_key_index = (current_api_key_index + 1) % len(API_KEYS)
         else:
             logger.error(f"TMDB API error: {response.status_code} - {response.text}")
             return None
-
     logger.error("All API keys failed.")
     return None
 
 def get_tmdb_id_by_title(show_title, language='en-US'):
-    """Gets TMDB ID, using caching and prioritizing exact/popular matches."""
     cache_key = f"tmdb_id:{show_title}:{language}"
     tmdb_id = redis_client.get(cache_key)
     if tmdb_id:
-        return int(tmdb_id)  # Return as integer
-
+        return int(tmdb_id)
     search_url = "https://api.themoviedb.org/3/search/tv"
-    params = {"query": show_title, "language": language, "include_adult": "false"}  # Add include_adult
+    params = {"query": show_title, "language": language, "include_adult": "false"}
     data = get_tmdb_data(search_url, params)
-
     if data and data.get('results'):
         results = data['results']
-
-        # 1. Exact Match (Case-Insensitive)
         for result in results:
             if result['name'].lower() == show_title.lower():
                 tmdb_id = result['id']
-                logger.info(f"Direct match found: {result['name']} (ID: {tmdb_id})")
-                redis_client.setex(cache_key, 604800, tmdb_id)  # Cache
+                redis_client.setex(cache_key, 604800, tmdb_id)
                 return tmdb_id
-
-        # 2. Prioritize Popularity (if no exact match)
         if results:
             most_popular = max(results, key=lambda x: x.get('popularity', 0))
             best_match, score = process.extractOne(show_title, [result['name'] for result in results])
-            if score >= 80 and best_match == most_popular['name']:  # Use name from most_popular
+            if score >= 80 and best_match == most_popular['name']:
                 tmdb_id = most_popular['id']
-                logger.info(f"Fuzzy match (high popularity): {most_popular['name']} (ID: {tmdb_id}, Score: {score})")
                 redis_client.setex(cache_key, 604800, tmdb_id)
                 return tmdb_id
-            else:
-                logger.warning(f"Fuzzy match score too low ({score}) or not most popular for: {show_title}")
-                # We *could* return the most popular here, even if score < 80,
-                # but it's safer to require a good fuzzy match *and* popularity.
-                return None
-    else:
-        logger.warning(f"No results found in TMDB for show: {show_title}")
-        return None
-
-def get_trailer(tmdb_id):
-    tmdb_url = f"https://api.themoviedb.org/3/tv/{tmdb_id}/videos"
-    data = get_tmdb_data(tmdb_url)
-    if data and data.get('results'):
-        for result in data['results']:
-            if result['type'] == 'Trailer' and result['site'] == 'YouTube':
-                return result['key']  # Return the key, not the full URL
     return None
 
 def parse_telegram_post(text):
-    # Exclude lines starting with '#' or '#_'
     match = re.search(r"^(?!#|_#).*S(\d{2})E(\d{2})\s*(.*?)\s*-\s*(https?://\S+)", text, re.MULTILINE | re.IGNORECASE)
-
     if match:
-        return {
-            'show_name': match.group(3).strip(),
-            'season': int(match.group(1)),
-            'episode': int(match.group(2)),
-            'download_link': match.group(4)
-        }
+        return {'show_name': match.group(3).strip(), 'season': int(match.group(1)), 'episode': int(match.group(2)), 'download_link': match.group(4)}
     return None
 
 async def fetch_new_telegram_posts(bot):
     channel_id = TELEGRAM_CHANNEL_ID
     if not channel_id:
-        logger.error("TELEGRAM_CHANNEL_ID environment variable not set!")
         return []
     last_update_id = redis_client.get('last_telegram_update_id')
     last_update_id = int(last_update_id) if last_update_id else None
-    new_posts = []
     try:
-        updates = await bot.get_updates(offset=last_update_id + 1 if last_update_id else None, allowed_updates=[telegram.Update.MESSAGE], timeout=60) #Long polling
-        for update in updates:
-            if update.message and update.message.chat_id == int(channel_id) and update.message.caption:
-                new_posts.append(update.message)
-            redis_client.set('last_telegram_update_id', update.update_id) #Store the next update_id
+        updates = await bot.get_updates(offset=last_update_id + 1 if last_update_id else None, allowed_updates=[telegram.Update.MESSAGE], timeout=60)
+        new_posts = [update.message for update in updates if update.message and update.message.chat_id == int(channel_id) and update.message.caption]
+        if updates:
+           redis_client.set('last_telegram_update_id', updates[-1].update_id)
+        return new_posts
+    except (NetworkError, RetryAfter, TimedOut, Exception) as e:
+        logger.error(f"Telegram error: {e}")
+        return []
 
-    except NetworkError as e:
-        logger.error(f"Network error fetching Telegram updates: {e}")
-    except RetryAfter as e:
-        logger.warning(f"Rate limit exceeded. Retrying after {e.retry_after} seconds.")
-        time.sleep(e.retry_after)
-    except TimedOut as e:
-        logger.error(f"Telegram API request timed out: {e}")
-    except Exception as e:
-        logger.exception(f"An unexpected error occurred fetching Telegram updates: {e}")
-    return new_posts
+def calculate_content_hash(show_name, season_number, episode_number, download_link):
+    content_string = f"{show_name}-{season_number}-{episode_number}-{download_link}"
+    return hashlib.sha256(content_string.encode('utf-8')).hexdigest()
 
-@celery.task(bind=True, retry_backoff=True, max_retries=5) # Added max_retries
+def normalize_string(input_string):
+    if input_string is None:
+        return ""
+    text = input_string.lower()
+    text = ''.join(c for c in text if unicodedata.category(c)[0] != 'C')
+    text = re.sub(r'[^\w\s]', '', text)
+    text = re.sub(r'\s+', ' ', text).strip()
+    return text
+
+@celery.task(bind=True, retry_backoff=True, max_retries=5)
 def update_tv_shows(self):
-    logger.info("Starting update_tv_shows task...")
-    lock = redis_client.lock("update_tv_shows_lock", timeout=600)
-
+    lock_id = "update_tv_shows_lock"
+    lock = redis_client.lock(lock_id, timeout=600)
     if not lock.acquire(blocking=False):
-        logger.info("Could not acquire lock, task is likely already running.")
-        return  # Exit early if lock acquisition fails
-
+        return
     try:
         bot = telegram.Bot(token=TELEGRAM_BOT_TOKEN)
-        posts =  asyncio.run(fetch_new_telegram_posts(bot))
-
-        for post in posts:
-            post_data = parse_telegram_post(post.caption)
-
-            if post_data:
-                logger.info(f"Parsed post data: {post_data}")
-                show_name = post_data['show_name']
-                season_number = post_data['season']
-                episode_number = post_data['episode']
-                download_link = post_data['download_link']
-
-                show = TVShow.query.filter(func.lower(TVShow.show_name) == func.lower(show_name)).first()
-
+        posts = asyncio.run(fetch_new_telegram_posts(bot))
+        if not posts:
+            return
+        from tv_app.app import app
+        with app.app_context():
+            for post in posts:
+                post_data = parse_telegram_post(post.caption)
+                if not post_data:
+                    continue
+                show_name, season_number, episode_number, download_link = post_data['show_name'], post_data['season'], post_data['episode'], post_data['download_link']
+                content_hash = calculate_content_hash(show_name, season_number, episode_number, download_link)
+                if redis_client.sismember("processed_posts", content_hash):
+                    continue
+                normalized_show_name = normalize_string(show_name)
+                show = TVShow.query.filter(func.lower(TVShow.show_name) == normalized_show_name).first()
                 if show:
-                    logger.info(f"Show '{show_name}' found (ID: {show.id}).")
-                    existing_episode = TVShow.query.filter_by(show_id=show.id, season_number=season_number, episode_number=episode_number).first()
-
+                    existing_episode = TVShow.query.filter_by(show_id=show.id, season_range=season_number, episode_number=episode_number).first()
                     if not existing_episode:
-                        new_episode = TVShow(episode_title = None, episode_number=episode_number, season_range=season_number, show_id=show.id, download_link=download_link, overview = None)
+                        new_episode = TVShow(episode_title=None, episode_number=episode_number, season_range=season_number, show_id=show.id, download_link=download_link, overview=None, content_hash=content_hash)
                         db.session.add(new_episode)
                         if season_number == 1 and episode_number == 1 and not show.content_hash:
                             tmdb_id = get_tmdb_id_by_title(show.show_name)
                             if tmdb_id:
                                 tmdb_url = f"https://api.themoviedb.org/3/tv/{tmdb_id}?language=en-US"
                                 show_details = get_tmdb_data(tmdb_url)
-
                                 if show_details:
-                                     show.overview = show_details.get('overview')
-                                     show.genre = ', '.join([genre['name'] for genre in show_details.get('genres', [])])
-                                     show.poster_path = f"https://image.tmdb.org/t/p/w500{show_details.get('poster_path')}" if show_details.get('poster_path') else None
-                                     show.vote_average = show_details.get('vote_average')
-                                     show.content_hash = str(tmdb_id)
-                                     show.year = int(show_details.get('first_air_date', '0000-00-00').split('-')[0]) if show_details.get('first_air_date') else None,
-                                     show.season_range = show_details.get('number_of_seasons', 1)
+                                    show.overview = show_details.get('overview')
+                                    show.genre = ', '.join([genre['name'] for genre in show_details.get('genres', [])])
+                                    show.poster_path = f"https://image.tmdb.org/t/p/w500{show_details.get('poster_path')}" if show_details.get('poster_path') else None
+                                    show.vote_average = show_details.get('vote_average')
+                                    show.content_hash = content_hash
+                                    show.year = int(show_details.get('first_air_date', '0000-00-00').split('-')[0]) if show_details.get('first_air_date') else None
+                                    show.season_range = show_details.get('number_of_seasons', 1)
+                                    db.session.commit()
                     else:
-                        logger.info(f"Episode S{season_number:02d}E{episode_number:02d} of '{show_name}' already exists.")
+                        existing_episode.download_link = download_link
+                        existing_episode.content_hash = content_hash
+                        db.session.commit()
 
                 else:
-                    logger.info(f"Show '{show_name}' not found.  Fetching from TMDB...")
                     tmdb_id = get_tmdb_id_by_title(show_name)
                     if tmdb_id:
                         tmdb_url = f"https://api.themoviedb.org/3/tv/{tmdb_id}?language=en-US"
                         show_details = get_tmdb_data(tmdb_url)
-
                         if show_details:
                             new_show = TVShow(
                                 show_name=show_details.get('name'),
@@ -220,51 +175,29 @@ def update_tv_shows(self):
                                 genre=', '.join([genre['name'] for genre in show_details.get('genres', [])]),
                                 poster_path=f"https://image.tmdb.org/t/p/w500{show_details.get('poster_path')}" if show_details.get('poster_path') else None,
                                 vote_average=show_details.get('vote_average'),
-                                content_hash=str(tmdb_id),
-                                download_link=None,  # The show itself has no direct download link
-                                season_range = show_details.get('number_of_seasons', 1)
+                                content_hash=content_hash,
+                                download_link=None,
+                                season_range=show_details.get('number_of_seasons', 1)
                             )
                             db.session.add(new_show)
-                            #  Add the episode
-                            new_episode = TVShow(
-                                episode_title = None,
-                                episode_number=episode_number,
-                                season_range=season_number,
-                                show_id=new_show.id,
-                                download_link=download_link,
-                                overview = None,
-                            )
+                            db.session.commit()
+                            new_episode = TVShow(episode_title=None, episode_number=episode_number, season_range=season_number, show_id=new_show.id, download_link=download_link, overview=None, content_hash=content_hash)
                             db.session.add(new_episode)
-                        else:
-                            logger.warning(f"Could not retrieve details for show ID {tmdb_id} from TMDB.")
-                    else:
-                        logger.warning(f"Could not find TMDB ID for show: {show_name}")
-
-                # --- CORRECTED INDENTATION AND STRUCTURE HERE ---
+                            db.session.commit()
+                redis_client.sadd("processed_posts", content_hash)
                 try:
                     db.session.commit()
-                    logger.info("Changes committed to the database.")
                 except OperationalError as e:
                     db.session.rollback()
-                    logger.exception(f"Database operational error: {e}")
-                    self.retry(exc=e, countdown=60)  # Retry after 60 seconds
+                    self.retry(exc=e, countdown=60)
                 except Exception as e:
                     db.session.rollback()
-                    logger.exception(f"An error occurred: {e}")
-                    self.retry(exc=e, countdown=60)  # Add a general retry
-
-    except Exception as e: #This is the outer Exception
-        logger.exception(f"An unexpected error occurred in update_tv_shows: {e}")
-        logger.error(f"Task ID: {self.request.id}")
+                    self.retry(exc=e, countdown=60)
+    except Exception as e:
         self.retry(exc=e, countdown=120)
-    finally: # The Finally block must be outside of the 'outer' try-except
+    finally:
         lock.release()
-        logger.info("update_tv_shows task finished.")
 
-
-
-
-def normalize_string(input_string):
-    if input_string is None:
-        return ""  # Handle None gracefully
-    return re.sub(r'\W+', '', input_string).lower()
+@celery.task
+def test_task():
+  return "Test task complete"
