@@ -203,6 +203,7 @@ async def fetch_new_telegram_posts(bot):
         return []
 
     return new_posts
+
 # --- End of Part 1 ---
 # --- Start of Part 2 ---
 @celery.task(bind=True, retry_backoff=True, max_retries=5)
@@ -210,7 +211,7 @@ def update_tv_shows(self):
     """Updates the TV show database with new episodes from Telegram."""
     logger.info("Starting update_tv_shows task...")
     lock_key = "update_tv_shows_lock"
-    lock = redis_client.lock(lock_key, timeout=600)
+    lock = redis_client.lock(lock_key, timeout=720)  # Increased timeout slightly
 
     if not lock.acquire(blocking=False):
         logger.info("Could not acquire lock, task is likely already running.")
@@ -218,14 +219,20 @@ def update_tv_shows(self):
 
     try:
         bot = telegram.Bot(token=TELEGRAM_BOT_TOKEN)
-        # Keeping Mock telegram
-        posts = asyncio.run(fetch_new_telegram_posts(bot))
+        # Fetch new posts from Telegram, with error handling
+        try:
+            posts = asyncio.run(fetch_new_telegram_posts(bot))
+            logger.info(f"Fetched {len(posts)} new posts from Telegram.")
+        except Exception as e:
+            logger.exception(f"Error fetching posts from Telegram: {e}")
+            raise  # Re-raise to trigger Celery retry
 
         # Use the application context for database operations
         from tv_app.app import app
         with app.app_context():
           for post in posts:
             # --- Check if message ID has been processed ---
+            logger.info(f"Processing message ID: {post.message_id}")  # Log each message ID
             if redis_client.sismember("processed_messages", post.message_id):
                 logger.info(f"Message ID {post.message_id} already processed. Skipping.")
                 continue
@@ -248,6 +255,7 @@ def update_tv_shows(self):
                                                                         season_number=season_number,
                                                                         episode_number=episode_number).first()
                     if not existing_episode:
+                        logger.info(f"Adding episode S{season_number:02d}E{episode_number:02d} for '{show_name}'.")
                         new_episode = Episodes(title=None, episode_number=episode_number,
                                             season_number=season_number, show_id=show.id,
                                             download_link=download_link, overview=None)
@@ -261,7 +269,7 @@ def update_tv_shows(self):
                                 if show_details:
                                     show.overview = show_details.get('overview')
                                     show.genre = ', '.join([genre['name'] for genre in show_details.get('genres', [])])
-                                    show.image_url = (f"https://image.tmdb.org/t/p/w500{show_details.get('poster_path')}"
+                                    show.image_url = (f"https://image.themoviedb.org/t/p/w500{show_details.get('poster_path')}"
                                                     if show_details.get('poster_path') else None)
                                     show.trailer_url = (
                                         f"https://www.youtube.com/watch?v={get_trailer(tmdb_id)}"
@@ -280,13 +288,14 @@ def update_tv_shows(self):
                         show_details = get_tmdb_data(tmdb_url)
 
                         if show_details:
+                            logger.info(f"Adding new show '{show_details.get('name')}' from TMDB.")
                             new_show = Show(
                                 title=show_details.get('name'),
                                 overview=show_details.get('overview'),
                                 release_year=int(show_details.get('first_air_date', '0000-00-00').split('-')[0]) if
                                 show_details.get('first_air_date') else None,
                                 genre=', '.join([genre['name'] for genre in show_details.get('genres', [])]),
-                                image_url=f"https://image.tmdb.org/t/p/w500{show_details.get('poster_path')}" if
+                                image_url=f"https://image.themoviedb.org/t/p/w500{show_details.get('poster_path')}" if
                                 show_details.get('poster_path') else None,
                                 trailer_url=f"https://www.youtube.com/watch?v={get_trailer(tmdb_id)}" if
                                 get_trailer(tmdb_id) else None,
@@ -297,6 +306,7 @@ def update_tv_shows(self):
 
                             db.session.add(new_show)
                             # Add the episode immediately
+                            logger.info(f"Adding episode S{season_number:02d}E{episode_number:02d} for new show '{show_name}'.")
                             new_episode = Episodes(
                                 title=None,
                                 episode_number=episode_number,
@@ -312,6 +322,7 @@ def update_tv_shows(self):
                 logger.info(f"Database updated for show: {show_name}")
                 # Add to processed messages set
                 redis_client.sadd("processed_messages", post.message_id)
+          logger.info("Successfully processed all new Telegram posts.") # Log successful completion
 
     except OperationalError as e:
         logger.error(f"Database operational error: {e}. Retrying...")
