@@ -13,12 +13,12 @@
                 {% for show in trending_shows %}
                     <div class="mySlides slideshow-item">
                         <a href="{{ url_for('show_details', show_id=show.id) }}">
-                            {% if show.poster_path %}
-                                <img src="{{ show.poster_path }}" alt="{{ show.show_name }}" class="slideshow-image">
+                            {% if show.image_url %}
+                                <img src="{{ show.image_url }}" alt="{{ show.title }}" class="slideshow-image">
                             {% else %}
-                                <div class="telegram-loader"></div>
+                                <div class="telegram-loader"></div> {# Placeholder for missing image #}
                             {% endif %}
-                             <div class="slide-caption">{{ show.show_name }}</div>
+                             <div class="slide-caption">{{ show.title }}</div>
                         </a>
 
                     </div>
@@ -30,12 +30,12 @@
                 {% for show in trending_shows %}
                    <div class="mySlides slideshow-item">
                         <a href="{{ url_for('show_details', show_id=show.id) }}">
-                            {% if show.poster_path %}
-                                <img src="{{ show.poster_path }}" alt="{{ show.show_name }}" class="slideshow-image">
+                            {% if show.image_url %}
+                                <img src="{{ show.image_url }}" alt="{{ show.title }}" class="slideshow-image">
                             {% else %}
-                                <div class="telegram-loader"></div>
+                                 <div class="telegram-loader"></div> {# Placeholder for missing image #}
                             {% endif %}
-                             <div class="slide-caption">{{ show.show_name }}</div>
+                             <div class="slide-caption">{{ show.title }}</div>
                         </a>
 
                     </div>
@@ -59,15 +59,17 @@
         {% for show in shows.items %}
         <div class="show-card">
             <a href="{{ url_for('show_details', show_id=show.id) }}">
-                {% if show.poster_path %}
-                <img src="{{ show.poster_path }}" alt="{{ show.show_name }}" loading="lazy">
+                {% if show.image_url %}
+                <img src="{{ show.image_url }}" alt="{{ show.title }}" loading="lazy">
                 {% else %}
-                <div class="telegram-loader"></div>
+                     <div class="telegram-loader"></div> {# Placeholder for missing image #}
                 {% endif %}
-                <h3>{{ show.show_name }}</h3>
-                <p class="episode-title">{{ show.episode_title or 'N/A' }}</p>
+                <h3>{{ show.title }}</h3>
+                {#  No episode_title at the show level; link to details for episodes #}
             </a>
         </div>
+        {% else %}  {# Added else for when shows.items is empty #}
+            <p>No shows added yet.</p>
         {% endfor %}
     </div>
     {% else %}
@@ -76,16 +78,15 @@
         {% for show in shows.items %}
             <div class="show-card">
                 <a href="{{ url_for('show_details', show_id=show.id) }}">
-                    {% if show.poster_path %}
-                    <img src="{{ show.poster_path }}" alt="{{ show.show_name }}" loading="lazy">
+                    {% if show.image_url %}
+                    <img src="{{ show.image_url }}" alt="{{ show.title }}" loading="lazy">
                     {% else %}
-                    <div class="telegram-loader"></div>
+                       <div class="telegram-loader"></div> {# Placeholder for missing image #}
                     {% endif %}
-                    <h3>{{ show.show_name }}</h3>
-                    <p class="episode-title">{{ show.episode_title or 'N/A' }}</p>
+                    <h3>{{ show.title }}</h3>
+                     {#  No episode_title at the show level; link to details for episodes #}
                 </a>
             </div>
-
         {% else %}
             <p>No shows found.</p>
          {% endfor %}
