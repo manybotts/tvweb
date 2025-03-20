@@ -85,7 +85,7 @@ async def fetch_new_telegram_posts():
 
 def parse_telegram_post(post):
     """Parses a Telegram post, prioritizing structured data, using targeted regex,
-    ignoring lines starting with '#', and robustly extracting hyperlinks.
+    ignoring lines starting with '#' OR containing '#_', and robustly extracting hyperlinks.
     """
     try:
         text = post.caption
@@ -99,7 +99,7 @@ def parse_telegram_post(post):
         # --- 1. Attempt Structured Parsing ---
         for i, line in enumerate(lines):
             line = line.strip()
-            if line.startswith('#'):
+            if line.startswith('#') or '#_' in line:  # KEY CHANGE: Ignore lines with #_
                 continue
 
             if i == 0 and show_name is None:
@@ -126,17 +126,16 @@ def parse_telegram_post(post):
                 logger.info(f"Regex found Season/Episode: {season_episode}")
 
         if not download_link:
+            # Simplified Regex - No need for complex line checks
             for match in re.finditer(r'(https?://\S+)', text, re.MULTILINE):
-                # CORRECTED LINE START LOGIC:
                 line_start = text.rfind('\n', 0, match.start())
                 line_start = 0 if line_start == -1 else line_start + 1
-
                 line_end = text.find('\n', match.end())
-                if line_end == -1:
-                    line_end = len(text)
+                if line_end == -1: line_end = len(text)
                 line = text[line_start:line_end].strip()
 
-                if not line.startswith('#'):
+                # Simplest and most robust check:
+                if '#_' not in line:
                     download_link = match.group(1)
                     logger.info(f"Regex found Download Link: {download_link}")
                     break
@@ -176,7 +175,7 @@ def fetch_tmdb_data(show_name, language='en-US'):
             "Authorization": f"Bearer {os.environ.get('TMDB_BEARER_TOKEN')}",
             "Content-Type": "application/json"
         }
-        # KEY CHANGE: Use 'search/tv' for TV shows specifically
+        # Use 'search/tv' for TV shows specifically
         search_url = f"https://api.themoviedb.org/3/search/tv?query={quote_plus(show_name)}&language={language}"
         search_response = requests.get(search_url, headers=headers, timeout=10)
         search_response.raise_for_status()
@@ -187,7 +186,7 @@ def fetch_tmdb_data(show_name, language='en-US'):
             logger.info(f"Direct match found for: {show_name}")
         else:
             logger.warning(f"No direct match for: {show_name}.  Attempting fuzzy match.")
-            # KEY CHANGE:  Use 'search/tv' here as well
+            # Use 'search/tv' here as well
             search_url = f"https://api.themoviedb.org/3/search/tv?query={quote_plus(show_name)}&language={language}&page=1"
             search_response = requests.get(search_url, headers=headers, timeout=10)
             search_response.raise_for_status()
