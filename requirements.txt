@@ -7,14 +7,14 @@ redis==5.0.1 # Keeping - Used for caching and Celery
 celery==5.3.6  # Keeping - Task queue
 flower==2.0.1  # Keeping - Celery monitoring (even if unused, it's related to celery)
 gunicorn==21.2.0 # Keeping - WSGI server for production
-thefuzz==0.20.0 # This is probably a rename of fuzzywuzzy. Keep.
-python-telegram-bot==20.7  # Keeping - Telegram integration, confirmed by previous code
-Werkzeug==2.0.3  # CHANGED: Downgraded for compatibility with Flask-Login 0.6.2
+thefuzz==0.20.0  # Keeping, likely a fuzzywuzzy alias
+python-telegram-bot==20.7  # Keeping - Telegram integration
+Werkzeug==3.0.1  # Keeping original version - was incorrectly downgraded
 psycopg2-binary==2.9.9  # Keeping - PostgreSQL adapter
-Flask-WTF==1.2.1  # Likely used if you have any web forms.  Keeping.
-WTForms==3.1.2  # Companion to Flask-WTF. Keeping
+Flask-WTF==1.2.1  # Keeping - Form handling
+WTForms==3.1.2  # Keeping - Form handling
 kombu==5.3.4 # Keeping (Celery dependency)
 amqp==5.2.0 # Keeping (Celery dependency)
 vine==5.1.0 # Keeping (Celery dependency)
 fuzzywuzzy==0.18.0  # Keeping - Used for fuzzy matching
-Flask-Login==0.6.2 # Keeping (and added previously)
+Flask-Login==0.6.3  # UPGRADED: This resolves the Werkzeug conflict.
