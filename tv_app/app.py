@@ -89,8 +89,8 @@ def index():
             )
             shows = Show.query.order_by(Show.clicks.desc()).paginate(page=page, per_page=per_page, error_out=False)
             if not shows.items:
-               message = f"No shows found matching '{search_query}'. Displaying all shows."
-               shows = (
+                message = f"No shows found matching '{search_query}'. Displaying all shows."
+                shows = (
                     Show.query.order_by(Show.id.desc())
                     .paginate(page=page, per_page=per_page, error_out=False)
                 )
@@ -205,7 +205,7 @@ def list_shows():
             # Assuming you have a way to get a show's rating.  This is a placeholder.
             # You *might* need a separate 'ratings' table, or a computed property.
             # Replace this with your actual rating logic.
-        query = query.filter(Show.clicks >= filter_rating_int) #Changed this to click
+            query = query.filter(Show.clicks >= filter_rating_int) #Changed this to click
 
         except ValueError:
             pass  # Ignore invalid rating values
