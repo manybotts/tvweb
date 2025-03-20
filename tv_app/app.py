@@ -188,6 +188,7 @@ def redirect_to_download(episode_id):
 #  indentation level as the previous routes in Part 1.  There should
 #  be NO extra spaces or tabs at the beginning of these lines.
 
+
 @app.route("/shows")
 def list_shows():
     page = request.args.get("page", 1, type=int)
@@ -228,6 +229,7 @@ def list_shows():
     all_years = sorted(db.session.query(Show.release_year).distinct().all(), reverse=True)
     all_years = [year[0] for year in all_years if year[0] is not None]
 
+    now = datetime.datetime.now()  # Get current datetime *here*
 
     return render_template(
         "shows.html",
@@ -236,9 +238,9 @@ def list_shows():
         filter_genre=filter_genre,  # Pass current genre filter
         filter_year=filter_year,   # Pass current year filter
         all_genres = all_genres,
-        all_years = all_years
+        all_years = all_years,
+        now = now  # Pass 'now' to the template
     )
-
 @app.route("/update", methods=["POST"])
 @login_required
 @admin_required
