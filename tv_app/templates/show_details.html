@@ -1,39 +1,65 @@
 {% extends 'base.html' %}
 
-{% block title %}{{ show.show_name }}{% endblock %}
+{% block title %}{{ show.title }}{% endblock %}
 
 {% block content %}
-<div class="show-details-container">  {# Use a container for overall layout #}
+<div class="show-details-container">
 
-    <div class="show-details-banner"> {# Banner-like area for title/episode #}
-        <h1>{{ show.show_name }}</h1>
-        <p class="episode-title">{{ show.episode_title if show.episode_title else 'N/A' }}</p>
+    <div class="show-details-banner">
+        <h1>{{ show.title }}</h1>
+        {#  Episode title is NOT part of the Show model anymore. Removed. #}
     </div>
 
-    <div class="show-details-content"> {# Main content area #}
-        <div class="show-image-container"> {# Container for image #}
-            {% if show.poster_path %}
-                <img src="{{ show.poster_path }}" alt="{{ show.show_name }}" class="show-image" loading="lazy">  {# Use class for image styling #}
+    <div class="show-details-content">
+        <div class="show-image-container">
+            {% if show.image_url %}
+                <img src="{{ show.image_url }}" alt="{{ show.title }}" class="show-image" loading="lazy">
             {% else %}
-                <p>Image Not Found</p>
+                <div class="telegram-loader"></div>  {#  Consistent placeholder #}
             {% endif %}
         </div>
 
         <div class="show-info">
             {% if show.overview %}
-             <p><strong>Seasons:</strong> {{ show.season_range if show.season_range else 'N/A' }}</p>
-            <p><strong>Genre:</strong> {{ show.genre if show.genre else 'N/A' }}</p>
-            <p><strong>Year:</strong> {{ show.year if show.year else 'N/A' }}</p>
-            <p><strong>Rating:</strong> {{ show.vote_average if show.vote_average else 'N/A' }}</p>
-            <p class="overview"><strong>Overview:</strong> {{ show.overview }}</p>
+            <p><strong>Overview:</strong> {{ show.overview }}</p>
             {% endif %}
+            <p><strong>Genre:</strong> {{ show.genre if show.genre else 'N/A' }}</p>
+            <p><strong>Year:</strong> {{ show.release_year if show.release_year else 'N/A' }}</p>
+             <p><strong>Available Seasons:</strong> {{ show.available_seasons if show.available_seasons else 'N/A' }}</p>
 
-            {% if show.download_link %}
-                <a href="{{ url_for('redirect_to_download', show_id=show.id) }}" class="download-button">Download</a>  {# Class for button styling #}
-            {% else %}
-                <p>Download link not available.</p>
+            {#  The main show might not have a direct download link.  This is usually per-episode. #}
+            {% if show.trailer_url %}
+                <p><strong>Trailer:</strong> <a href="{{ show.trailer_url }}" target="_blank">Watch Trailer</a></p>
             {% endif %}
         </div>
     </div>
+
+    {# --- Episode Listing --- #}
+    {% if episodes %}
+    <h2>Episodes</h2>
+    <div class="episodes-list">
+        {% for episode in episodes %}
+        <div class="episode-item">
+            <h3>Season {{ episode.season_number }}, Episode {{ episode.episode_number }}</h3>
+            {% if episode.title %}
+               <h4> {{ episode.title }}</h4>
+            {% endif %}
+
+            {% if episode.overview %}
+                <p>{{ episode.overview }}</p>
+            {% endif %}
+
+            {% if episode.download_link %}
+                <a href="{{ url_for('redirect_to_download', episode_id=episode.id) }}" class="download-button">Download Episode</a>
+            {% else %}
+                <p>Download link not available for this episode.</p>
+            {% endif %}
+        </div>
+      {% else %}
+          <p>No episodes found for this show.</p>
+        {% endfor %}
+    </div>
+    {% endif %}
+
 </div>
 {% endblock %}
