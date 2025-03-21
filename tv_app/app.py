@@ -3,7 +3,7 @@ import os
 from flask import Flask, render_template, redirect, url_for, request, jsonify
 from .tasks import update_tv_shows, test_task
 from .models import db, TVShow, Genre  # Import Genre
-from sqlalchemy import desc, func, and_
+from sqlalchemy import desc, func, and_, text  # Import 'text'
 from dotenv import load_dotenv
 import logging
 from datetime import datetime
@@ -19,30 +19,46 @@ db.init_app(app)
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-def get_trending_shows(limit=6): #Increased the limit a bit
+def get_trending_shows(limit=6):
     """Retrieves the top 'limit' shows ordered by clicks."""
     return TVShow.query.order_by(TVShow.clicks.desc()).limit(limit).all()
 
 @app.route('/')
 def index():
     search_query = request.args.get('search', '')
+    search_query = search_query.strip()  # <--- Keep this!
     page = request.args.get('page', 1, type=int)
     per_page = 10
 
     if search_query:
-        shows = TVShow.query.filter(TVShow.show_name.ilike(f'%{search_query}%')).paginate(page=page, per_page=per_page, error_out=False)
+        # 1. Primary Search: pg_trgm
+        shows = TVShow.query.filter(
+            text("show_name % :search_query")
+        ).params(
+            search_query=search_query
+        ).order_by(
+            text(f"similarity(show_name, '{search_query}') DESC")
+        ).paginate(page=page, per_page=per_page, error_out=False)
+
+        # 2. Fallback Search: ilike (if pg_trgm finds nothing)
         if not shows.items:
-          shows = TVShow.query.order_by(TVShow.created_at.desc()).paginate(page=page, per_page=per_page, error_out=False)
-          message = f"No show with name '{search_query}', Here are all available shows!"
-          return render_template('index.html', shows=shows, search_query=search_query, trending_shows=[], message=message) #Removed trending_shows= []
-        trending_shows = [] #Removed trending_shows= []
+            shows = TVShow.query.filter(
+                TVShow.show_name.ilike(f'%{search_query}%')
+            ).paginate(page=page, per_page=per_page, error_out=False)
+
+            if not shows.items:
+                shows = TVShow.query.order_by(TVShow.created_at.desc()).paginate(page=page, per_page=per_page, error_out=False)
+                message = f"No close matches found for '{search_query}'. Here are all available shows!"
+                return render_template('index.html', shows=shows, search_query=search_query, trending_shows=[], message=message)
+        trending_shows = [] # Keep this.
+
     else:
+        # No search query: Show recently added shows and trending
         shows = TVShow.query.order_by(TVShow.created_at.desc()).paginate(page=page, per_page=per_page, error_out=False)
-        trending_shows = get_trending_shows() # Use the function
+        trending_shows = get_trending_shows()
 
     return render_template('index.html', shows=shows, search_query=search_query, trending_shows=trending_shows)
-
-
+# --- (Rest of your app.py routes remain the same) ---
 @app.route('/show/<int:show_id>')
 def show_details(show_id):
     show = TVShow.query.get_or_404(show_id)
@@ -63,19 +79,22 @@ def list_shows():
     page = request.args.get('page', 1, type=int)
     per_page = 30
     genre_filter = request.args.get('genre')
-    rating_filter = request.args.get('rating', type=float)
+    rating_filter = request.args.get('rating', type=float)  # Keep type conversion
     year_filter = request.args.get('year', type=int)
-    sort_by = request.args.get('sort_by', 'name_asc')
+    sort_by = request.args.get('sort_by', 'name_asc')  # Default sort
 
+    # Start with a base query
     query = TVShow.query
 
+    # --- Filtering ---
     if genre_filter:
-        query = query.join(TVShow.genres).filter(Genre.name == genre_filter)
+        query = query.join(TVShow.genres).filter(Genre.name == genre_filter)  # Join and filter
     if rating_filter:
-        query = query.filter(TVShow.rating >= rating_filter)
+        query = query.filter(TVShow.rating >= rating_filter) # Keep comparison
     if year_filter:
         query = query.filter(TVShow.year == year_filter)
 
+    # --- Sorting ---
     if sort_by == 'name_asc':
         query = query.order_by(TVShow.show_name.asc())
     elif sort_by == 'name_desc':
@@ -89,21 +108,25 @@ def list_shows():
     elif sort_by == 'rating_desc':
         query = query.order_by(TVShow.rating.desc())
 
+    # --- Pagination ---
     shows_paginated = query.paginate(page=page, per_page=per_page, error_out=False)
 
-    all_genres = Genre.query.order_by(Genre.name).all()
+    # --- Get All Genres for Dropdown ---
+    all_genres = Genre.query.order_by(Genre.name).all() # Get all genres
 
+     # --- Dynamic Year Range ---
     current_year = datetime.now().year
-    min_year_result = db.session.query(func.min(TVShow.year)).scalar()
-    min_year = min_year_result if min_year_result is not None else 1900
+    min_year_result = db.session.query(func.min(TVShow.year)).scalar()  # Get min year
+    min_year = min_year_result if min_year_result is not None else 1900  # Default to 1900
 
-    years = list(range(current_year, min_year - 1, -1))
+    # Create a list of years for the dropdown
+    years = list(range(current_year, min_year - 1, -1))  # Descending order
 
     return render_template('shows.html', shows=shows_paginated, genres=all_genres, years=years, selected_year=year_filter, selected_rating=rating_filter)
 
 @app.route('/update', methods=['POST'])
 def update():
-    update_tv_shows.delay()
+    update_tv_shows.delay()  # Run the task asynchronously
     return jsonify({'message': 'Update initiated'}), 202
 
 @app.route('/test_celery')
