@@ -4,40 +4,12 @@ This application allows users to track TV shows, receive notifications about new
 
 ## Project Structure
 
-```text
-tv_show_project/
-├── tv_app/               # Main application package
-│   ├── __init__.py       # Makes tv_app a package
-│   ├── app.py          # Flask application and routes
-│   ├── models.py       # Database models
-│   ├── tasks.py        # Celery tasks
-│   ├── static/
-│   │   ├── style.css
-│   │   ├── script.js
-│   │   ├── logo.png
-│   │   └── favicon.ico
-│   └── templates/
-│       ├── base.html
-│       ├── index.html
-│       ├── show_details.html
-│       ├── shows.html
-│       ├── 404.html
-│       └── 500.html
-├── celeryconfig.py    # Celery configuration
-├── requirements.txt   # Python dependencies
-├── .env               # Environment variables (NOT committed to Git)
-└── Procfile           # Railway/Heroku deployment file
-**Key Points and Explanation:**
+# TV Show Tracking Application
 
-*   **` ```text ` and ` ``` `:** The entire file tree is enclosed within triple backticks (```) with `text` specified. This tells Markdown to render it as a plain text block, preserving the spacing and indentation, which is crucial for representing the directory structure.  This is *not* a code block in the programming sense; it's just plain text formatted as a tree.
-*   **Directory Structure:** This is the *correct* and final project structure, matching your original input and our agreed-upon corrections:
-    *   `tv_show_project/`: The root directory of your project.
-    *   `tv_app/`:  A subdirectory containing the main Flask application, models, tasks, static files, and templates. This is a Python package (hence the `__init__.py`).
-    *   `static/`: Contains CSS, JavaScript, and image files.
-    *   `templates/`: Contains Jinja2 templates for your HTML pages.
-    *   `celeryconfig.py`, `requirements.txt`, `.env`, and `Procfile`:  Project-level configuration files.
+This application allows users to track TV shows, receive notifications about new episodes, and manage a database of show information. It uses **Flask** for the web framework, **Celery** for asynchronous task management, **PostgreSQL** for the database, and **Redis** for caching and as a Celery broker. It also integrates with **Telegram** for notifications and **TMDb** for show metadata.
 
-This Markdown should render correctly as a file tree, and the entire block should be selectable and copyable. This is the definitive, correct representation of your project's structure.
+---
+
 
 ## File Descriptions
 
@@ -156,4 +128,34 @@ This Markdown should render correctly as a file tree, and the entire block shoul
 *   Telegram API: Requires a Telegram bot token and chat ID.
 *   TMDb API: Requires a TMDb bearer token.
 *   init_db.py Script: Initializes the database on each deployment.
-*   
+# TV Show Tracking Application
+
+This application allows users to track TV shows, receive notifications about new episodes, and manage a database of show information. It uses **Flask** for the web framework, **Celery** for asynchronous task management, **PostgreSQL** for the database, and **Redis** for caching and as a Celery broker. It also integrates with **Telegram** for notifications and **TMDb** for show metadata.
+
+---
+
+## 📂 Project Structure
+
+```text
+tv_show_project/
+├── tv_app/               # Main application package
+│   ├── __init__.py       # Makes tv_app a package
+│   ├── app.py            # Flask application and routes
+│   ├── models.py         # Database models
+│   ├── tasks.py          # Celery tasks
+│   ├── static/           # Static files (CSS, JS, images)
+│   │   ├── style.css
+│   │   ├── script.js
+│   │   ├── logo.png
+│   │   └── favicon.ico
+│   └── templates/        # HTML templates
+│       ├── base.html
+│       ├── index.html
+│       ├── show_details.html
+│       ├── shows.html
+│       ├── 404.html
+│       └── 500.html
+├── celeryconfig.py        # Celery configuration
+├── requirements.txt       # Python dependencies
+├── .env                   # Environment variables (NOT committed to Git)
+└── Procfile               # Railway/Heroku deployment file
