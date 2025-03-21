@@ -26,18 +26,20 @@ def get_trending_shows(limit=6):
 @app.route('/')
 def index():
     search_query = request.args.get('search', '')
-    search_query = search_query.strip()  # <--- Keep this!
+    search_query = search_query.strip()
     page = request.args.get('page', 1, type=int)
     per_page = 10
+    trending_shows = get_trending_shows() #Always call this
 
     if search_query:
-        # 1. Primary Search: pg_trgm
+        # 1. Primary Search: pg_trgm with Similarity Threshold
         shows = TVShow.query.filter(
             text("show_name % :search_query")
         ).params(
             search_query=search_query
         ).order_by(
-            text(f"similarity(show_name, '{search_query}') DESC")
+            text("similarity(show_name, :search_query) DESC") #Corrected line
+        ).params(search_query = search_query #pass parameter
         ).paginate(page=page, per_page=per_page, error_out=False)
 
         # 2. Fallback Search: ilike (if pg_trgm finds nothing)
@@ -50,14 +52,15 @@ def index():
                 shows = TVShow.query.order_by(TVShow.created_at.desc()).paginate(page=page, per_page=per_page, error_out=False)
                 message = f"No close matches found for '{search_query}'. Here are all available shows!"
                 return render_template('index.html', shows=shows, search_query=search_query, trending_shows=[], message=message)
-        trending_shows = [] # Keep this.
+        #trending_shows = [] # Keep this.
 
     else:
         # No search query: Show recently added shows and trending
         shows = TVShow.query.order_by(TVShow.created_at.desc()).paginate(page=page, per_page=per_page, error_out=False)
-        trending_shows = get_trending_shows()
+
 
     return render_template('index.html', shows=shows, search_query=search_query, trending_shows=trending_shows)
+
 # --- (Rest of your app.py routes remain the same) ---
 @app.route('/show/<int:show_id>')
 def show_details(show_id):
