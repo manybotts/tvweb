@@ -400,6 +400,21 @@ def update_tv_shows(self):
         lock.release()
         logger.info("Lock released.")
 
+@celery.task(name='tasks.reset_clicks') #Add reset clicks
+def reset_clicks():
+    """Resets the clicks count for all TV shows to 0."""
+    try:
+        from tv_app.app import app  # Local import
+        with app.app_context():
+            from tv_app.models import db, TVShow
+            num_rows_updated = TVShow.query.update({TVShow.clicks: 0})
+            db.session.commit()
+            return f"Successfully reset clicks for {num_rows_updated} shows."
+    except Exception as e:
+        db.session.rollback()
+        return f"Error resetting clicks: {str(e)}"
+
+
 @celery.task
 def test_task():
     logger.info("The test Celery task has run!")
