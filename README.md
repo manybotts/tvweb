@@ -4,6 +4,7 @@ This application allows users to track TV shows, receive notifications about new
 
 ## Project Structure
 
+```text
 tv_show_project/
 ├── tv_app/               # Main application package
 │   ├── __init__.py       # Makes tv_app a package
