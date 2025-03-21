@@ -10,11 +10,11 @@ result_backend = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
 
 beat_schedule = {
     'update-tv-shows-every-10-minutes': {
-        'task': 'tv_app.tasks.update_tv_shows',  # CORRECT (with tv_app)
+        'task': 'tv_app.tasks.update_tv_shows',  # CORRECT
         'schedule': crontab(minute='*/10'),
     },
     'reset-clicks-daily': {
-        'task': 'tv_app.tasks.reset_clicks',  # CORRECT (with tv_app)
+        'task': 'tv_app.tasks.reset_clicks',  # CORRECT
         'schedule': crontab(hour=0, minute=0),
     },
 }
