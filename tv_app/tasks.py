@@ -1,4 +1,4 @@
-# tv_app/tasks.py (Part 1 of 2)
+# tv_app/tasks.py (Part 1 of 2) - Updating created_at on show update
 # --- Start of Part 1 ---
 from celery import Celery
 from celery.exceptions import MaxRetriesExceededError, Retry
@@ -23,6 +23,7 @@ from datetime import datetime
 import aiohttp
 
 # --- CORRECTED IMPORTS ---
+# Import directly from tv_app (no relative imports within the package)
 from tv_app.app import app  # Import your Flask app instance
 from tv_app.models import db, TVShow, Genre  # Import db and models
 
@@ -34,9 +35,10 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(level
 logger = logging.getLogger(__name__)
 
 # --- Celery Configuration ---
-# Correctly initialize Celery to use the module name 'tasks'
-celery = Celery('tasks')  # Use the module name as the Celery app name
+# Initialize Celery with the tv_app.tasks
+celery = Celery('tv_app.tasks', broker=os.environ.get('REDIS_URL'), backend=os.environ.get('REDIS_URL'))  # <--- CORRECT
 celery.config_from_object('celeryconfig')
+
 
 # --- Constants ---
 TMDB_CALLS_PER_SECOND = 4
@@ -46,7 +48,6 @@ TMDB_IMAGE_BASE_URL = "https://image.tmdb.org/t/p/w500"
 PROCESSED_MESSAGES_TTL = 86400  # 24 hours in seconds
 
 # --- Helper Functions ---
-
 def calculate_content_hash(show_name: str, episode_title: Optional[str], download_link: Optional[str]) -> str:
     """Calculates a SHA-256 hash of the show content."""
     show_name = show_name or ""
@@ -179,7 +180,6 @@ def parse_telegram_post(post: Update) -> Optional[Dict]:
     except Exception as e:
         logger.exception(f"Error during parsing: {e}")
         return None
-
 # --- End of Part 1 ---
 # tv_app/tasks.py (Part 2 of 2) - Updating created_at on show update
 # --- Start of Part 2 ---
@@ -409,9 +409,7 @@ def update_tv_shows(self):
 def reset_clicks():
     """Resets the clicks count for all TV shows to 0."""
     try:
-        from tv_app.app import app  # Local import
-        with app.app_context():
-            from tv_app.models import db, TVShow
+        with app.app_context(): #Added context
             num_rows_updated = TVShow.query.update({TVShow.clicks: 0})
             db.session.commit()
             return f"Successfully reset clicks for {num_rows_updated} shows."
