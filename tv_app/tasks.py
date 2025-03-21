@@ -1,12 +1,13 @@
-# tv_app/tasks.py (Part 1 of 2)
+# tv_app/tasks.py - Modified ONLY to add reset_clicks (no app context here) - Part 1/3
+
 from celery import Celery
-from celery.exceptions import MaxRetriesExceededError
+from celery.exceptions import MaxRetriesExceededError, Retry
 from dotenv import load_dotenv
 from redis import Redis, exceptions as redis_exceptions
-from telegram import Update
+from telegram import Bot, Update
 from telegram.error import TelegramError
-from telegram.ext import Application
-from thefuzz import process
+from telegram.ext import Application, CallbackContext
+from thefuzz import fuzz, process
 from urllib.parse import quote_plus
 from ratelimit import limits, sleep_and_retry
 import os
@@ -16,25 +17,20 @@ import asyncio
 import logging
 import hashlib
 import unicodedata
-from typing import Dict, Optional, List
+from typing import Dict, Optional, Tuple, List
 from datetime import datetime
 
 import aiohttp
 
-# --- CORRECT IMPORTS ---
-from tv_app.app import app  # Import your Flask app instance
-from tv_app.models import db, TVShow, Genre  # Import db and models
-
 load_dotenv()
 
 # --- Configuration ---
-logging.basicConfig(level=logging.INFO,
-                    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 # --- Celery Configuration ---
-# Correctly initialize Celery
-celery = Celery('tv_app.tasks', broker=os.environ.get('REDIS_URL'), backend=os.environ.get('REDIS_URL'))  # <--- CORRECT
+# IMPORTANT:  Keep __name__ here.  We'll fix the task path in celeryconfig.py
+celery = Celery(__name__)
 celery.config_from_object('celeryconfig')
 
 # --- Constants ---
@@ -44,17 +40,14 @@ TMDB_BASE_URL = "https://api.themoviedb.org/3"
 TMDB_IMAGE_BASE_URL = "https://image.tmdb.org/t/p/w500"
 PROCESSED_MESSAGES_TTL = 86400  # 24 hours in seconds
 
-
 # --- Helper Functions ---
-def calculate_content_hash(show_name: str, episode_title: Optional[str],
-                           download_link: Optional[str]) -> str:
+def calculate_content_hash(show_name: str, episode_title: Optional[str], download_link: Optional[str]) -> str:
     """Calculates a SHA-256 hash of the show content."""
     show_name = show_name or ""
     episode_title = episode_title or ""
     download_link = download_link or ""
     content_string = f"{show_name}-{episode_title}-{download_link}"
     return hashlib.sha256(content_string.encode('utf-8')).hexdigest()
-
 
 def normalize_string(text: Optional[str]) -> str:
     """Normalizes a string: lowercase, removes emojis/special chars, extra spaces."""
@@ -66,12 +59,9 @@ def normalize_string(text: Optional[str]) -> str:
     text = re.sub(r'\s+', ' ', text).strip()
     return text
 
-
 def parse_season_episode(text: str) -> Optional[str]:
     """Extracts season and episode information from a string."""
-    match = re.search(
-        r'(?:s|season)\s*(\d+)\s*(?:e|episode)\s*(\d+)|(\d+)[xX](\d+)', text,
-        re.IGNORECASE)
+    match = re.search(r'(?:s|season)\s*(\d+)\s*(?:e|episode)\s*(\d+)|(\d+)[xX](\d+)', text, re.IGNORECASE)
     if match:
         if match.group(1) and match.group(2):
             return f"S{match.group(1).zfill(2)}E{match.group(2).zfill(2)}"
@@ -79,13 +69,11 @@ def parse_season_episode(text: str) -> Optional[str]:
             return f"{match.group(3)}x{match.group(4).zfill(2)}"
     return None
 
-
 async def fetch_new_telegram_posts() -> List[Update]:
     """Fetches new Telegram posts, including edited posts."""
     token = os.environ.get('TELEGRAM_BOT_TOKEN')
     channel_id = os.environ.get('TELEGRAM_CHANNEL_ID')
-    redis_client = Redis.from_url(os.environ.get('REDIS_URL'),
-                                  decode_responses=True)
+    redis_client = Redis.from_url(os.environ.get('REDIS_URL'), decode_responses=True)
 
     last_offset_key = f"last_telegram_update_id:{channel_id}"
     last_offset = redis_client.get(last_offset_key) or 0
@@ -93,21 +81,16 @@ async def fetch_new_telegram_posts() -> List[Update]:
 
     try:
         appli = Application.builder().token(token).build()
-        updates = await appli.bot.get_updates(
-            offset=int(last_offset) + 1,
-            allowed_updates=['channel_post', 'edited_channel_post'],
-            timeout=60)
+        updates = await appli.bot.get_updates(offset=int(last_offset) + 1, allowed_updates=['channel_post', 'edited_channel_post'], timeout=60)
         await appli.shutdown()
 
         new_posts: List[Update] = []
         for update in updates:
             logger.debug(f"Telegram Update ID: {update.update_id}")
-            if update.channel_post and update.channel_post.sender_chat and str(
-                    update.channel_post.sender_chat.id) == channel_id:
+            if update.channel_post and update.channel_post.sender_chat and str(update.channel_post.sender_chat.id) == channel_id:
                 if update.channel_post.caption:
                     new_posts.append(update.channel_post)
-            elif update.edited_channel_post and update.edited_channel_post.sender_chat and str(
-                    update.edited_channel_post.sender_chat.id) == channel_id:
+            elif update.edited_channel_post and update.edited_channel_post.sender_chat and str(update.edited_channel_post.sender_chat.id) == channel_id:
                 if update.edited_channel_post.caption:
                     new_posts.append(update.edited_channel_post)
 
@@ -121,7 +104,6 @@ async def fetch_new_telegram_posts() -> List[Update]:
     except Exception as e:
         logger.exception(f"An unexpected error occurred: {e}")
         return []
-
 
 def parse_telegram_post(post: Update) -> Optional[Dict]:
     """Parses a Telegram post, prioritizing structured data and links towards the bottom."""
@@ -191,9 +173,7 @@ def parse_telegram_post(post: Update) -> Optional[Dict]:
     except Exception as e:
         logger.exception(f"Error during parsing: {e}")
         return None
-# --- End of Part 1 ---
-# tv_app/tasks.py (Part 2 of 2) - Updating created_at on show update
-# --- Start of Part 2 ---
+# tv_app/tasks.py (Part 2 of 3)
 
 @sleep_and_retry
 @limits(calls=TMDB_CALLS_PER_SECOND, period=TMDB_PERIOD)
@@ -262,7 +242,7 @@ async def fetch_tmdb_data(show_name: str, language: str = 'en-US') -> Optional[D
             year = None
             if details_data.get('first_air_date'):
                 try:
-                    year = int(details_data['first_air_date'][:4])
+                    year = int(details_data['first_air_date'][:4])  # Extract year from date string
                 except (ValueError, TypeError):
                     logger.warning(f"Invalid year format for show: {show_name}")
 
@@ -278,9 +258,9 @@ async def fetch_tmdb_data(show_name: str, language: str = 'en-US') -> Optional[D
                 'overview': details_data.get('overview'),
                 'vote_average': details_data.get('vote_average'),
                 'latest_season_episode': latest_season_episode,
-                'year': year,
-                'rating': rating,
-                'genres': genres_list
+                'year': year,  # Add year
+                'rating': rating,  # Add rating
+                'genres': genres_list  # Add genres
             }
 
             redis_client.setex(cache_key, 86400, json.dumps(tmdb_info))
@@ -313,7 +293,10 @@ def update_tv_shows(self):
             logger.info("No new posts found.")
             return
 
+        from tv_app.app import app
         with app.app_context():  # <--- USE APP CONTEXT
+            # --- Local import within the app context
+            from tv_app.models import db, TVShow, Genre
             for post in posts:
                 processed_key = "processed_messages:" + str(post.message_id)
                 if redis_client.exists(processed_key):
@@ -419,20 +402,25 @@ def update_tv_shows(self):
         lock.release()
         logger.info("Lock released.")
 
-@celery.task(name='tv_app.tasks.reset_clicks') #Correct name
+@celery.task(name='tv_app.tasks.reset_clicks')
 def reset_clicks():
     """Resets the clicks count for all TV shows to 0."""
     try:
-        with app.app_context(): #Added context
+        with app.app_context():  # Use application context
+            # --- LOCAL IMPORTS WITHIN APP CONTEXT ---
+            from tv_app.models import db, TVShow
             num_rows_updated = TVShow.query.update({TVShow.clicks: 0})
             db.session.commit()
             return f"Successfully reset clicks for {num_rows_updated} shows."
+
     except Exception as e:
         db.session.rollback()
+        logger.exception(f"Error in reset_clicks: {e}")  # Log the exception
         return f"Error resetting clicks: {str(e)}"
 
 
-@celery.task #remove this
+
+@celery.task(name='tv_app.tasks.test_task')
 def test_task():
     logger.info("The test Celery task has run!")
     return "Test task complete"
