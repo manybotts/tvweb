@@ -1,6 +1,7 @@
 # tv_app/models.py
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
+from sqlalchemy import Index  # Import Index
 
 db = SQLAlchemy()
 
@@ -40,8 +41,8 @@ class TVShow(db.Model):
 
 
     __table_args__ = (
-        db.Index('ix_show_name_episode_title', 'show_name', 'episode_title'),
-        db.Index('ix_show_name_trgm', 'show_name', postgresql_using='gin', postgresql_ops={'show_name': 'gin_trgm_ops'}),
+        Index('ix_show_name_episode_title', 'show_name', 'episode_title'),
+        Index('ix_show_name_trgm', 'show_name', postgresql_using='gin', postgresql_ops={'show_name': 'gin_trgm_ops'}),
     )
 
     def __repr__(self):
