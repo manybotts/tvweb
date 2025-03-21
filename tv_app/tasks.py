@@ -1,13 +1,13 @@
-# tv_app/tasks.py (Part 1 of 2) - Updating created_at on show update
-# --- Start of Part 1 ---
+# tv_app/tasks.py (Part 1 of 2)
+
 from celery import Celery
-from celery.exceptions import MaxRetriesExceededError, Retry
+from celery.exceptions import MaxRetriesExceededError
 from dotenv import load_dotenv
 from redis import Redis, exceptions as redis_exceptions
-from telegram import Bot, Update
+from telegram import Update
 from telegram.error import TelegramError
-from telegram.ext import Application, CallbackContext
-from thefuzz import fuzz, process
+from telegram.ext import Application
+from thefuzz import process
 from urllib.parse import quote_plus
 from ratelimit import limits, sleep_and_retry
 import os
@@ -17,28 +17,28 @@ import asyncio
 import logging
 import hashlib
 import unicodedata
-from typing import Dict, Optional, Tuple, List
+from typing import Dict, Optional, List
 from datetime import datetime
 
 import aiohttp
 
-# --- CORRECTED IMPORTS ---
-# Import directly from tv_app (no relative imports within the package)
+# --- CORRECT IMPORTS ---
 from tv_app.app import app  # Import your Flask app instance
-from tv_app.models import db, TVShow, Genre  # Import db and models
-
+from tv_app.models import db, TVShow, Genre
 
 load_dotenv()
 
 # --- Configuration ---
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.INFO,
+                    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 # --- Celery Configuration ---
-# Initialize Celery with the tv_app.tasks
-celery = Celery('tv_app.tasks', broker=os.environ.get('REDIS_URL'), backend=os.environ.get('REDIS_URL'))  # <--- CORRECT
+# VERY IMPORTANT: Use 'tv_app.tasks' as the Celery app name.
+celery = Celery('tv_app.tasks',
+                broker=os.environ.get('REDIS_URL'),
+                backend=os.environ.get('REDIS_URL'))
 celery.config_from_object('celeryconfig')
-
 
 # --- Constants ---
 TMDB_CALLS_PER_SECOND = 4
@@ -47,14 +47,17 @@ TMDB_BASE_URL = "https://api.themoviedb.org/3"
 TMDB_IMAGE_BASE_URL = "https://image.tmdb.org/t/p/w500"
 PROCESSED_MESSAGES_TTL = 86400  # 24 hours in seconds
 
+
 # --- Helper Functions ---
-def calculate_content_hash(show_name: str, episode_title: Optional[str], download_link: Optional[str]) -> str:
+def calculate_content_hash(show_name: str, episode_title: Optional[str],
+                           download_link: Optional[str]) -> str:
     """Calculates a SHA-256 hash of the show content."""
     show_name = show_name or ""
     episode_title = episode_title or ""
     download_link = download_link or ""
     content_string = f"{show_name}-{episode_title}-{download_link}"
     return hashlib.sha256(content_string.encode('utf-8')).hexdigest()
+
 
 def normalize_string(text: Optional[str]) -> str:
     """Normalizes a string: lowercase, removes emojis/special chars, extra spaces."""
@@ -66,9 +69,12 @@ def normalize_string(text: Optional[str]) -> str:
     text = re.sub(r'\s+', ' ', text).strip()
     return text
 
+
 def parse_season_episode(text: str) -> Optional[str]:
     """Extracts season and episode information from a string."""
-    match = re.search(r'(?:s|season)\s*(\d+)\s*(?:e|episode)\s*(\d+)|(\d+)[xX](\d+)', text, re.IGNORECASE)
+    match = re.search(
+        r'(?:s|season)\s*(\d+)\s*(?:e|episode)\s*(\d+)|(\d+)[xX](\d+)', text,
+        re.IGNORECASE)
     if match:
         if match.group(1) and match.group(2):
             return f"S{match.group(1).zfill(2)}E{match.group(2).zfill(2)}"
@@ -76,11 +82,13 @@ def parse_season_episode(text: str) -> Optional[str]:
             return f"{match.group(3)}x{match.group(4).zfill(2)}"
     return None
 
+
 async def fetch_new_telegram_posts() -> List[Update]:
     """Fetches new Telegram posts, including edited posts."""
     token = os.environ.get('TELEGRAM_BOT_TOKEN')
     channel_id = os.environ.get('TELEGRAM_CHANNEL_ID')
-    redis_client = Redis.from_url(os.environ.get('REDIS_URL'), decode_responses=True)
+    redis_client = Redis.from_url(os.environ.get('REDIS_URL'),
+                                  decode_responses=True)
 
     last_offset_key = f"last_telegram_update_id:{channel_id}"
     last_offset = redis_client.get(last_offset_key) or 0
@@ -88,16 +96,21 @@ async def fetch_new_telegram_posts() -> List[Update]:
 
     try:
         appli = Application.builder().token(token).build()
-        updates = await appli.bot.get_updates(offset=int(last_offset) + 1, allowed_updates=['channel_post', 'edited_channel_post'], timeout=60)
+        updates = await appli.bot.get_updates(
+            offset=int(last_offset) + 1,
+            allowed_updates=['channel_post', 'edited_channel_post'],
+            timeout=60)
         await appli.shutdown()
 
         new_posts: List[Update] = []
         for update in updates:
             logger.debug(f"Telegram Update ID: {update.update_id}")
-            if update.channel_post and update.channel_post.sender_chat and str(update.channel_post.sender_chat.id) == channel_id:
+            if update.channel_post and update.channel_post.sender_chat and str(
+                    update.channel_post.sender_chat.id) == channel_id:
                 if update.channel_post.caption:
                     new_posts.append(update.channel_post)
-            elif update.edited_channel_post and update.edited_channel_post.sender_chat and str(update.edited_channel_post.sender_chat.id) == channel_id:
+            elif update.edited_channel_post and update.edited_channel_post.sender_chat and str(
+                    update.edited_channel_post.sender_chat.id) == channel_id:
                 if update.edited_channel_post.caption:
                     new_posts.append(update.edited_channel_post)
 
@@ -111,6 +124,7 @@ async def fetch_new_telegram_posts() -> List[Update]:
     except Exception as e:
         logger.exception(f"An unexpected error occurred: {e}")
         return []
+
 
 def parse_telegram_post(post: Update) -> Optional[Dict]:
     """Parses a Telegram post, prioritizing structured data and links towards the bottom."""
@@ -198,8 +212,7 @@ async def fetch_tmdb_data(show_name: str, language: str = 'en-US') -> Optional[D
             return json.loads(cached_data)
         except json.JSONDecodeError:
             logger.warning(f"Invalid JSON in cache for key: {cache_key}.  Fetching fresh data.")
-            pass # Continue to fetch fresh data
-
+            pass  # Continue to fetch fresh data
 
     try:
         logger.info(f"Fetching TMDb data for: {show_name}")
@@ -242,8 +255,10 @@ async def fetch_tmdb_data(show_name: str, language: str = 'en-US') -> Optional[D
                 response.raise_for_status()
                 details_data = await response.json()
 
-            latest_season_number = details_data['last_episode_to_air']['season_number'] if details_data.get('last_episode_to_air') else None
-            latest_episode_number = details_data['last_episode_to_air']['episode_number'] if details_data.get('last_episode_to_air') else None
+            latest_season_number = details_data['last_episode_to_air']['season_number'] if details_data.get(
+                'last_episode_to_air') else None
+            latest_episode_number = details_data['last_episode_to_air']['episode_number'] if details_data.get(
+                'last_episode_to_air') else None
             latest_season_episode = f"S{str(latest_season_number).zfill(2)}E{str(latest_episode_number).zfill(2)}" if latest_season_number is not None and latest_episode_number is not None else None
 
             # --- Extract Year and Rating ---
@@ -259,9 +274,9 @@ async def fetch_tmdb_data(show_name: str, language: str = 'en-US') -> Optional[D
             # --- Extract Genres ---
             genres_list = [genre['name'] for genre in details_data.get('genres', [])]
 
-
             tmdb_info = {
-                'poster_path': f"{TMDB_IMAGE_BASE_URL}{details_data.get('poster_path')}" if details_data.get('poster_path') else None,
+                'poster_path': f"{TMDB_IMAGE_BASE_URL}{details_data.get('poster_path')}" if details_data.get(
+                    'poster_path') else None,
                 'overview': details_data.get('overview'),
                 'vote_average': details_data.get('vote_average'),
                 'latest_season_episode': latest_season_episode,
@@ -280,6 +295,7 @@ async def fetch_tmdb_data(show_name: str, language: str = 'en-US') -> Optional[D
     except Exception as e:
         logger.exception(f"An unexpected error occurred: {e}")
         return None
+
 
 @celery.task(bind=True, retry_backoff=True, max_retries=3)
 def update_tv_shows(self):
