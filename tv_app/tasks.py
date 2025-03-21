@@ -1,5 +1,4 @@
 # tv_app/tasks.py (Part 1 of 2)
-
 from celery import Celery
 from celery.exceptions import MaxRetriesExceededError
 from dotenv import load_dotenv
@@ -26,7 +25,6 @@ import aiohttp
 from tv_app.app import app  # Import your Flask app instance
 from tv_app.models import db, TVShow, Genre  # Import db and models
 
-
 load_dotenv()
 
 # --- Configuration ---
@@ -35,12 +33,9 @@ logging.basicConfig(level=logging.INFO,
 logger = logging.getLogger(__name__)
 
 # --- Celery Configuration ---
-# VERY IMPORTANT: Use 'tv_app.tasks' as the Celery app name.
-celery = Celery('tv_app.tasks',
-                broker=os.environ.get('REDIS_URL'),
-                backend=os.environ.get('REDIS_URL'))
+# Correctly initialize Celery
+celery = Celery('tv_app.tasks', broker=os.environ.get('REDIS_URL'), backend=os.environ.get('REDIS_URL'))  # <--- CORRECT
 celery.config_from_object('celeryconfig')
-
 
 # --- Constants ---
 TMDB_CALLS_PER_SECOND = 4
@@ -48,6 +43,7 @@ TMDB_PERIOD = 1
 TMDB_BASE_URL = "https://api.themoviedb.org/3"
 TMDB_IMAGE_BASE_URL = "https://image.tmdb.org/t/p/w500"
 PROCESSED_MESSAGES_TTL = 86400  # 24 hours in seconds
+
 
 # --- Helper Functions ---
 def calculate_content_hash(show_name: str, episode_title: Optional[str],
@@ -423,7 +419,7 @@ def update_tv_shows(self):
         lock.release()
         logger.info("Lock released.")
 
-@celery.task(name='tasks.reset_clicks') #Add reset clicks
+@celery.task(name='tv_app.tasks.reset_clicks') #Correct name
 def reset_clicks():
     """Resets the clicks count for all TV shows to 0."""
     try:
@@ -436,7 +432,7 @@ def reset_clicks():
         return f"Error resetting clicks: {str(e)}"
 
 
-@celery.task
+@celery.task #remove this
 def test_task():
     logger.info("The test Celery task has run!")
     return "Test task complete"
