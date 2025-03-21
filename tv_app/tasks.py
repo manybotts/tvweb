@@ -1,4 +1,4 @@
-# tv_app/tasks.py (Part 1 of 2) - Populating year, rating, and genres
+# tv_app/tasks.py (Part 1 of 2) - Updating created_at on show update
 # --- Start of Part 1 ---
 from celery import Celery
 from celery.exceptions import MaxRetriesExceededError, Retry
@@ -18,6 +18,7 @@ import logging
 import hashlib
 import unicodedata
 from typing import Dict, Optional, Tuple, List
+from datetime import datetime  # Import datetime
 
 import aiohttp
 
@@ -172,7 +173,7 @@ def parse_telegram_post(post: Update) -> Optional[Dict]:
         logger.exception(f"Error during parsing: {e}")
         return None
 # --- End of Part 1 ---
-# tv_app/tasks.py (Part 2 of 2) - Populating year, rating, and genres
+# tv_app/tasks.py (Part 2 of 2) - Updating created_at on show update
 # --- Start of Part 2 ---
 
 @sleep_and_retry
@@ -189,7 +190,7 @@ async def fetch_tmdb_data(show_name: str, language: str = 'en-US') -> Optional[D
             return json.loads(cached_data)
         except json.JSONDecodeError:
             logger.warning(f"Invalid JSON in cache for key: {cache_key}.  Fetching fresh data.")
-            pass
+            pass # Continue to fetch fresh data
 
 
     try:
@@ -241,7 +242,7 @@ async def fetch_tmdb_data(show_name: str, language: str = 'en-US') -> Optional[D
             year = None
             if details_data.get('first_air_date'):
                 try:
-                    year = int(details_data['first_air_date'][:4])  # Extract year from date string
+                    year = int(details_data['first_air_date'][:4])
                 except (ValueError, TypeError):
                     logger.warning(f"Invalid year format for show: {show_name}")
 
@@ -256,9 +257,9 @@ async def fetch_tmdb_data(show_name: str, language: str = 'en-US') -> Optional[D
                 'overview': details_data.get('overview'),
                 'vote_average': details_data.get('vote_average'),
                 'latest_season_episode': latest_season_episode,
-                'year': year,  # Add year
-                'rating': rating,  # Add rating
-                'genres': genres_list  # Add genres
+                'year': year,
+                'rating': rating,
+                'genres': genres_list
             }
 
             redis_client.setex(cache_key, 86400, json.dumps(tmdb_info))
@@ -292,7 +293,7 @@ def update_tv_shows(self):
 
         from tv_app.app import app
         with app.app_context():
-            from tv_app.models import db, TVShow, Genre  # Import Genre
+            from tv_app.models import db, TVShow, Genre
 
             for post in posts:
                 processed_key = "processed_messages:" + str(post.message_id)
@@ -304,7 +305,7 @@ def update_tv_shows(self):
                 if existing_message:
                     logger.info("Edited message, deleting it first")
                     db.session.delete(existing_message)
-                    # Don't commit here; commit after all shows
+                    # Don't commit here
 
                 parsed_data: Optional[Dict] = parse_telegram_post(post)
                 if not parsed_data:
@@ -334,31 +335,25 @@ def update_tv_shows(self):
                     existing_show.vote_average = tmdb_data.get('vote_average')
                     existing_show.poster_path = tmdb_data.get('poster_path')
                     existing_show.content_hash = new_content_hash
-
-                    # --- Update Year and Rating ---
                     existing_show.year = tmdb_data.get('year')
                     existing_show.rating = tmdb_data.get('rating')
+                    existing_show.created_at = datetime.utcnow()  # <--- KEY CHANGE
 
                     # --- Update Genres (Many-to-Many) ---
                     existing_genres = {genre.name for genre in existing_show.genres}
                     new_genres = set(tmdb_data.get('genres', []))
 
-                    # Add new genres
                     for genre_name in new_genres - existing_genres:
                         genre = Genre.query.filter_by(name=genre_name).first()
                         if not genre:
                             genre = Genre(name=genre_name)
-                            db.session.add(genre)  # Add to session if it's new
+                            db.session.add(genre)
                         existing_show.genres.append(genre)
 
-                    # Remove old genres (that are no longer present)
                     for genre in existing_show.genres:
                         if genre.name not in new_genres:
                             existing_show.genres.remove(genre)
 
-
-                    # Don't commit here
-                    # db.session.commit()
                     logger.info(f"Successfully updated: {parsed_data['show_name']}")
 
                 else:
@@ -372,22 +367,19 @@ def update_tv_shows(self):
                         'vote_average': tmdb_data.get('vote_average'),
                         'poster_path': tmdb_data.get('poster_path'),
                         'content_hash': new_content_hash,
-                        'year': tmdb_data.get('year'),  # Add year
-                        'rating': tmdb_data.get('rating')  # Add rating
+                        'year': tmdb_data.get('year'),
+                        'rating': tmdb_data.get('rating')
                     }
                     new_show = TVShow(**show_data)
 
-                    # --- Add Genres (Many-to-Many) ---
                     for genre_name in tmdb_data.get('genres', []):
                         genre = Genre.query.filter_by(name=genre_name).first()
                         if not genre:
                             genre = Genre(name=genre_name)
-                            db.session.add(genre)  # Add to session if new
-                        new_show.genres.append(genre)  # Associate genre with show
+                            db.session.add(genre)
+                        new_show.genres.append(genre)
 
                     db.session.add(new_show)
-                    # Don't commit here
-                    #db.session.commit()
                     logger.info(f"Successfully inserted: {parsed_data['show_name']}")
 
                 redis_client.set(processed_key, 1, ex=PROCESSED_MESSAGES_TTL)
