@@ -1,4 +1,4 @@
-# tv_app/tasks.py (Part 1 of 2) - Updating created_at on show update
+# tv_app/tasks.py (Part 1 of 2)
 # --- Start of Part 1 ---
 from celery import Celery
 from celery.exceptions import MaxRetriesExceededError, Retry
@@ -18,9 +18,14 @@ import logging
 import hashlib
 import unicodedata
 from typing import Dict, Optional, Tuple, List
-from datetime import datetime  # Import datetime
+from datetime import datetime
 
 import aiohttp
+
+# --- CORRECTED IMPORTS ---
+from tv_app.app import app  # Import your Flask app instance
+from tv_app.models import db, TVShow, Genre  # Import db and models
+
 
 load_dotenv()
 
@@ -29,7 +34,8 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(level
 logger = logging.getLogger(__name__)
 
 # --- Celery Configuration ---
-celery = Celery(__name__)
+# Correctly initialize Celery to use the module name 'tasks'
+celery = Celery('tasks')  # Use the module name as the Celery app name
 celery.config_from_object('celeryconfig')
 
 # --- Constants ---
@@ -40,6 +46,7 @@ TMDB_IMAGE_BASE_URL = "https://image.tmdb.org/t/p/w500"
 PROCESSED_MESSAGES_TTL = 86400  # 24 hours in seconds
 
 # --- Helper Functions ---
+
 def calculate_content_hash(show_name: str, episode_title: Optional[str], download_link: Optional[str]) -> str:
     """Calculates a SHA-256 hash of the show content."""
     show_name = show_name or ""
@@ -172,6 +179,7 @@ def parse_telegram_post(post: Update) -> Optional[Dict]:
     except Exception as e:
         logger.exception(f"Error during parsing: {e}")
         return None
+
 # --- End of Part 1 ---
 # tv_app/tasks.py (Part 2 of 2) - Updating created_at on show update
 # --- Start of Part 2 ---
@@ -291,10 +299,7 @@ def update_tv_shows(self):
             logger.info("No new posts found.")
             return
 
-        from tv_app.app import app
-        with app.app_context():
-            from tv_app.models import db, TVShow, Genre
-
+        with app.app_context():  # <--- USE APP CONTEXT
             for post in posts:
                 processed_key = "processed_messages:" + str(post.message_id)
                 if redis_client.exists(processed_key):
