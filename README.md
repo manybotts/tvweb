@@ -2,15 +2,6 @@
 
 This application allows users to track TV shows, receive notifications about new episodes, and manage a database of show information.  It uses Flask for the web framework, Celery for asynchronous task management, PostgreSQL for the database, and Redis for caching and as a Celery broker. It also integrates with Telegram for notifications and TMDb for show metadata
 
-## Project Structure
-
-# TV Show Tracking Application
-
-This application allows users to track TV shows, receive notifications about new episodes, and manage a database of show information. It uses **Flask** for the web framework, **Celery** for asynchronous task management, **PostgreSQL** for the database, and **Redis** for caching and as a Celery broker. It also integrates with **Telegram** for notifications and **TMDb** for show metadata.
-
----
-
-
 ## File Descriptions
 
 *   **`tv_app/app.py`:** The main Flask application file.  It defines the web routes, handles user interactions (search, show details, redirects), and interacts with the database. It uses the `pg_trgm` extension for fuzzy searching. It *does not* directly import Celery tasks at the top level to avoid circular imports. Instead it calls them using the Celery API.
