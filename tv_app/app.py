@@ -213,6 +213,10 @@ def delete_all_shows():
         logger.error(f'Error deleting all shows: {e}')
         return jsonify({'message': f'Error deleting shows: {str(e)}'}), 500
 
+@app.route('/privacy-policy')
+def privacy_policy():
+    return render_template('privacy_policy.html')
+    
 # --- Error Handlers ---
 @app.errorhandler(404)
 def page_not_found(e):
