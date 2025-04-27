@@ -1,6 +1,10 @@
 {% extends "base.html" %}
 
-{% block title %}TV Show Updates{% endblock %}
+{# --- SEO Change: Updated Title --- #}
+{% block title %}Search & Download Latest TV Shows{% endblock %}
+
+{# --- SEO Change: Added Meta Description --- #}
+{% block meta_description %}Your ultimate source for searching and downloading the latest TV shows and series. Explore trending shows and find download links easily on iBOX TV.{% endblock %}
 
 {% block content %}
    {% if message %}
@@ -20,11 +24,11 @@
                             {% if show.poster_path %}
                                 <img src="{{ show.poster_path }}" alt="{{ show.show_name }}" class="slideshow-image">
                             {% else %}
-                                <div class="telegram-loader"></div>
+                                {# Consider adding a default placeholder image #}
+                                <div class="placeholder-image">No Poster</div>
                             {% endif %}
                              <div class="slide-caption">{{ show.show_name }}</div>
                         </a>
-
                     </div>
                 {% endfor %}
                 </div>
@@ -37,11 +41,11 @@
                             {% if show.poster_path %}
                                 <img src="{{ show.poster_path }}" alt="{{ show.show_name }}" class="slideshow-image">
                             {% else %}
-                                <div class="telegram-loader"></div>
+                                {# Consider adding a default placeholder image #}
+                                <div class="placeholder-image">No Poster</div>
                             {% endif %}
                              <div class="slide-caption">{{ show.show_name }}</div>
                         </a>
-
                     </div>
                 {% endfor %}
                  </div>
@@ -66,7 +70,8 @@
 						{% if show.poster_path %}
 						<img src="{{ show.poster_path }}" alt="{{ show.show_name }}" loading="lazy">
 						{% else %}
-						<div class="telegram-loader"></div>
+						    {# Consider adding a default placeholder image #}
+                            <div class="placeholder-image">No Poster</div>
 						{% endif %}
 						<h3>{{ show.show_name }}</h3>
 						<p class = "episode-title">{{ show.episode_title }}</p>
@@ -84,7 +89,8 @@
 							{% if show.poster_path %}
 							<img src="{{ show.poster_path }}" alt="{{ show.show_name }}" loading="lazy">
 							{% else %}
-							<div class="telegram-loader"></div>
+							    {# Consider adding a default placeholder image #}
+                                <div class="placeholder-image">No Poster</div>
 							{% endif %}
 							<h3>{{ show.show_name }}</h3>
 							<p class = "episode-title">{{ show.episode_title }}</p>
@@ -92,14 +98,15 @@
 					</div>
 				{% endfor %}
             {% else %}
-                <p>No TV shows found.</p>
+                <p>No TV shows found matching "{{ search_query }}".</p> {# More specific message #}
             {% endif %}
         </div>
     {% endif %}
 
+    {# Pagination - Ensure search_query is passed correctly #}
     <div class="pagination">
       {% if shows.has_prev %}
-          <a href="{{ url_for('index', page=shows.prev_num, search=search_query) }}">Previous</a>
+          <a href="{{ url_for('index', page=shows.prev_num, search=request.args.get('search', '')) }}">Previous</a>
       {% else %}
           <span class="disabled">Previous</span>
       {% endif %}
@@ -109,7 +116,7 @@
           {% if shows.page == page_num %}
             <span class="current-page">{{ page_num }}</span>
           {% else %}
-            <a href="{{ url_for('index', page=page_num, search=search_query) }}">{{ page_num }}</a>
+            <a href="{{ url_for('index', page=page_num, search=request.args.get('search', '')) }}">{{ page_num }}</a>
           {% endif %}
         {% else %}
           <span class="ellipsis">…</span>
@@ -118,7 +125,7 @@
 
 
       {% if shows.has_next %}
-          <a href="{{ url_for('index', page=shows.next_num, search=search_query) }}">Next</a>
+          <a href="{{ url_for('index', page=shows.next_num, search=request.args.get('search', '')) }}">Next</a>
       {% else %}
           <span class="disabled">Next</span>
       {% endif %}
