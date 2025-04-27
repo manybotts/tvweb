@@ -1,29 +1,32 @@
 {% extends "base.html" %}
-{% block title %}Available Shows{% endblock %}
+
+{# --- SEO Change: Updated Title --- #}
+{% block title %}Browse All TV Shows for Download{% endblock %}
+
+{# --- SEO Change: Added Meta Description --- #}
+{% block meta_description %}Explore the full list of available TV shows on iBOX TV. Filter by genre, rating, year, and sort results to find your next download.{% endblock %}
+
 {% block content %}
     <h2><span class="show-label-icon"></span>Available TV Shows</h2>
 
     {# --- FILTER FORM --- #}
     <form method="GET" action="{{ url_for('list_shows') }}" class="filter-form">
-        <div class="filter-group">
+        {# ... filter groups remain the same as your last version ... #}
+         <div class="filter-group">
             <label for="genre">Genre:</label>
             <select id="genre" name="genre">
                 <option value="">All Genres</option>
                 {% for genre in genres %}
-                    {# Using selected_genre passed from backend #}
                     <option value="{{ genre.name }}" {% if genre.name == selected_genre %}selected{% endif %}>{{ genre.name }}</option>
                 {% endfor %}
             </select>
         </div>
 
         <div class="filter-group">
-            {# --- CHANGE: Updated Label Text --- #}
-            <label for="rating">Rating:</label> {# Changed from "Minimum Rating:" #}
-            {# Or use: <label for="rating">Rating Range (X.x):</label> #}
+            <label for="rating">Rating:</label>
             <select id="rating" name="rating">
-                <option value="">All Ratings</option> {# "All Ratings" option #}
-                {% for rating in ratings %} {# Iterates over static list [10, 9, ..., 0] #}
-                    {# Compares integer 'rating' with integer 'selected_rating' #}
+                <option value="">All Ratings</option>
+                {% for rating in ratings %}
                     <option value="{{ rating }}" {% if rating == selected_rating %}selected{% endif %}>{{ rating }}</option>
                 {% endfor %}
             </select>
@@ -34,7 +37,6 @@
             <select id="year" name="year">
                 <option value="">All Years</option>
                 {% for year in years %}
-                    {# Using selected_year passed from backend #}
                     <option value="{{ year }}" {% if year == selected_year %}selected{% endif %}>{{ year }}</option>
                 {% endfor %}
             </select>
@@ -43,7 +45,6 @@
         <div class="filter-group">
             <label for="sort_by">Sort By:</label>
             <select id="sort_by" name="sort_by">
-                 {# Using current_sort_by passed from backend for selection consistency #}
                 <option value="name_asc" {% if current_sort_by == 'name_asc' %}selected{% endif %}>Name (A-Z)</option>
                 <option value="name_desc" {% if current_sort_by == 'name_desc' %}selected{% endif %}>Name (Z-A)</option>
                 <option value="date_asc" {% if current_sort_by == 'date_asc' %}selected{% endif %}>Date (Oldest)</option>
@@ -54,12 +55,10 @@
         </div>
 
         <button type="submit">Filter</button>
-        {# Reset link clears all query parameters #}
         <a href="{{ url_for('list_shows') }}" class="reset-button">Reset</a>
     </form>
 
     {# Pagination Links (TOP) #}
-    {# Construct links passing current filter/sort values explicitly for robustness #}
     <div class="pagination">
         {% if shows.has_prev %}
             <a href="{{ url_for('list_shows', page=shows.prev_num, genre=selected_genre, rating=selected_rating, year=selected_year, sort_by=current_sort_by) }}">Previous</a>
@@ -86,21 +85,23 @@
         {% endif %}
     </div>
 
+    {# --- Show List --- Changed link target based on review --- #}
     <div class="show-list">
         {% for show in shows.items %}
-             {# Consider adding rating display here if useful #}
-            <a href="{{ url_for('index', search=show.show_name) }}" class="show-item">
-                {{ show.show_name }} {% if show.rating %} ({{ show.rating }}) {% endif %} {# Example: show rating #}
+             {# Link to the show details page directly #}
+            <a href="{{ url_for('show_details', show_id=show.id) }}" class="show-item">
+                {{ show.show_name }} {% if show.rating is not none %} ({{ "%.1f"|format(show.rating) }}) {% endif %} {# Format rating #}
             </a>
         {% endfor %}
         {% if not shows.items %}
-            <p>No Shows found matching your criteria.</p> {# More specific message #}
+            <p>No Shows found matching your criteria.</p>
         {% endif %}
     </div>
 
     {# Pagination Links (BOTTOM) - Identical to top #}
     <div class="pagination">
-        {% if shows.has_prev %}
+       {# ... pagination code identical to the top ... #}
+         {% if shows.has_prev %}
              <a href="{{ url_for('list_shows', page=shows.prev_num, genre=selected_genre, rating=selected_rating, year=selected_year, sort_by=current_sort_by) }}">Previous</a>
         {% else %}
             <span class="disabled">Previous</span>
