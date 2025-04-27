@@ -1,33 +1,64 @@
 {% extends 'base.html' %}
 
-{% block title %}{{ show.show_name }}{% endblock %}
+{# --- SEO Change: Use title variable passed from route --- #}
+{% block title %}{{ title }}{% endblock %}
+
+{# --- SEO Change: Use meta_description variable passed from route --- #}
+{% block meta_description %}{{ meta_description }}{% endblock %}
+
 
 {% block content %}
 <div class="show-details-container">
     <div class="show-details-banner">
+        {# Use h1 for the main show title for SEO #}
         <h1>{{ show.show_name }}</h1>
-        <p class="episode-title">{{ show.episode_title }}</p>
+        {# Consider using h2 or p for episode title #}
+        {% if show.episode_title %}<p class="episode-title">{{ show.episode_title }}</p>{% endif %}
     </div>
 
     <div class="show-details-content">
         <div class="show-image-container">
             {% if show.poster_path %}
-            <img src="{{ show.poster_path }}" alt="{{ show.show_name }}" class="show-image" loading="lazy">
+            <img src="{{ show.poster_path }}" alt="{{ show.show_name }} Poster" class="show-image" loading="lazy"> {# Improved Alt text #}
             {% else %}
-            <p>Image Not Found</p>
+                 {# Consider adding a default placeholder image #}
+                <div class="placeholder-image">No Poster Available</div>
             {% endif %}
         </div>
 
         <div class="show-info">
+            {# Ensure Overview is displayed if available #}
             {% if show.overview %}
-            <p class="overview"><strong>Overview:</strong> {{ show.overview }}</p>
+            <h2>Overview</h2> {# Use heading for section #}
+            <p class="overview">{{ show.overview }}</p>
             {% endif %}
 
+            {# Display rating if available #}
             {% if show.vote_average %}
-            <p class="rating"><strong>Rating:</strong> {{ show.vote_average }}/10</p>
+             <p class="rating"><strong>Rating:</strong> {{ "%.1f"|format(show.vote_average) }}/10</p> {# Format rating #}
             {% endif %}
 
-            <a href="{{ url_for('redirect_to_download', show_id=show.id) }}" class="download-button">Download</a>
+             {# Display genres if available #}
+            {% if show.genres %}
+                <p class="genres"><strong>Genres:</strong>
+                    {% for genre in show.genres %}
+                        {{ genre.name }}{% if not loop.last %}, {% endif %}
+                    {% endfor %}
+                </p>
+            {% endif %}
+
+            {# Display year if available #}
+             {% if show.year %}
+                <p class="year"><strong>Year:</strong> {{ show.year }}</p>
+            {% endif %}
+
+
+            {# Ensure download link is prominent #}
+            {% if show.download_link %}
+                <a href="{{ url_for('redirect_to_download', show_id=show.id) }}" class="download-button">Download Now</a>
+            {% else %}
+                 <p><em>Download link not available for this item.</em></p>
+            {% endif %}
         </div>
     </div>
 </div>
