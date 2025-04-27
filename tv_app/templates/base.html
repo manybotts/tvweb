@@ -3,12 +3,36 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}{% endblock %} - TV Show Tracker</title>
+    {# --- SEO Change: Updated Title Structure --- #}
+    <title>{% block title %}{% endblock %} | iBOX TV</title> {# Changed suffix to brand name #}
+
+    {# --- SEO Change: Added Meta Description Block --- #}
+    <meta name="description" content="{% block meta_description %}Find, search, and download your favorite TV shows and series quickly and easily on iBOX TV.{% endblock %}"> {# Default description #}
+
+    <script type="text/javascript" src="https://www.termsfeed.com/public/cookie-consent/4.2.0/cookie-consent.js" charset="UTF-8"></script>
+    <script type="text/javascript" charset="UTF-8">
+    document.addEventListener('DOMContentLoaded', function () {
+    cookieconsent.run({"notice_banner_type":"simple","consent_type":"express","palette":"dark","language":"en","page_load_consent_levels":["strictly-necessary"],"notice_banner_reject_button_hide":false,"preferences_center_close_button_hide":false,"page_refresh_confirmation_buttons":false,"website_name":"iBOX TV","website_privacy_policy_url":"https://ibox-tv.com/privacy-policy"});
+    });
+    </script>
+
+    <script type="text/plain" data-cookie-consent="tracking" async src="https://www.googletagmanager.com/gtag/js?id=G-XJQ6LC2PP9"></script> {# Use YOUR ID #}
+    <script type="text/plain" data-cookie-consent="tracking">
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+
+      gtag('config', 'G-XJQ6LC2PP9'); {# Use YOUR ID #}
+    </script>
+    <noscript>Free cookie consent management tool by <a href="https://www.termsfeed.com/">TermsFeed Generator</a></noscript>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" integrity="sha512-9usAa10IRO0HhonpyAIVpjrylPvoDwiPUiKdWk5t3PyolY1cOd4DSE0Ga+ri4AuTroPR5aQvXU9xC6qOPnzFeg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
     <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v={{ range(1, 10000) | random }}">
     <script src="{{ url_for('static', filename='script.js') }}?v={{ range(1, 10000) | random }}"></script>
-    <script defer data-domain="ibox-tv.com" src="https://plausible.io/js/script.js"></script>
+
+    {# Removed Plausible script line #}
+
+    {% block head_extra %}{% endblock %}
 </head>
 <body>
     <nav class="navbar">
@@ -38,5 +62,17 @@
         {% block content %}{% endblock %}
     </div>
 
+    <footer>
+        <div class="container" style="text-align: center; padding: 15px; font-size: 0.9em; color: #ccc;"> {# Basic inline style example #}
+            <p>
+                {# Ensure 'now' object is passed to context or handle year differently #}
+                &copy; {% set current_year = now().year %}{{ current_year }} iBOX TV |
+                <a href="{{ url_for('privacy_policy') }}" style="color: #ccc;">Privacy Policy</a> |
+                <a href="#" id="open_preferences_center" style="color: #ccc;">Update Cookies Preferences</a>
+            </p>
+        </div>
+    </footer>
+
+    {% block scripts_extra %}{% endblock %}
 </body>
 </html>
