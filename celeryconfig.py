@@ -16,7 +16,7 @@ beat_schedule = {
     },
     'reset-clicks-daily': {  # NEW TASK
         'task': 'tv_app.tasks.reset_clicks',  # Correct task path
-        'schedule': crontab(minute='*/2'),  # Run daily at midnight
+        'schedule': crontab(minute='*/720'),  # Run daily at midnight
     },
 }
 broker_connection_retry_on_startup = True
