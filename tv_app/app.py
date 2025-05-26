@@ -104,7 +104,7 @@ def show_details(show_id):
 
         return render_template('show_details.html',
                                show=show,
-                               title=page_title,            # Pass dynamic title
+                               title=page_title,              # Pass dynamic title
                                meta_description=meta_desc)  # Pass dynamic description
     except Exception as e:
         db.session.rollback() # Ensure rollback on error
@@ -266,6 +266,12 @@ def delete_all_shows():
         logger.error(f'Error deleting all shows: {e}')
         return jsonify({'message': f'Error deleting shows: {str(e)}'}), 500
 
+# >>> START OF ADDED CODE FOR ADS.TXT REDIRECT <<<
+@app.route('/ads.txt')
+def ads_txt_redirect():
+    ezoic_ads_txt_url = "https://srv.adstxtmanager.com/19390/ibox-tv.com"
+    return redirect(ezoic_ads_txt_url, code=301)
+# >>> END OF ADDED CODE FOR ADS.TXT REDIRECT <<<
 
 # --- Error Handlers ---
 @app.errorhandler(404)
