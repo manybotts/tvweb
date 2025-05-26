@@ -21,7 +21,7 @@
             {% if show.poster_path %}
             <img src="{{ show.poster_path }}" alt="{{ show.show_name }} Poster" class="show-image" loading="lazy"> {# Improved Alt text #}
             {% else %}
-                 {# Consider adding a default placeholder image #}
+                {# Consider adding a default placeholder image #}
                 <div class="placeholder-image">No Poster Available</div>
             {% endif %}
         </div>
@@ -38,7 +38,7 @@
              <p class="rating"><strong>Rating:</strong> {{ "%.1f"|format(show.vote_average) }}/10</p> {# Format rating #}
             {% endif %}
 
-             {# Display genres if available #}
+            {# Display genres if available #}
             {% if show.genres %}
                 <p class="genres"><strong>Genres:</strong>
                     {% for genre in show.genres %}
@@ -48,7 +48,7 @@
             {% endif %}
 
             {# Display year if available #}
-             {% if show.year %}
+            {% if show.year %}
                 <p class="year"><strong>Year:</strong> {{ show.year }}</p>
             {% endif %}
 
@@ -59,7 +59,6 @@
             {% else %}
                  <p><em>Download link not available for this item.</em></p>
             {% endif %}
-        </div>
-    </div>
-</div>
-{% endblock %}
+        </div> <div class="text-center my-4"> <div id="ezoic-pub-ad-placeholder-111"></div>
+            </div>
+        </div> </div> {% endblock %}
