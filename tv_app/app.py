@@ -269,7 +269,7 @@ def delete_all_shows():
 # >>> START OF ADDED CODE FOR ADS.TXT REDIRECT <<<
 @app.route('/ads.txt')
 def ads_txt_redirect():
-    ezoic_ads_txt_url = "https://srv.adstxtmanager.com/19390/ibox-tv.com"
+    ezoic_ads_txt_url = "https://srv.adstxtmanager.com/75094/ibox-tv.com"
     return redirect(ezoic_ads_txt_url, code=301)
 # >>> END OF ADDED CODE FOR ADS.TXT REDIRECT <<<
 
