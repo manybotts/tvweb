@@ -747,7 +747,7 @@ h2 { /* For main page headings ONLY */
     background-color: rgba(0, 0, 0, 0.5);
     padding: 20px;
     text-align: center;
-    margin-bottom: 15px; /* ADJUSTMENT: Reduced from 20px */
+    margin-bottom: 10px; /* ADJUSTMENT: Further reduced from 15px to 10px for tighter space below banner */
 }
 
 .show-details-banner h1 {
@@ -768,7 +768,7 @@ h2 { /* For main page headings ONLY */
 .show-details-content {
     display: flex;
     flex-direction: column;
-    gap: 15px; /* ADJUSTMENT: Reduced from 20px */
+    gap: 15px; /* ADJUSTMENT: Reduced from 20px (this gap is between image and info on mobile) */
 }
 
 .show-image-container {
@@ -778,9 +778,15 @@ h2 { /* For main page headings ONLY */
 
 .show-image {
     max-width: 100%;
-    height: auto;
+    height: auto; /* Keep auto to maintain aspect ratio */
     border-radius: 8px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.6);
+    display: block; /* Important for margin: auto to work */
+    margin: 0 auto; /* Center the image if it's narrower than its container */
+
+    /* --- CRITICAL ADJUSTMENT FOR MOBILE IMAGE HEIGHT --- */
+    max-height: 350px; /* ADJUSTMENT: Limit image height on mobile. Experiment with this value. */
+    object-fit: contain; /* ADJUSTMENT: Shows the whole image, might leave empty space if image is narrow. Use 'cover' to fill space, potentially cropping. */
 }
 
 .show-info {
@@ -820,6 +826,11 @@ h2 { /* For main page headings ONLY */
     .show-image-container {
         width: 300px;
         flex-shrink: 0;
+    }
+
+    .show-image { /* ADJUSTMENT: Remove max-height constraint on larger screens */
+        max-height: none;
+        object-fit: cover; /* ADJUSTMENT: Set how it fills space on desktop */
     }
 
     .show-info {
