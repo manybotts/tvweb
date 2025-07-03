@@ -747,13 +747,13 @@ h2 { /* For main page headings ONLY */
     background-color: rgba(0, 0, 0, 0.5);
     padding: 20px;
     text-align: center;
-    margin-bottom: 10px; /* ADJUSTMENT: Further reduced from 15px to 10px for tighter space below banner */
+    margin-bottom: 10px; /* Adjusted: Reduced from 15px to 10px for tighter space below banner */
 }
 
 .show-details-banner h1 {
     font-size: 2.5em;
-    margin-top: 0; /* ADJUSTMENT: Ensure no default top margin */
-    margin-bottom: 5px; /* ADJUSTMENT: Reduced from 10px */
+    margin-top: 0; /* Ensure no default top margin */
+    margin-bottom: 5px; /* Reduced from 10px */
     color: #e50914;
     font-family: 'Netflix Sans', sans-serif;
 }
@@ -761,14 +761,14 @@ h2 { /* For main page headings ONLY */
 .episode-title {
     font-size: 1.2em;
     color: #aaa;
-    margin-top: 5px; /* ADJUSTMENT: Added a small top margin if it directly follows h1 */
-    margin-bottom: 10px; /* ADJUSTMENT: Keep consistent with general paragraph spacing */
+    margin-top: 5px; /* Added a small top margin if it directly follows h1 */
+    margin-bottom: 10px; /* Keep consistent with general paragraph spacing */
 }
 
 .show-details-content {
     display: flex;
     flex-direction: column;
-    gap: 15px; /* ADJUSTMENT: Reduced from 20px (this gap is between image and info on mobile) */
+    gap: 15px; /* This gap is between image and info on mobile */
 }
 
 .show-image-container {
@@ -778,22 +778,19 @@ h2 { /* For main page headings ONLY */
 
 .show-image {
     max-width: 100%;
-    height: auto; /* Keep auto to maintain aspect ratio */
+    height: auto; /* REVERTED: Allow natural height */
     border-radius: 8px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.6);
     display: block; /* Important for margin: auto to work */
     margin: 0 auto; /* Center the image if it's narrower than its container */
-
-    /* --- CRITICAL ADJUSTMENT FOR MOBILE IMAGE HEIGHT --- */
-    max-height: 350px; /* ADJUSTMENT: Limit image height on mobile. Experiment with this value. */
-    object-fit: contain; /* ADJUSTMENT: Shows the whole image, might leave empty space if image is narrow. Use 'cover' to fill space, potentially cropping. */
+    /* REVERTED: Removed max-height and object-fit for mobile view here */
 }
 
 .show-info {
     width: 100%;
 }
 
-/* ADJUSTMENT: Apply consistent margin control to all text blocks in show-info */
+/* Apply consistent margin control to all text blocks in show-info */
 .show-info h2 { /* 'Overview' heading specifically */
     margin-top: 0; /* Ensure no default top margin */
     margin-bottom: 5px; /* Reduced space below heading */
@@ -801,17 +798,15 @@ h2 { /* For main page headings ONLY */
 
 .overview,
 .rating,
-.genres, /* Added for consistent spacing */
-.year /* Added for consistent spacing */
-{
+.genres,
+.year {
     margin-top: 0; /* Ensure no default top margin */
-    margin-bottom: 8px; /* ADJUSTMENT: Reduced from 15px */
+    margin-bottom: 8px; /* Reduced from 15px */
     line-height: 1.4; /* Keep this for readability */
 }
 
-/* ADJUSTMENT: Style the ad placeholder/spacing div more tightly */
+/* Style the ad placeholder/spacing div more tightly */
 .text-center.my-4 {
-    /* If this is meant for spacing within show-details-content */
     margin-top: 10px; /* Example: reduced from default if my-4 is a large margin */
     margin-bottom: 10px; /* Example: reduced from default */
 }
@@ -828,9 +823,9 @@ h2 { /* For main page headings ONLY */
         flex-shrink: 0;
     }
 
-    .show-image { /* ADJUSTMENT: Remove max-height constraint on larger screens */
+    .show-image { /* REVERTED: Remove max-height and object-fit for desktop as well */
         max-height: none;
-        object-fit: cover; /* ADJUSTMENT: Set how it fills space on desktop */
+        object-fit: initial; /* Or remove this line entirely */
     }
 
     .show-info {
