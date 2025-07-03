@@ -745,9 +745,11 @@ h2 { /* For main page headings ONLY */
 .show-details-banner {
     width: 100%;
     background-color: rgba(0, 0, 0, 0.5);
-    padding: 20px;
+    /* ADJUSTMENT: Tighten vertical padding within the banner */
+    padding: 20px 20px 10px 20px; /* Top Right Bottom Left - Reduced bottom padding */
     text-align: center;
-    margin-bottom: 10px; /* Adjusted: Reduced from 15px to 10px for tighter space below banner */
+    /* ADJUSTMENT: Further reduce margin below the banner */
+    margin-bottom: 5px; /* Reduced from 10px */
 }
 
 .show-details-banner h1 {
@@ -774,16 +776,17 @@ h2 { /* For main page headings ONLY */
 .show-image-container {
     width: 100%;
     text-align: center;
+    /* No additional top margin needed here, as we're tightening the banner above */
 }
 
 .show-image {
     max-width: 100%;
-    height: auto; /* REVERTED: Allow natural height */
+    height: auto; /* Allow natural height */
     border-radius: 8px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.6);
     display: block; /* Important for margin: auto to work */
     margin: 0 auto; /* Center the image if it's narrower than its container */
-    /* REVERTED: Removed max-height and object-fit for mobile view here */
+    /* Removed max-height and object-fit for mobile view here as requested */
 }
 
 .show-info {
@@ -823,7 +826,7 @@ h2 { /* For main page headings ONLY */
         flex-shrink: 0;
     }
 
-    .show-image { /* REVERTED: Remove max-height and object-fit for desktop as well */
+    .show-image { /* Remove max-height and object-fit for desktop as well */
         max-height: none;
         object-fit: initial; /* Or remove this line entirely */
     }
