@@ -406,16 +406,20 @@ def update_tv_shows(self):
 def reset_clicks():
     """Resets the clicks count for all TV shows to 0."""
     try:
-        with app.app_context():  # Use application context
-            # --- LOCAL IMPORTS WITHIN APP CONTEXT ---
+        from tv_app.app import app  # Local import
+        with app.app_context():
             from tv_app.models import db, TVShow
             num_rows_updated = TVShow.query.update({TVShow.clicks: 0})
             db.session.commit()
             return f"Successfully reset clicks for {num_rows_updated} shows."
 
     except Exception as e:
-        db.session.rollback()
-        logger.exception(f"Error in reset_clicks: {e}")  # Log the exception
+        try:
+            from tv_app.models import db  # Local fallback import
+            db.session.rollback()
+        except Exception:
+            pass  # Prevent secondary crash
+        logger.exception(f"Error in reset_clicks: {e}")
         return f"Error resetting clicks: {str(e)}"
 
 
