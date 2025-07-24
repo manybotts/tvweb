@@ -6,39 +6,36 @@
 {# --- SEO Change: Use meta_description variable passed from route --- #}
 {% block meta_description %}{{ meta_description }}{% endblock %}
 
-
 {% block content %}
 <div class="show-details-container">
     <div class="show-details-banner">
         {# Use h1 for the main show title for SEO #}
         <h1>{{ show.show_name }}</h1>
         {# Consider using h2 or p for episode title #}
-        {% if show.episode_title %}<p class="episode-title">{{ show.episode_title }}</p>{% endif %}
+        {% if show.episode_title %}
+            <p class="episode-title">{{ show.episode_title }}</p>
+        {% endif %}
     </div>
 
     <div class="show-details-content">
         <div class="show-image-container">
             {% if show.poster_path %}
-            <img src="{{ show.poster_path }}" alt="{{ show.show_name }} Poster" class="show-image" loading="lazy"> {# Improved Alt text #}
+                <img src="{{ show.poster_path }}" alt="{{ show.show_name }} Poster" class="show-image" loading="lazy">
             {% else %}
-                {# Consider adding a default placeholder image #}
                 <div class="placeholder-image">No Poster Available</div>
             {% endif %}
         </div>
 
         <div class="show-info">
-            {# Ensure Overview is displayed if available #}
             {% if show.overview %}
-            <h2>Overview</h2> {# Use heading for section #}
-            <p class="overview">{{ show.overview }}</p>
+                <h2>Overview</h2>
+                <p class="overview">{{ show.overview }}</p>
             {% endif %}
 
-            {# Display rating if available #}
             {% if show.vote_average %}
-             <p class="rating"><strong>Rating:</strong> {{ "%.1f"|format(show.vote_average) }}/10</p> {# Format rating #}
+                <p class="rating"><strong>Rating:</strong> {{ "%.1f"|format(show.vote_average) }}/10</p>
             {% endif %}
 
-            {# Display genres if available #}
             {% if show.genres %}
                 <p class="genres"><strong>Genres:</strong>
                     {% for genre in show.genres %}
@@ -47,23 +44,27 @@
                 </p>
             {% endif %}
 
-            {# Display year if available #}
             {% if show.year %}
                 <p class="year"><strong>Year:</strong> {{ show.year }}</p>
             {% endif %}
 
-
-            {# Ensure download link is prominent #}
             {% if show.download_link %}
                 <a href="{{ url_for('redirect_to_download', show_id=show.id) }}" class="download-button">Download Now</a>
+
+                {# Advertisement block #}
+                <div style="margin-top: 20px; background-color: #1a1a1a; padding: 12px; border-radius: 10px; color: #fff; font-family: 'Comic Neue', sans-serif; font-size: 14px; text-align: center;">
+                    <strong style="color: #ffcc00;">Free Netflix Premium Mod.apk</strong><br>
+                    <a href="https://ycapp.co/infmb" style="color: #4da6ff; text-decoration: underline; font-weight: bold;">ANDROID USERS</a> |
+                    <a href="https://tvapk.link/inyc/" style="color: #4da6ff; text-decoration: underline; font-weight: bold;">IOS OR PC USERS</a>
+                </div>
             {% else %}
-                 <p><em>Download link not available for this item.</em></p>
+                <p><em>Download link not available for this item.</em></p>
             {% endif %}
-            
-            
-            </div> <div class="text-center my-4"> 
-            {# This is where you might place an AdSense ad unit code or a placeholder #}
         </div>
 
-    </div> </div> {% endblock %}
-    
+        <div class="text-center my-4">
+            {# This is where you might place an AdSense ad unit code or a placeholder #}
+        </div>
+    </div>
+</div>
+{% endblock %}
