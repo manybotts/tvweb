@@ -21,16 +21,14 @@ body {
     box-sizing: border-box;
 }
 
-/* --- ADJUSTMENT: General heading and paragraph spacing reset/control --- */
-/* Removed default top margins and set a consistent bottom margin for common text blocks */
 h1, h2, h3, h4, h5, h6, p, ul, ol, dl {
     margin-top: 0;
-    margin-bottom: 10px; /* Consistent default spacing for text blocks */
+    margin-bottom: 10px;
 }
 
-h2 { /* For main page headings ONLY */
+h2 {
     text-align: left;
-    margin-bottom: 20px; /* Keep this specific for main page headings if desired */
+    margin-bottom: 20px;
     color: #fff;
     font-family: 'Netflix Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif;
     font-size: 1.1em;
@@ -77,7 +75,7 @@ h2 { /* For main page headings ONLY */
 .nav-links {
     display: flex;
     align-items: center;
-    margin-right: auto; /* Push iBOX TV and search to the right */
+    margin-right: auto;
     margin-left: 20px;
 }
 
@@ -100,25 +98,24 @@ h2 { /* For main page headings ONLY */
 .navbar a:hover {
     background-color: rgba(255, 255, 255, 0.1);
 }
-/* --- IBOX TV Styling --- */
 
 .brand-text {
     font-weight: bold;
-    font-size: 1em;  /* same size as nav-links */
+    font-size: 1em;
     font-family: 'Panton Rust', 'Helvetica Neue', Helvetica, Arial, sans-serif;
-    margin-left: auto; /* Push to the right */
+    margin-left: auto;
     margin-right: 20px;
     white-space: nowrap;
 }
 
 .ibox-text {
-    color: #d4b75c;  /* Pale Golden Yellow */
+    color: #d4b75c;
 }
 
 .tv-text {
-    color: #fff; /* White */
+    color: #fff;
 }
-/* --- Search Icon (Shared) --- */
+
 .search-icon-button {
     background: none;
     border: none;
@@ -126,33 +123,30 @@ h2 { /* For main page headings ONLY */
     cursor: pointer;
     color: white;
     font-size: 1.2em;
-     /* Space after nav links */
 }
 
 .search-icon-button i {
     pointer-events: none;
 }
 
-/* --- Floating Search Box (Initially Hidden) --- */
-
 .floating-search {
     position: absolute;
-    top: 65px; /* Below navbar. Adjust as needed. */
-    right: 20px; /* Right alignment */
+    top: 65px;
+    right: 20px;
     background-color: #222;
     border: 1px solid #555;
     border-radius: 5px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.6);
-    z-index: 1001; /* Above other content */
-    display: none; /* Initially hidden */
+    z-index: 1001;
+    display: none;
 }
 
 .floating-search.active {
-    display: block; /* Shown when active */
+    display: block;
 }
 
 .floating-search form {
-    display: flex; /* Use flexbox for layout */
+    display: flex;
     align-items: center;
     padding: 5px;
 }
@@ -164,18 +158,18 @@ h2 { /* For main page headings ONLY */
     color: white;
     border-radius: 4px;
     margin-right: 5px;
-    width: 150px; /* Initial width */
+    width: 150px;
     transition: width 0.3s ease;
 }
 
 .floating-search .search-input:focus {
-    width: 200px; /* Wider on focus */
+    width: 200px;
     border-color: #007bff;
     background-color: #444;
 }
 
 .floating-search .search-button {
-    background: none; /* No background */
+    background: none;
     border: none;
     color: white;
     cursor: pointer;
@@ -186,16 +180,11 @@ h2 { /* For main page headings ONLY */
      background-color: #0056b3;
 }
 
-/* --- Media Queries for Navbar --- */
-/* No changes needed here, we use the same search icon */
-/* Removed .desktop-search and .mobile-search-form specific rules */
 @media (max-width: 768px) {
 	.nav-link .link-text {
 		display: none;
 	}
 }
-
-/* --- Icons --- */
 
 .eye-icon::before {
     font-family: "Font Awesome 6 Free";
@@ -225,20 +214,16 @@ h2 { /* For main page headings ONLY */
     font-size: 0.8em;
 }
 
-/* --- Show Card Styles (for Newly Added and Search Results) --- */
-
 .tv-shows {
-     display: grid; /* Use CSS Grid */
-    grid-template-columns: repeat(2, 1fr); /* Two columns */
-    gap: 4vw; /* Responsive gap */
-    padding: 4vw; /* Responsive padding */
-
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 4vw;
+    padding: 4vw;
 }
 
 .show-card {
     border: 1px solid #333;
-    padding: 4vw;  /*Responsive Padding*/
-    /* Removed width: 45vw; */
+    padding: 4vw;
     box-sizing: border-box;
     background-color: #222;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.6);
@@ -257,42 +242,40 @@ h2 { /* For main page headings ONLY */
     text-decoration: none;
     color: inherit;
      display: block;
-     flex-grow: 1; /* Allow the link to fill the card */
+     flex-grow: 1;
      display: flex;
      flex-direction: column;
 }
 
 .show-card img {
-    width: 100%; /* Full width of the card */
-    height: auto; /* Maintain aspect ratio */
+    width: 100%;
+    height: auto;
     border-radius: 4px;
      margin-bottom: 10px;
-
 }
 
-.show-card h3 { /* Use h3 for show titles */
-    font-size: 1em; /* Responsive font size */
-    margin-bottom: 5px; /* Already had a controlled margin, keep consistent with general p */
+.show-card h3 {
+    font-size: 1em;
+    margin-bottom: 5px;
     color: #e50914;
     font-family: 'Netflix Sans', sans-serif;
-    text-align: center; /* Center-align show titles */
-    margin-top: auto; /* Title at the bottom */
+    text-align: center;
+    margin-top: auto;
 }
 
 .show-card p {
-    font-size: 0.7em; /* Responsive font size */
+    font-size: 0.7em;
     color: #aaa;
     margin-bottom: 0;
      margin-top: auto;
 }
-/* Centered Episode Title */
+
 .episode-title{
     text-align: center;
-     margin-top: 5px; /* ADJUSTMENT: Ensure it has some top margin if following h1 */
+     margin-top: 5px;
     font-weight: bold;
 }
 
-/* --- Show Item --- */
 .show-list{
      display: flex;
     flex-wrap: wrap;
@@ -307,20 +290,19 @@ h2 { /* For main page headings ONLY */
     border-radius: 5px;
     text-decoration: none;
     transition: background-color: 0.3s ease;
-    width: calc(20% - 12px);  /*Five Columns*/
+    width: calc(20% - 12px);
     box-sizing: border-box;
     text-align: center;
 }
-/* --- Larger screens --- */
-/* On larger screens, use a multi-column layout */
+
 @media (min-width: 769px) {
    .tv-shows{
-     grid-template-columns: repeat(2, 1fr); /* Two columns on tablets */
+     grid-template-columns: repeat(2, 1fr);
         padding: 15px;
         gap: 15px;
    }
     .show-card {
-        width: auto; /* Let width be determined by grid */
+        width: auto;
         padding: 15px;
         margin-bottom: 20px;
     }
@@ -337,7 +319,7 @@ h2 { /* For main page headings ONLY */
         width: auto;
     }
     .tv-shows {
-        grid-template-columns: repeat(3, 1fr); /* Three columns on larger screens */
+        grid-template-columns: repeat(3, 1fr);
     }
 }
 
@@ -346,18 +328,13 @@ h2 { /* For main page headings ONLY */
         width: auto;
     }
     .tv-shows {
-        grid-template-columns: repeat(4, 1fr); /* Four columns on very large screens */
+        grid-template-columns: repeat(4, 1fr);
     }
 }
-/* --- PART 1 END --- */
-/* --- tv_app/static/style.css --- */
-/* --- PART 2 START --- */
 
 .show-item:hover {
     background-color: #333;
 }
-
-/* --- Loader --- */
 
 .telegram-loader {
     width: 48px;
@@ -406,8 +383,6 @@ h2 { /* For main page headings ONLY */
     }
 }
 
-/* --- Pagination --- */
-
 .pagination {
     text-align: center;
     margin-top: 20px;
@@ -437,8 +412,6 @@ h2 { /* For main page headings ONLY */
     border: 1px solid #007bff;
 }
 
-/* --- Download Button --- */
-/*(This is not in use, and its safe to be used later)*/
 .download-button {
     display: inline-block;
     padding: 10px 20px;
@@ -448,15 +421,14 @@ h2 { /* For main page headings ONLY */
     text-decoration: none;
     border-radius: 5px;
     transition: background-color: 0.3s ease;
-    margin-top: 15px; /* ADJUSTMENT: Slightly more space above it */
-    margin-bottom: 15px; /* ADJUSTMENT: Add a bottom margin for consistent flow */
+    margin-top: 15px;
+    margin-bottom: 15px;
     border: none;
 }
 
 .download-button:hover {
     background-color: #0056b3;
 }
-/* --- Slideshow --- */
 
 .slideshow-container {
     position: relative;
@@ -466,48 +438,44 @@ h2 { /* For main page headings ONLY */
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.6);
     margin-bottom: 30px;
 }
-/* --- Mobile Slideshow --- */
 
 .mobile-slideshow {
-    height: auto; /* Let the height be determined by content */
+    height: auto;
 }
 
 .mobile-slideshow .slideshow-inner {
     display: flex;
-    overflow-x: hidden;  /* Hide horizontal scrollbar */
+    overflow-x: hidden;
     scroll-snap-type: x mandatory;
     scroll-behavior: smooth;
-    -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
-    width: 100%; /* Full width */
-    justify-content: center; /* Center the slides */
+    -webkit-overflow-scrolling: touch;
+    width: 100%;
+    justify-content: center;
 }
 
-/* Hide scrollbar for Chrome, Safari, and Opera */
 .mobile-slideshow .slideshow-inner::-webkit-scrollbar {
     display: none;
 }
 
-/* Hide scrollbar for IE, Edge, and Firefox */
 .mobile-slideshow .slideshow-inner {
-    -ms-overflow-style: none;  /* IE and Edge */
-    scrollbar-width: none;  /* Firefox */
+    -ms-overflow-style: none;
+    scrollbar-width: none;
 }
 
 .mobile-slideshow .mySlides {
-    flex: 0 0 90vw; /* Each slide takes 90% of viewport width */
+    flex: 0 0 90vw;
     scroll-snap-align: center;
-    margin: 0 5vw; /* 5% viewport width margin on each side */
-    position: relative;  /*For Caption*/
+    margin: 0 5vw;
+    position: relative;
     border-radius: 8px;
     overflow: hidden;
-    display: none; /* Hide all slides initially */
+    display: none;
     transition: opacity 0.4s ease, transform 0.4s ease;
-
 }
 
 .mobile-slideshow .mySlides.active-slide {
 	opacity: 1;
-	transform: scale(1);  /* No change in scale */
+	transform: scale(1);
 	z-index: 2;
      margin: 0;
 }
@@ -516,15 +484,14 @@ h2 { /* For main page headings ONLY */
     transform: scale(0.8);
 }
 
-/* Mobile Slideshow Image */
 .mobile-slideshow .slideshow-image {
     width: 100%;
-    height: auto; /* Let height adjust */
+    height: auto;
     object-fit: cover;
     display: block;
     border-radius: 8px;
 }
-/* Mobile Slideshow Caption */
+
 .mobile-slideshow .slide-caption {
     position: absolute;
     bottom: 0;
@@ -542,7 +509,6 @@ h2 { /* For main page headings ONLY */
     z-index: 3;
 }
 
-/* Mobile Slideshow Navigation Arrows */
 .mobile-slideshow .prev,
 .mobile-slideshow .next {
     cursor: pointer;
@@ -577,7 +543,6 @@ h2 { /* For main page headings ONLY */
     background-color: rgba(0, 0, 0, 0.8);
 }
 
-/* Mobile Slideshow Dots */
 .mobile-slideshow .slideshow-dots {
     text-align: center;
     margin-top: 10px;
@@ -598,10 +563,8 @@ h2 { /* For main page headings ONLY */
     background-color: #e50914;
 }
 
-/* --- Desktop Slideshow --- */
-
 .desktop-slideshow {
-    display: none; /* Hidden by default, shown with media query */
+    display: none;
     height: 280px;
     position: relative;
     width: 100%;
@@ -612,38 +575,38 @@ h2 { /* For main page headings ONLY */
     display: flex;
     width: 100%;
     height: 100%;
-    align-items: center; /* Center items vertically */
-     transition: transform 0.5s ease; /* Add the transition here */
+    align-items: center;
+     transition: transform 0.5s ease;
 }
 
 .desktop-slideshow .mySlides {
-    flex: 0 0 auto;        /* Don't grow or shrink */
-    width: calc((100% / 5) - 16px); /* 5 slides with adjusted margin*/
-    margin: 0 8px;          /* Adjusted margin */
-    height: 90%;            /* Percentage height */
+    flex: 0 0 auto;
+    width: calc((100% / 5) - 16px);
+    margin: 0 8px;
+    height: 90%;
     transition: transform 0.5s ease, opacity 0.5s ease, filter 0.5s ease;
     position: relative;
     border-radius: 8px;
     overflow: hidden;
     display: none;
 }
-/* Style the active slide to make it stand out */
+
 .desktop-slideshow .mySlides.active-slide{
      opacity: 1;
     transform: scale(1.1);
     z-index: 2;
 }
 .desktop-slideshow .mySlides:not(.active-slide){
-     filter: brightness(0.5) blur(1px); /* Reduced blur */
+     filter: brightness(0.5) blur(1px);
     transform: scale(0.8);
 }
-/* Style the image inside the slide */
+
 .desktop-slideshow .slideshow-image{
     width: 100%;
     height: 100%;
     object-fit: cover;
     display: block;
-     border-radius: 8px; /* Rounded corners */
+     border-radius: 8px;
 }
 .desktop-slideshow .slide-caption{
     position: absolute;
@@ -661,7 +624,7 @@ h2 { /* For main page headings ONLY */
     white-space: nowrap;
      z-index: 3;
 }
-/* Style the navigation arrows */
+
 .desktop-slideshow .prev,
 .desktop-slideshow .next{
      cursor: pointer;
@@ -673,19 +636,19 @@ h2 { /* For main page headings ONLY */
     color: white;
     font-weight: bold;
     font-size: 20px;
-    transition: background-color: 0.6s ease; /* Smooth transition for hover effect */
+    transition: background-color: 0.6s ease;
     user-select: none;
     z-index: 3;
     background: rgba(0, 0, 0, 0.4);
-    border: none;        /* Remove default button border */
+    border: none;
     border-radius: 5px;
 }
-/* Position the "next button" to the right */
+
 .desktop-slideshow .next{
      right: 0;
     border-radius: 5px 0 0 5px;
 }
-/* Position the "previous button" to the left */
+
 .desktop-slideshow .prev{
     left: 0;
     border-radius: 0 5px 5px 0;
@@ -695,21 +658,20 @@ h2 { /* For main page headings ONLY */
    background-color: rgba(0, 0, 0, 0.8);
 }
 
-/* --- Responsive Adjustments --- */
 
 @media (max-width: 768px) {
     .desktop-slideshow {
-        display: none; /* Hide on smaller screens */
+        display: none;
     }
     .mobile-slideshow {
-        display: block; /* Ensure mobile slideshow is visible */
+        display: block;
     }
 
 }
-   /* Between 992px and 1199px wide: Four columns */
+
     @media (min-width: 992px) and (max-width: 1199px) {
         .desktop-slideshow .mySlides {
-           width: calc((100% / 4) - 16px);/* Four Slides, adjusted margin */
+           width: calc((100% / 4) - 16px);
            margin: 0 8px;
         }
          .mobile-slideshow{
@@ -720,11 +682,10 @@ h2 { /* For main page headings ONLY */
          }
     }
 
-    /* 1200px and wider: Five columns */
     @media (min-width: 1200px) {
 
           .desktop-slideshow .mySlides {
-           width: calc((100% / 5) - 16px);/* Five Slides, adjusted margin*/
+           width: calc((100% / 5) - 16px);
             margin: 0 8px;
         }
          .mobile-slideshow{
@@ -734,9 +695,6 @@ h2 { /* For main page headings ONLY */
             display:block;
          }
     }
-/* --- PART 2 END --- */
-/* --- tv_app/static/style.css --- */
-/* --- PART 3 START --- */
 
 .show-details-container {
     padding: 20px;
@@ -745,17 +703,15 @@ h2 { /* For main page headings ONLY */
 .show-details-banner {
     width: 100%;
     background-color: rgba(0, 0, 0, 0.5);
-    /* ADJUSTMENT: Tighten vertical padding within the banner */
-    padding: 20px 20px 10px 20px; /* Top Right Bottom Left - Reduced bottom padding */
+    padding: 20px 20px 10px 20px;
     text-align: center;
-    /* ADJUSTMENT: Further reduce margin below the banner */
-    margin-bottom: 5px; /* Reduced from 10px */
+    margin-bottom: 5px;
 }
 
 .show-details-banner h1 {
     font-size: 2.5em;
-    margin-top: 0; /* Ensure no default top margin */
-    margin-bottom: 5px; /* Reduced from 10px */
+    margin-top: 0;
+    margin-bottom: 5px;
     color: #e50914;
     font-family: 'Netflix Sans', sans-serif;
 }
@@ -763,59 +719,53 @@ h2 { /* For main page headings ONLY */
 .episode-title {
     font-size: 1.2em;
     color: #aaa;
-    margin-top: 5px; /* Added a small top margin if it directly follows h1 */
-    margin-bottom: 10px; /* Keep consistent with general paragraph spacing */
+    margin-top: 5px;
+    margin-bottom: 10px;
 }
 
 .show-details-content {
     display: flex;
     flex-direction: column;
-    gap: 15px; /* This gap is between image and info on mobile */
+    gap: 15px;
 }
 
 .show-image-container {
     width: 100%;
     text-align: center;
-    /* No additional top margin needed here, as we're tightening the banner above */
 }
 
 .show-image {
     max-width: 100%;
-    height: auto; /* Allow natural height */
+    height: auto;
     border-radius: 8px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.6);
-    display: block; /* Important for margin: auto to work */
-    margin: 0 auto; /* Center the image if it's narrower than its container */
-    /* Removed max-height and object-fit for mobile view here as requested */
+    display: block;
+    margin: 0 auto;
 }
 
 .show-info {
     width: 100%;
 }
 
-/* Apply consistent margin control to all text blocks in show-info */
-.show-info h2 { /* 'Overview' heading specifically */
-    margin-top: 0; /* Ensure no default top margin */
-    margin-bottom: 5px; /* Reduced space below heading */
+.show-info h2 {
+    margin-top: 0;
+    margin-bottom: 5px;
 }
 
 .overview,
 .rating,
 .genres,
 .year {
-    margin-top: 0; /* Ensure no default top margin */
-    margin-bottom: 8px; /* Reduced from 15px */
-    line-height: 1.4; /* Keep this for readability */
+    margin-top: 0;
+    margin-bottom: 8px;
+    line-height: 1.4;
 }
 
-/* Style the ad placeholder/spacing div more tightly */
 .text-center.my-4 {
-    margin-top: 10px; /* Example: reduced from default if my-4 is a large margin */
-    margin-bottom: 10px; /* Example: reduced from default */
+    margin-top: 10px;
+    margin-bottom: 10px;
 }
 
-
-/* Responsive adjustments for show details */
 @media (min-width: 769px) {
     .show-details-content {
         flex-direction: row;
@@ -826,9 +776,9 @@ h2 { /* For main page headings ONLY */
         flex-shrink: 0;
     }
 
-    .show-image { /* Remove max-height and object-fit for desktop as well */
+    .show-image {
         max-height: none;
-        object-fit: initial; /* Or remove this line entirely */
+        object-fit: initial;
     }
 
     .show-info {
@@ -836,32 +786,29 @@ h2 { /* For main page headings ONLY */
     }
 }
 
-/* --- NEW: Styles for Filter Form on /shows --- */
-
 .filter-form {
     display: flex;
     flex-wrap: wrap;
     gap: 10px;
     margin-bottom: 20px;
     align-items: center;
-    border: 1px solid #333; /* Subtle border */
+    border: 1px solid #333;
     padding: 15px;
     border-radius: 5px;
-    background-color: #222; /* Dark background */
+    background-color: #222;
 }
 
 .filter-group {
     display: flex;
-    flex-direction: row; /* label and input on the same line */
-    align-items: center; /* Vertically center */
-    margin-bottom: 0; /* Remove the bottom margin */
+    flex-direction: row;
+    align-items: center;
+    margin-bottom: 0;
 }
-
 
 .filter-group label {
     margin-right: 5px;
     font-weight: bold;
-    color: #fff; /* White text for labels */
+    color: #fff;
 }
 
 .filter-form select,
@@ -871,51 +818,99 @@ h2 { /* For main page headings ONLY */
     background-color: #333;
     color: white;
     border-radius: 4px;
-    flex-grow: 1; /* Allow input/select to grow */
-    min-width: 100px; /* Prevent shrinking too much */
+    flex-grow: 1;
+    min-width: 100px;
 }
 .filter-form select{
-    height: 36px; /* Make the height the same to input for consistency */
+    height: 36px;
 }
 
 .filter-form button[type="submit"],
 .filter-form .reset-button
  {
     padding: 8px 12px;
-    background-color: #e50914; /* Netflix red */
+    background-color: #e50914;
     color: white;
     border: none;
     cursor: pointer;
     border-radius: 4px;
     font-size: 1em;
     transition: background-color 0.3s ease;
-    white-space: nowrap; /* Prevent text wrapping */
+    white-space: nowrap;
 }
-
 
 .filter-form button[type="submit"]:hover,
 .filter-form .reset-button:hover
  {
-    background-color: #b20709; /* Darker red on hover */
+    background-color: #b20709;
 }
 .filter-form .reset-button{
-    text-decoration: none; /* Remove underline */
-    display: inline-block; /* Treat like a button */
-
+    text-decoration: none;
+    display: inline-block;
 }
 
-/* Make filter options responsive */
 @media (max-width: 768px) {
     .filter-form {
-        flex-direction: column; /* Stack items vertically on small screens */
-        align-items: stretch;  /* Stretch items to full width */
+        flex-direction: column;
+        align-items: stretch;
     }
     .filter-group{
-      width: 100%; /* Full width */
+      width: 100%;
     }
      .filter-form select,
     .filter-form input[type="number"] {
-        width: 100%; /* Full width on smaller screen */
+        width: 100%;
     }
 }
-/* --- PART 3 END --- */
+
+/* --- Styles for Ad Tiles (Corrected with Unique Names) --- */
+#custom-ad-container {
+    position: relative;
+    margin-top: 20px;
+    padding-top: 30px; /* Space for the hide button */
+}
+
+#custom-ad-container .custom-ad-tile {
+    background-color: #1a1a1a;
+    padding: 12px;
+    border-radius: 10px;
+    color: #fff;
+    font-family: 'Comic Neue', sans-serif;
+    font-size: 14px;
+    text-align: center;
+    border: 1px solid #333;
+    margin-top: 15px;
+}
+
+#custom-ad-container .custom-ad-disclaimer {
+    font-size: 0.8em;
+    color: #aaa;
+    display: block;
+    margin-bottom: 5px;
+}
+
+#custom-ad-container .custom-ad-link {
+    color: #4da6ff;
+    text-decoration: underline;
+    font-weight: bold;
+}
+
+#custom-ad-container #hide-ads-btn {
+    position: absolute;
+    top: 0;
+    right: 0;
+    background: #333;
+    color: #aaa;
+    border: none;
+    border-radius: 5px;
+    padding: 2px 8px;
+    font-size: 0.8em;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+#custom-ad-container #hide-ads-btn:hover {
+    background: #555;
+    color: #fff;
+	    }
+	
