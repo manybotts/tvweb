@@ -84,6 +84,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
    // --- Desktop Slideshow ---
     let desktopSlideIndex = 0;
+    // --- THIS LINE IS NOW CORRECTED ---
     const desktopSlides = document.querySelectorAll(".desktop-slideshow .mySlides");
 
     function showDesktopSlides() {
@@ -212,6 +213,28 @@ document.addEventListener('DOMContentLoaded', function() {
         nextButton.addEventListener('click', function(event) {
             event.preventDefault();
            desktopPlusSlides(1);   // Use desktopPlusSlides
+        });
+    }
+
+    // --- MERGED: Logic to Hide Ads ---
+    const adContainer = document.getElementById('custom-ad-container');
+    const hideAdsBtn = document.getElementById('hide-ads-btn');
+
+    // Check if the user has previously chosen to hide ads
+    if (localStorage.getItem('hideAds') === 'true') {
+        if (adContainer) {
+            adContainer.style.display = 'none';
+        }
+    }
+
+    // Add click event to the hide button
+    if (hideAdsBtn) {
+        hideAdsBtn.addEventListener('click', function() {
+            if (adContainer) {
+                adContainer.style.display = 'none';
+                // Remember the user's choice
+                localStorage.setItem('hideAds', 'true');
+            }
         });
     }
 });
