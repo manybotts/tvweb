@@ -9,9 +9,7 @@
 {% block content %}
 <div class="show-details-container">
     <div class="show-details-banner">
-        {# Use h1 for the main show title for SEO #}
         <h1>{{ show.show_name }}</h1>
-        {# Consider using h2 or p for episode title #}
         {% if show.episode_title %}
             <p class="episode-title">{{ show.episode_title }}</p>
         {% endif %}
@@ -51,19 +49,33 @@
             {% if show.download_link %}
                 <a href="{{ url_for('redirect_to_download', show_id=show.id) }}" class="download-button">Download Now</a>
 
-                {# Advertisement block #}
-                <div style="margin-top: 20px; background-color: #1a1a1a; padding: 12px; border-radius: 10px; color: #fff; font-family: 'Comic Neue', sans-serif; font-size: 14px; text-align: center;">
-                    <strong style="color: #ffcc00;">Free Netflix Premium Mod.apk</strong><br>
-                    <a href="https://ycapp.co/infmb" style="color: #4da6ff; text-decoration: underline; font-weight: bold;">ANDROID USERS</a> |
-                    <a href="https://tvapk.link/inyc/" style="color: #4da6ff; text-decoration: underline; font-weight: bold;">IOS OR PC USERS</a>
+                {# --- START OF UPDATED ADVERTISEMENT CONTAINER --- #}
+                <div id="custom-ad-container">
+                    <button id="hide-ads-btn" title="Hide ads for this session">Hide Ads &times;</button>
+                    
+                    {# Netflix Ad Block #}
+                    <div class="custom-ad-tile">
+                        <span class="custom-ad-disclaimer">(AD)</span>
+                        <strong style="color: #ffcc00;">Free Netflix Premium Mod.apk</strong><br>
+                        <a href="https://ycapp.co/infmb" class="custom-ad-link">ANDROID USERS</a> |
+                        <a href="https://tvapk.link/inyc/" class="custom-ad-link">IOS OR PC USERS</a>
+                    </div>
+
+                    {# Adult Content Ad Block with Red Text #}
+                    <div class="custom-ad-tile">
+                        <span class="custom-ad-disclaimer">(AD)</span>
+                        <strong style="color: #ff4d4d;">Click for Adult/Erotic Content</strong><br>
+                        <a href="https://t.me/+m4TxlUvDjWpjOTNk" style="color: #ff8080;" class="custom-ad-link">JOIN NOW</a>
+                    </div>
                 </div>
+                {# --- END OF UPDATED ADVERTISEMENT CONTAINER --- #}
+
             {% else %}
                 <p><em>Download link not available for this item.</em></p>
             {% endif %}
         </div>
 
         <div class="text-center my-4">
-            {# This is where you might place an AdSense ad unit code or a placeholder #}
         </div>
     </div>
 </div>
