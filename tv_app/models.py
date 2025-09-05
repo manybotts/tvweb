@@ -1,7 +1,7 @@
-# tv_app/models.py
+# tv_app/models.py - UPDATED with tmdb_id
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
-from sqlalchemy import Index  # Import Index
+from sqlalchemy import Index
 
 db = SQLAlchemy()
 
@@ -14,7 +14,7 @@ show_genres = db.Table('show_genres',
 class Genre(db.Model):
     __tablename__ = 'genres'
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(50), unique=True, nullable=False)  # e.g., "Action", "Comedy"
+    name = db.Column(db.String(50), unique=True, nullable=False)
 
     def __repr__(self):
         return f'<Genre {self.name}>'
@@ -23,6 +23,9 @@ class TVShow(db.Model):
     __tablename__ = 'tv_shows'
 
     id = db.Column(db.Integer, primary_key=True)
+    # --- NEW FIELD ---
+    tmdb_id = db.Column(db.Integer, unique=True, nullable=True, index=True) # Storing the unique TMDb ID
+
     message_id = db.Column(db.Integer, unique=True, nullable=False, index=True)
     show_name = db.Column(db.String, nullable=False, index=True)
     episode_title = db.Column(db.String, default=None)
@@ -33,12 +36,11 @@ class TVShow(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
     clicks = db.Column(db.Integer, default=0)
     content_hash = db.Column(db.String(64), nullable=False, index=True)
-    year = db.Column(db.Integer)  # Add release year
-    rating = db.Column(db.Float) # Add rating
+    year = db.Column(db.Integer)
+    rating = db.Column(db.Float)
 
     # Relationship to Genre (Many-to-Many)
     genres = db.relationship('Genre', secondary=show_genres, backref=db.backref('tv_shows', lazy='dynamic'))
-
 
     __table_args__ = (
         Index('ix_show_name_episode_title', 'show_name', 'episode_title'),
@@ -47,3 +49,4 @@ class TVShow(db.Model):
 
     def __repr__(self):
         return f'<TVShow {self.show_name} - {self.episode_title}>'
+        
