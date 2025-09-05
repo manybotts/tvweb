@@ -1,15 +1,4 @@
-# tv_app/tasks.py - Modified ONLY to add reset_clicks (no app context here) - Part 1/3
-
-from celery import Celery
-from celery.exceptions import MaxRetriesExceededError, Retry
-from dotenv import load_dotenv
-from redis import Redis, exceptions as redis_exceptions
-from telegram import Bot, Update
-from telegram.error import TelegramError
-from telegram.ext import Application, CallbackContext
-from thefuzz import fuzz, process
-from urllib.parse import quote_plus
-from ratelimit import limits, sleep_and_retry
+# tv_app/tasks.py - FINAL version with tmdb_id logic
 import os
 import re
 import json
@@ -17,416 +6,238 @@ import asyncio
 import logging
 import hashlib
 import unicodedata
-from typing import Dict, Optional, Tuple, List
+from typing import Dict, Optional, List
 from datetime import datetime
 
 import aiohttp
+from celery import Celery
+from celery.exceptions import MaxRetriesExceededError
+from dotenv import load_dotenv
+from redis import Redis
+from thefuzz import process
+from urllib.parse import quote_plus
 
+# Load environment variables
 load_dotenv()
 
 # --- Configuration ---
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-# --- Celery Configuration ---
-# IMPORTANT:  Keep __name__ here.  We'll fix the task path in celeryconfig.py
+# Celery Configuration
 celery = Celery(__name__)
 celery.config_from_object('celeryconfig')
 
-# --- Constants ---
-TMDB_CALLS_PER_SECOND = 4
-TMDB_PERIOD = 1
+# Constants
 TMDB_BASE_URL = "https://api.themoviedb.org/3"
 TMDB_IMAGE_BASE_URL = "https://image.tmdb.org/t/p/w500"
-PROCESSED_MESSAGES_TTL = 86400  # 24 hours in seconds
 
 # --- Helper Functions ---
-def calculate_content_hash(show_name: str, episode_title: Optional[str], download_link: Optional[str]) -> str:
-    """Calculates a SHA-256 hash of the show content."""
-    show_name = show_name or ""
-    episode_title = episode_title or ""
-    download_link = download_link or ""
-    content_string = f"{show_name}-{episode_title}-{download_link}"
-    return hashlib.sha256(content_string.encode('utf-8')).hexdigest()
-
 def normalize_string(text: Optional[str]) -> str:
-    """Normalizes a string: lowercase, removes emojis/special chars, extra spaces."""
-    if text is None:
-        return ""
+    if text is None: return ""
     text = text.lower()
     text = ''.join(c for c in text if unicodedata.category(c)[0] != 'C')
     text = re.sub(r'[^\w\s,&\'-]', '', text)
-    text = re.sub(r'\s+', ' ', text).strip()
-    return text
+    return re.sub(r'\s+', ' ', text).strip()
 
-def parse_season_episode(text: str) -> Optional[str]:
-    """Extracts season and episode information from a string."""
-    match = re.search(r'(?:s|season)\s*(\d+)\s*(?:e|episode)\s*(\d+)|(\d+)[xX](\d+)', text, re.IGNORECASE)
-    if match:
-        if match.group(1) and match.group(2):
-            return f"S{match.group(1).zfill(2)}E{match.group(2).zfill(2)}"
-        elif match.group(3) and match.group(4):
-            return f"{match.group(3)}x{match.group(4).zfill(2)}"
-    return None
-
-async def fetch_new_telegram_posts() -> List[Update]:
-    """Fetches new Telegram posts, including edited posts."""
+async def fetch_new_telegram_posts() -> list:
     token = os.environ.get('TELEGRAM_BOT_TOKEN')
     channel_id = os.environ.get('TELEGRAM_CHANNEL_ID')
     redis_client = Redis.from_url(os.environ.get('REDIS_URL'), decode_responses=True)
-
     last_offset_key = f"last_telegram_update_id:{channel_id}"
     last_offset = redis_client.get(last_offset_key) or 0
-    logger.info(f"Last Telegram Update ID for channel {channel_id}: {last_offset}")
+
+    from telegram.ext import Application
 
     try:
         appli = Application.builder().token(token).build()
         updates = await appli.bot.get_updates(offset=int(last_offset) + 1, allowed_updates=['channel_post', 'edited_channel_post'], timeout=60)
         await appli.shutdown()
 
-        new_posts: List[Update] = []
+        new_posts = []
         for update in updates:
-            logger.debug(f"Telegram Update ID: {update.update_id}")
-            if update.channel_post and update.channel_post.sender_chat and str(update.channel_post.sender_chat.id) == channel_id:
-                if update.channel_post.caption:
-                    new_posts.append(update.channel_post)
-            elif update.edited_channel_post and update.edited_channel_post.sender_chat and str(update.edited_channel_post.sender_chat.id) == channel_id:
-                if update.edited_channel_post.caption:
-                    new_posts.append(update.edited_channel_post)
+            post_obj = update.channel_post or update.edited_channel_post
+            if (post_obj and post_obj.sender_chat and str(post_obj.sender_chat.id) == channel_id and post_obj.caption):
+                new_posts.append(post_obj)
 
         if updates:
             redis_client.set(last_offset_key, updates[-1].update_id)
-
         return new_posts
-    except TelegramError as e:
-        logger.error(f"Telegram error: {e}")
-        return []
     except Exception as e:
-        logger.exception(f"An unexpected error occurred: {e}")
+        logger.exception(f"Error fetching Telegram posts: {e}")
         return []
 
-def parse_telegram_post(post: Update) -> Optional[Dict]:
-    """Parses a Telegram post, prioritizing structured data and links towards the bottom."""
+def parse_telegram_post(post) -> Optional[Dict]:
     try:
         text = post.caption
-        logger.debug(f"Parsing post: {post.message_id}, Caption: {text!r}")
+        lines = [line.strip() for line in text.splitlines() if line.strip()]
 
-        lines = text.splitlines()
-        show_name = None
-        season_episode = None
+        if len(lines) < 2: return None
+
+        full_title = lines[0]
+        season_episode = lines[1]
+        show_name_for_search = re.sub(r'\s+\d{4}$', '', full_title).strip()
+        search_year_match = re.search(r'(\d{4})$', full_title)
+        search_year = int(search_year_match.group(1)) if search_year_match else None
+
         download_link = None
-
-        # --- 1. Attempt Structured Parsing ---
-        for i, line in enumerate(lines):
-            line = line.strip()
-            if line.startswith('#') or '#_' in line:
-                continue
-
-            if i == 0 and show_name is None:
-                show_name = line
-                logger.info(f"Initial Show Name: {show_name}")
-            elif i == 1 and season_episode is None:
-                season_episode = line
-                logger.info(f"Initial Season/Episode: {season_episode or 'None'}")
-
-        # --- 2. Link Extraction (Prioritize Entities, Bottom-Up) ---
         if post.caption_entities:
-            for entity in reversed(post.caption_entities):
+            for entity in post.caption_entities:
                 if entity.type == 'text_link':
                     entity_text = text[entity.offset:entity.offset + entity.length]
-                    if '#_' not in entity_text:
+                    if "click here" in entity_text.lower():
                         download_link = entity.url
-                        logger.info(f"Entity found Download Link: {download_link}")
                         break
 
-        # --- 3. Fallback to Regex (if needed, Bottom-Up) ---
-        normalized_text = normalize_string(text)
-
-        if not season_episode:
-            season_episode = parse_season_episode(normalized_text)
-            if season_episode:
-                logger.info(f"Regex found Season/Episode: {season_episode}")
-
-        if not download_link:
-            for line in reversed(lines):
-                line = line.strip()
-                if '#_' not in line:
-                    match = re.search(r'(https?://\S+)', line)
-                    if match:
-                        download_link = match.group(1)
-                        logger.info(f"Regex found Download Link: {download_link}")
-                        break
-
-        # --- 4. Validation and Normalization ---
-        if show_name:
-            normalized_show_name = normalize_string(show_name)
-            return {
-                'show_name': normalized_show_name,
-                'season_episode': season_episode,
-                'download_link': download_link,
-                'message_id': int(post.message_id),  # Cast to integer
-            }
-        else:
-            logger.warning(f"No show name found in post: {post.message_id}")
-            return None
-
-    except Exception as e:
-        logger.exception(f"Error during parsing: {e}")
-        return None
-# tv_app/tasks.py (Part 2 of 3)
-
-@sleep_and_retry
-@limits(calls=TMDB_CALLS_PER_SECOND, period=TMDB_PERIOD)
-async def fetch_tmdb_data(show_name: str, language: str = 'en-US') -> Optional[Dict]:
-    """Fetches TV show metadata asynchronously, with caching and fuzzy matching."""
-    redis_client = Redis.from_url(os.environ.get('REDIS_URL'), decode_responses=True)
-    cache_key = f"tmdb:{show_name.lower().replace(' ', '_')}"
-    cached_data = redis_client.get(cache_key)
-
-    if cached_data:
-        logger.info(f"Using cached TMDb data for: {show_name}")
-        try:
-            return json.loads(cached_data)
-        except json.JSONDecodeError:
-            logger.warning(f"Invalid JSON in cache for key: {cache_key}.  Fetching fresh data.")
-            pass  # Continue to fetch fresh data
-
-    try:
-        logger.info(f"Fetching TMDb data for: {show_name}")
-        headers = {
-            "Authorization": f"Bearer {os.environ.get('TMDB_BEARER_TOKEN')}",
-            "Content-Type": "application/json"
+        return {
+            'full_title': full_title,
+            'show_name_for_search': show_name_for_search,
+            'search_year': search_year,
+            'season_episode': season_episode,
+            'download_link': download_link,
+            'message_id': int(post.message_id),
         }
-        async with aiohttp.ClientSession(headers=headers) as session:
-            search_url = f"{TMDB_BASE_URL}/search/tv?query={quote_plus(show_name)}&language={language}"
+    except Exception as e:
+        logger.exception(f"Error parsing post {post.message_id}: {e}")
+        return None
+
+async def fetch_tmdb_data(show_name: str, search_year: Optional[int]) -> Optional[Dict]:
+    tmdb_bearer_token = os.environ.get('TMDB_BEARER_TOKEN')
+    headers = {"Authorization": f"Bearer {tmdb_bearer_token}"}
+
+    async with aiohttp.ClientSession(headers=headers) as session:
+        search_url = f"{TMDB_BASE_URL}/search/tv?query={quote_plus(show_name)}&language=en-US"
+        try:
             async with session.get(search_url, timeout=10) as response:
                 response.raise_for_status()
                 search_data = await response.json()
+        except Exception as e:
+            logger.error(f"TMDb API request failed for '{show_name}': {e}")
+            return None
 
-            if search_data['results']:
-                show_id = search_data['results'][0]['id']
-                logger.info(f"Direct match found for: {show_name}")
-            else:
-                logger.warning(f"No direct match for: {show_name}. Attempting fuzzy match.")
-                search_url = f"{TMDB_BASE_URL}/search/tv?query={quote_plus(show_name)}&language={language}&page=1"
-                async with session.get(search_url, timeout=10) as response:
-                    response.raise_for_status()
-                    search_data = await response.json()
-                all_results = search_data['results']
+        if not search_data.get('results'):
+            logger.warning(f"No TMDb results for '{show_name}'.")
+            return None
 
-                show_titles = [result['name'] for result in all_results]
+        tmdb_results = search_data['results']
+        found_result = None
+
+        # Primary Match: Find by year
+        if search_year:
+            for result in tmdb_results:
+                release_date = result.get('first_air_date', '')
+                if release_date and str(search_year) in release_date:
+                    found_result = result
+                    logger.info(f"Found perfect match by year for '{show_name}': {result['name']}")
+                    break
+
+        # Fallback Match: Fuzzy match
+        if not found_result:
+            show_titles = [r.get('name') for r in tmdb_results if r.get('name')]
+            if show_titles:
                 best_match, score = process.extractOne(show_name, show_titles)
-
                 if score >= 80:
-                    for result in all_results:
-                        if result['name'] == best_match:
-                            show_id = result['id']
-                            logger.info(f"Fuzzy match found: {best_match} (score: {score}) for {show_name}")
+                    for result in tmdb_results:
+                        if result.get('name') == best_match:
+                            found_result = result
+                            logger.info(f"Found fuzzy match (score {score}) for '{show_name}': {result['name']}")
                             break
-                else:
-                    logger.warning(f"No close match found for: {show_name} (best score: {score})")
-                    return None
 
-            details_url = f"{TMDB_BASE_URL}/tv/{show_id}?language={language}"
-            async with session.get(details_url, timeout=10) as response:
-                response.raise_for_status()
-                details_data = await response.json()
+        if not found_result:
+            logger.warning(f"Could not find a confident match for '{show_name}'.")
+            return None
 
-            latest_season_number = details_data['last_episode_to_air']['season_number'] if details_data.get(
-                'last_episode_to_air') else None
-            latest_episode_number = details_data['last_episode_to_air']['episode_number'] if details_data.get(
-                'last_episode_to_air') else None
-            latest_season_episode = f"S{str(latest_season_number).zfill(2)}E{str(latest_episode_number).zfill(2)}" if latest_season_number is not None and latest_episode_number is not None else None
+        tmdb_id = found_result.get('id')
+        year = int(found_result['first_air_date'][:4]) if found_result.get('first_air_date') else None
 
-            # --- Extract Year and Rating ---
-            year = None
-            if details_data.get('first_air_date'):
-                try:
-                    year = int(details_data['first_air_date'][:4])  # Extract year from date string
-                except (ValueError, TypeError):
-                    logger.warning(f"Invalid year format for show: {show_name}")
-
-            rating = details_data.get('vote_average')
-
-            # --- Extract Genres ---
-            genres_list = [genre['name'] for genre in details_data.get('genres', [])]
-
-
-            tmdb_info = {
-                'poster_path': f"{TMDB_IMAGE_BASE_URL}{details_data.get('poster_path')}" if details_data.get(
-                    'poster_path') else None,
-                'overview': details_data.get('overview'),
-                'vote_average': details_data.get('vote_average'),
-                'latest_season_episode': latest_season_episode,
-                'year': year,  # Add year
-                'rating': rating,  # Add rating
-                'genres': genres_list  # Add genres
-            }
-
-            redis_client.setex(cache_key, 86400, json.dumps(tmdb_info))
-            logger.info(f"Cached TMDb data for: {show_name}")
-            return tmdb_info
-
-    except aiohttp.ClientError as e:
-        logger.error(f"Error fetching data from TMDb: {e}")
-        return None
-    except Exception as e:
-        logger.exception(f"An unexpected error occurred: {e}")
-        return None
-
+        return {
+            'tmdb_id': tmdb_id,
+            'show_name': found_result.get('name'),
+            'poster_path': f"{TMDB_IMAGE_BASE_URL}{found_result.get('poster_path')}" if found_result.get('poster_path') else None,
+            'overview': found_result.get('overview'),
+            'vote_average': found_result.get('vote_average'),
+            'year': year,
+            'rating': found_result.get('vote_average'),
+        }
 
 @celery.task(bind=True, retry_backoff=True, max_retries=3)
 def update_tv_shows(self):
-    """Updates the database, using TMDb for latest season/episode if missing."""
     redis_client = Redis.from_url(os.environ.get('REDIS_URL'), decode_responses=True)
-    lock_name = "update_tv_shows_lock"
-    lock = redis_client.lock(lock_name, timeout=60, blocking_timeout=5)
-
+    lock = redis_client.lock("update_tv_shows_lock", timeout=60)
     if not lock.acquire(blocking=False):
-        logger.info("Could not acquire lock, task is likely already running.")
+        logger.info("Lock busy, skipping run.")
         return
 
     try:
-        logger.info("Lock acquired, starting update_tv_shows task.")
-        posts: List[Update] = asyncio.run(fetch_new_telegram_posts())
+        logger.info("Starting update_tv_shows task.")
+        posts = asyncio.run(fetch_new_telegram_posts())
         if not posts:
             logger.info("No new posts found.")
             return
 
         from tv_app.app import app
-        with app.app_context():  # <--- USE APP CONTEXT
-            # --- Local import within the app context
-            from tv_app.models import db, TVShow, Genre
+        with app.app_context():
+            from tv_app.models import db, TVShow
             for post in posts:
-                processed_key = "processed_messages:" + str(post.message_id)
+                processed_key = f"processed_messages:{post.message_id}"
                 if redis_client.exists(processed_key):
-                    logger.info(f"Message {post.message_id} already processed, skipping.")
                     continue
 
-                existing_message = TVShow.query.filter_by(message_id=int(post.message_id)).first()
-                if existing_message:
-                    logger.info("Edited message, deleting it first")
-                    db.session.delete(existing_message)
-                    # Don't commit here
+                parsed_data = parse_telegram_post(post)
+                if not parsed_data: continue
 
-                parsed_data: Optional[Dict] = parse_telegram_post(post)
-                if not parsed_data:
-                    continue
+                tmdb_data = asyncio.run(fetch_tmdb_data(parsed_data['show_name_for_search'], parsed_data['search_year']))
+                if not tmdb_data: continue
 
-                logger.info(f"Processing show: {parsed_data['show_name']}")
-                tmdb_data: Optional[Dict] = asyncio.run(fetch_tmdb_data(parsed_data['show_name']))
+                tmdb_id = tmdb_data.get('tmdb_id')
 
-                if not tmdb_data:
-                    continue
-
-                new_content_hash = calculate_content_hash(
-                    parsed_data['show_name'],
-                    parsed_data['season_episode'],
-                    parsed_data['download_link']
-                )
-
-                existing_show = TVShow.query.filter_by(show_name=parsed_data['show_name']).first()
-                episode_title = parsed_data['season_episode'] or tmdb_data.get('latest_season_episode')
-
+                # Delete existing show with the same tmdb_id
+                existing_show = TVShow.query.filter_by(tmdb_id=tmdb_id).first()
                 if existing_show:
-                    logger.info(f"Updating existing show: {parsed_data['show_name']}")
-                    existing_show.episode_title = episode_title
-                    existing_show.download_link = parsed_data['download_link']
-                    existing_show.message_id = int(post.message_id)
-                    existing_show.overview = tmdb_data.get('overview')
-                    existing_show.vote_average = tmdb_data.get('vote_average')
-                    existing_show.poster_path = tmdb_data.get('poster_path')
-                    existing_show.content_hash = new_content_hash
-                    existing_show.year = tmdb_data.get('year')
-                    existing_show.rating = tmdb_data.get('rating')
-                    existing_show.created_at = datetime.utcnow()  # <--- KEY CHANGE
+                    logger.info(f"Found existing show for TMDb ID {tmdb_id}. Deleting before update.")
+                    db.session.delete(existing_show)
+                    db.session.commit()
 
-                    # --- Update Genres (Many-to-Many) ---
-                    existing_genres = {genre.name for genre in existing_show.genres}
-                    new_genres = set(tmdb_data.get('genres', []))
+                # Create new show
+                logger.info(f"Inserting new show: {parsed_data['full_title']} (TMDb ID: {tmdb_id})")
+                new_show = TVShow(
+                    tmdb_id=tmdb_id,
+                    show_name=parsed_data['full_title'],
+                    episode_title=parsed_data['season_episode'],
+                    download_link=parsed_data['download_link'],
+                    message_id=parsed_data['message_id'],
+                    poster_path=tmdb_data['poster_path'],
+                    overview=tmdb_data['overview'],
+                    vote_average=tmdb_data['vote_average'],
+                    year=tmdb_data['year'],
+                    rating=tmdb_data['rating'],
+                    content_hash=f"{tmdb_id}-{parsed_data['season_episode']}" # Simpler hash
+                )
+                db.session.add(new_show)
+                redis_client.set(processed_key, 1, ex=86400)
 
-                    for genre_name in new_genres - existing_genres:
-                        genre = Genre.query.filter_by(name=genre_name).first()
-                        if not genre:
-                            genre = Genre(name=genre_name)
-                            db.session.add(genre)
-                        existing_show.genres.append(genre)
-
-                    for genre in existing_show.genres:
-                        if genre.name not in new_genres:
-                            existing_show.genres.remove(genre)
-
-                    logger.info(f"Successfully updated: {parsed_data['show_name']}")
-
-                else:
-                    logger.info(f"Inserting new show: {parsed_data['show_name']}")
-                    show_data = {
-                        'show_name': parsed_data['show_name'],
-                        'episode_title': episode_title,
-                        'download_link': parsed_data['download_link'],
-                        'message_id': int(post.message_id),
-                        'overview': tmdb_data.get('overview'),
-                        'vote_average': tmdb_data.get('vote_average'),
-                        'poster_path': tmdb_data.get('poster_path'),
-                        'content_hash': new_content_hash,
-                        'year': tmdb_data.get('year'),
-                        'rating': tmdb_data.get('rating')
-                    }
-                    new_show = TVShow(**show_data)
-
-                    for genre_name in tmdb_data.get('genres', []):
-                        genre = Genre.query.filter_by(name=genre_name).first()
-                        if not genre:
-                            genre = Genre(name=genre_name)
-                            db.session.add(genre)
-                        new_show.genres.append(genre)
-
-                    db.session.add(new_show)
-                    logger.info(f"Successfully inserted: {parsed_data['show_name']}")
-
-                redis_client.set(processed_key, 1, ex=PROCESSED_MESSAGES_TTL)
-            db.session.commit() #Commit at once
-            db.session.remove()
-
-    except redis_exceptions.ConnectionError as e:
-        logger.error(f"Redis connection error: {e}")
-        self.retry(exc=e, countdown=60)
-    except MaxRetriesExceededError:
-        logger.error("Max retries exceeded for update_tv_shows task.")
+            db.session.commit()
     except Exception as e:
-        logger.exception(f"An unexpected error occurred in update_tv_shows: {e}")
-        logger.error(f"Task ID: {self.request.id}")
-        self.retry(exc=e, countdown=60)
-
+        logger.exception(f"An error occurred in update_tv_shows: {e}")
+        db.session.rollback()
     finally:
-        lock.release()
-        logger.info("Lock released.")
+        if lock.locked(): lock.release()
 
 @celery.task(name='tv_app.tasks.reset_clicks')
 def reset_clicks():
-    """Resets the clicks count for all TV shows to 0."""
     try:
-        from tv_app.app import app  # Local import
+        from tv_app.app import app
         with app.app_context():
             from tv_app.models import db, TVShow
-            num_rows_updated = TVShow.query.update({TVShow.clicks: 0})
+            TVShow.query.update({TVShow.clicks: 0})
             db.session.commit()
-            return f"Successfully reset clicks for {num_rows_updated} shows."
-
+            logger.info(f"Successfully reset clicks.")
     except Exception as e:
-        try:
-            from tv_app.models import db  # Local fallback import
-            db.session.rollback()
-        except Exception:
-            pass  # Prevent secondary crash
         logger.exception(f"Error in reset_clicks: {e}")
-        return f"Error resetting clicks: {str(e)}"
-
-
+        db.session.rollback()
 
 @celery.task(name='tv_app.tasks.test_task')
 def test_task():
     logger.info("The test Celery task has run!")
     return "Test task complete"
-
-# --- End of Part 2 ---
+    
