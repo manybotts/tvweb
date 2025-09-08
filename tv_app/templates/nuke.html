@@ -1,0 +1,101 @@
+{% extends 'base.html' %}
+{% block title %}Nuke · Search & Purge{% endblock %}
+{% block content %}
+<div class="container" style="max-width:1100px;">
+  <h1>Nuke · Search & Purge</h1>
+
+  <form method="get" action="{{ url_for('nuke_panel') }}">
+    <div style="display:flex;gap:.5rem;align-items:center;margin:.75rem 0;">
+      <input type="text" name="q" value="{{ q }}" placeholder="Search by title, episode, link or id:123" style="flex:1;padding:.5rem;">
+      <button type="submit" class="btn">Search</button>
+      {% if view_dupes %}
+        <a class="btn" href="{{ url_for('nuke_panel', q=q) }}">All results</a>
+      {% else %}
+        <a class="btn" href="{{ url_for('nuke_panel', dupes=1, q=q) }}">Duplicate links</a>
+      {% endif %}
+    </div>
+  </form>
+
+  <form method="post" action="{{ url_for('nuke_logout') }}" style="margin:.5rem 0;">
+    <button type="submit" class="btn">Logout</button>
+  </form>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <ul>{% for cat, msg in messages %}<li><strong>{{ cat|capitalize }}:</strong> {{ msg }}</li>{% endfor %}</ul>
+    {% endif %}
+  {% endwith %}
+
+  {% if view_dupes %}
+    {% if dupe_groups|length == 0 %}
+      <p>No duplicate download links found{{ ' for "' ~ q ~ '"' if q }}.</p>
+    {% else %}
+      {% for g in dupe_groups %}
+        <h3 style="margin-top:1rem;">{{ g.domain or 'Unknown host' }} · {{ g.shows|length }} entries</h3>
+        <details style="margin-bottom:.5rem;"><summary style="cursor:pointer;opacity:.8;">{{ g.link }}</summary></details>
+
+        <form method="post" action="{{ url_for('nuke_bulk_delete', q=q) }}" onsubmit="return confirm('Proceed with bulk delete?');">
+          <input type="hidden" name="link" value="{{ g.link }}">
+          <div style="display:flex;gap:.5rem;align-items:center;margin:.5rem 0;">
+            <label style="display:flex;align-items:center;gap:.35rem;">
+              <input type="checkbox" onclick="toggleWithinForm(this)"> Select all in group
+            </label>
+            <button type="submit" name="mode" value="selected" class="btn btn-danger">Delete selected</button>
+            <button type="submit" name="mode" value="all_but_latest" class="btn btn-danger">Delete all but newest</button>
+            <button type="submit" name="mode" value="all" class="btn btn-danger">Delete all in group</button>
+          </div>
+
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px;">
+            {% for s in g.shows %}
+              <label class="card" style="padding:.5rem;border:1px solid #333;border-radius:.5rem;display:block;">
+                <div style="display:flex;gap:10px;">
+                  <input type="checkbox" name="ids" value="{{ s.id }}">
+                  <img src="{{ s.poster_path or '' }}" alt="" style="width:70px;height:100px;object-fit:cover;border-radius:.25rem;">
+                  <div style="flex:1;">
+                    <div style="font-weight:600;">
+                      <a href="{{ url_for('show_details', slug=s.slug) }}" target="_blank">{{ s.show_name }}</a>
+                    </div>
+                    <div style="opacity:.8;">{{ s.episode_title or '-' }}</div>
+                    <div style="opacity:.6;font-size:.9em;">{{ s.created_at }}</div>
+                    <div style="opacity:.6;font-size:.85em;">{{ s.download_link | hostonly }}</div>
+                  </div>
+                </div>
+              </label>
+            {% endfor %}
+          </div>
+        </form>
+      {% endfor %}
+    {% endif %}
+  {% else %}
+    {% if q and not shows %}<p>No results.</p>{% endif %}
+    {% if shows %}
+    <table class="table" border="1" cellpadding="6" cellspacing="0" width="100%">
+      <thead><tr><th>Poster</th><th>ID</th><th>Title</th><th>Episode</th><th>Created</th><th>Link Host</th><th>Actions</th></tr></thead>
+      <tbody>
+      {% for s in shows %}
+        <tr>
+          <td style="width:80px;"><img src="{{ s.poster_path or '' }}" alt="" style="width:60px;height:85px;object-fit:cover;border-radius:.25rem;"></td>
+          <td>{{ s.id }}</td>
+          <td><a href="{{ url_for('show_details', slug=s.slug) }}" target="_blank">{{ s.show_name }}</a></td>
+          <td>{{ s.episode_title or '-' }}</td>
+          <td>{{ (s.created_at or s.updated_at)|default('', true) }}</td>
+          <td style="max-width:220px;word-break:break-all;">{% if s.download_link %}{{ s.download_link | hostonly }}{% else %}—{% endif %}</td>
+          <td>
+            <form method="post" action="{{ url_for('nuke_delete', show_id=s.id, q=q) }}" style="display:inline;" onsubmit="return confirm('Delete permanently?');">
+              <button type="submit" class="btn btn-danger">Delete</button>
+            </form>
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+  {% endif %}
+</div>
+<script>
+function toggleWithinForm(cb){
+  const form = cb.closest('form'); if(!form) return;
+  form.querySelectorAll('input[name="ids"]').forEach(x => x.checked = cb.checked);
+}
+</script>
+{% endblock %}
