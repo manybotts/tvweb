@@ -1,152 +1,341 @@
-# TV Show Tracking Application
+# iBOX TV (tvweb) — Deployment & Ops Guide
 
-This application allows users to track TV shows, receive notifications about new episodes, and manage a database of show information.  It uses Flask for the web framework, Celery for asynchronous task management, PostgreSQL for the database, and Redis for caching and as a Celery broker. It also integrates with Telegram for notifications and TMDb for show metadata
-
-## File Descriptions
-
-*   **`tv_app/app.py`:** The main Flask application file.  It defines the web routes, handles user interactions (search, show details, redirects), and interacts with the database. It uses the `pg_trgm` extension for fuzzy searching. It *does not* directly import Celery tasks at the top level to avoid circular imports. Instead it calls them using the Celery API.
-
-*   **`tv_app/celeryconfig.py`:**  Configures Celery.  Specifies the broker URL (Redis), result backend (also Redis), and the Celery Beat schedule for periodic tasks. *Critically*, it uses the correct task paths (`tv_app.tasks.update_tv_shows`, `tv_app.tasks.reset_clicks`) for Celery to find the tasks.
-
-*   **`tv_app/models.py`:**  Defines the database models using SQLAlchemy: `TVShow` (stores show information, including message ID, download link, clicks, etc.) and `Genre` (stores genre names, with a many-to-many relationship to `TVShow`). It *includes* the `pg_trgm` index for efficient fuzzy searching on the `show_name` column.  It instantiates the `db` object directly, as you are *not* using the application factory pattern.
-
-*   **`tv_app/tasks.py`:**  Contains the Celery tasks:
-    *   **`update_tv_shows`:** Fetches new Telegram posts, parses them, fetches TMDb data, and updates (or creates) TV show entries in the database. Uses the application context (`with app.app_context():`) for database access, and performs *local* imports of `app`, `db`, `TVShow`, and `Genre` *within* the `with` block. It is designed to handle both new posts and edits to existing posts, preventing duplicates.
-    *   **`reset_clicks`:** Resets the `clicks` count for all TV shows to 0. Also uses the application context for database access and local imports.
-    *   **`test_task`:** A simple task to verify Celery is working. (You can remove this in production if you wish).
-
-*   **`tv_app/static/`:**  Contains static assets.
-    *   **`css/style.css`:**  CSS styles for the application.
-    *   **`images/youcine.jpg`:** An image.
-    *   **`script.js`:** Contains Javascript for fronted functionalities.
-
-*   **`tv_app/templates/`:**  Contains the Jinja2 templates for the web pages.
-    *   **`base.html`:**  The base template that other templates inherit from.  Defines the overall layout and includes the Plausible Analytics script.
-    *   **`index.html`:**  The main page, displaying recently added shows, trending shows (based on clicks), and a search bar.
-    *   **`show_details.html`:** Displays details for a specific TV show (fetched from the database), including the download link.  Handles incrementing the click count.
-    *   **`shows.html`:** A page to list shows with filter.
-    *   **`404.html`:** Custom 404 error page.
-    *   **`500.html`:** Custom 500 error page.
-
-*   **`tv_app/__init__.py`:**  An empty file that makes the `tv_app` directory a Python package.
-
-*  **`tv_app/forms.py`:**  Currently empty.  This file can be used to define Flask-WTF forms if needed in the future. If not used, it can be safely removed.
-*  ## Setup and Installation
-
-1.  Clone the repository:
-    git clone <your_repository_url>
-    cd <your_repository_name>
-    
-
-2.  Create a virtual environment (recommended):
-    python3 -m venv venv
-    source venv/bin/activate  # On Linux/macOS
-    venv\Scripts\activate  # On Windows
-
-3.  Install dependencies:
-    pip install -r requirements.txt
-
-4.  Set environment variables:
-    Create a .env file and add:
-    DATABASE_URL=postgresql://user:password@host:port/database
-    REDIS_URL=redis://:password@host:port/0
-    TMDB_BEARER_TOKEN=your_tmdb_bearer_token
-    TELEGRAM_BOT_TOKEN=your_telegram_bot_token
-    TELEGRAM_CHANNEL_ID=your_telegram_channel_id
-    SECRET_KEY=your_flask_secret_key
-
-5.  Initialize the database:
-    python -m tv_app.init_db
-    
-
-   Alternatively, you can use Flask-Migrate:
-      flask db init
-      flask db migrate -m "Initial Migration"
-      flask db upgrade
-## Running the Application
-
-### Locally
-
-1.  Start the Flask web server (combined command):
-    python -m tv_app.init_db && gunicorn "tv_app.app:app" --workers 1 --bind 0.0.0.0:$PORT
-
-    *Explanation:* This runs the init_db.py script, then starts Gunicorn
-    with one worker, binding to all interfaces on the port from $PORT
-    (defaulting to 5000 if $PORT is not set).
-
-2.  Start the Celery worker (separate terminal):
-    celery -A tv_app.tasks worker -l info -c 1 -B
-
-    *Explanation:* Starts a Celery worker.
-    -A tv_app.tasks: Specifies the Celery application.
-    -l info: Sets logging level.
-    -c 1: Limits concurrency to 1 worker process.
-    -B: Starts Celery Beat (for periodic tasks).
-### On Railway
-
-1.  Create a Railway project.
-2.  Connect your GitHub repository.
-3.  Add the necessary services:
-    *   PostgreSQL
-    *   Redis
-4.  Set the environment variables (as listed in the Setup section) in the
-    Railway project settings. *Do not* commit your .env file.
-5. Set the Start Command for your web service:
-   `python -m tv_app.init_db && gunicorn "tv_app.app:app" --workers 1 --bind 0.0.0.0:$PORT`
-6.  Deploy. Railway should automatically detect the Procfile and start
-    the web and worker processes.  The Procfile should contain:
-
-    web: gunicorn "tv_app.app:app" --workers 1 --bind 0.0.0.0:$PORT
-    worker: celery -A tv_app.tasks worker -l info -c 1 -B
-## Features
-
-*   TV Show Tracking: Automatically fetches and stores show data.
-*   TMDb Integration: Uses TMDb for missing info, posters, and ratings.
-*   Fuzzy Search: Uses pg_trgm for efficient fuzzy searching.
-*   Click Tracking: Tracks show detail views.
-*   Trending Shows: Displays most-clicked shows.
-*   Periodic Tasks (Celery Beat):
-    *   update_tv_shows: Runs every 15 minutes.
-    *   reset_clicks: Runs daily at midnight.
-*   Show Filtering and Sorting: Filter by genre, rating, year, and sort.
-*   Pagination: List of shows is paginated.
-*   Show Details Page: Displays show information.
-*   ## Important Notes
-
-*   Circular Imports: Avoided by local imports within task functions.
-*   Concurrency: Celery worker uses -c 1; Gunicorn uses --workers 1.
-*   pg_trgm Extension: Required for fuzzy searching.
-*   Telegram API: Requires a Telegram bot token and chat ID.
-*   TMDb API: Requires a TMDb bearer token.
-*   init_db.py Script: Initializes the database on each deployment.
-# TV Show Tracking Application
-
-This application allows users to track TV shows, receive notifications about new episodes, and manage a database of show information. It uses **Flask** for the web framework, **Celery** for asynchronous task management, **PostgreSQL** for the database, and **Redis** for caching and as a Celery broker. It also integrates with **Telegram** for notifications and **TMDb** for show metadata.
+Flask + Celery + Redis pipeline that ingests TV posts from Telegram, enriches with TMDb, and serves SEO-friendly show pages with clean slugs. Deployed with Nginx + Supervisor. Yes, it actually works.
 
 ---
 
-## 📂 Project Structure
+## Quick Start (Fresh VPS)
 
-```text
-tv_show_project/
-├── tv_app/               # Main application package
-│   ├── __init__.py       # Makes tv_app a package
-│   ├── app.py            # Flask application and routes
-│   ├── models.py         # Database models
-│   ├── tasks.py          # Celery tasks
-│   ├── static/           # Static files (CSS, JS, images)
-│   │   ├── style.css
-│   │   ├── script.js
-│   │   ├── logo.png
-│   │   └── favicon.ico
-│   └── templates/        # HTML templates
-│       ├── base.html
-│       ├── index.html
-│       ├── show_details.html
-│       ├── shows.html
-│       ├── 404.html
-│       └── 500.html
-├── celeryconfig.py        # Celery configuration
-├── requirements.txt       # Python dependencies
-├── .env                   # Environment variables (NOT committed to Git)
-└── Procfile               # Railway/Heroku deployment file
+> Paths assume `/root/tvweb`. Adjust if you like suffering.
+
+```bash
+# 1) System deps
+sudo apt update
+sudo apt install -y python3-venv python3-dev build-essential nginx redis-server supervisor
+
+# 2) App checkout and venv
+cd /root
+git clone https://github.com/<you>/tvweb.git
+cd /root/tvweb
+python3 -m venv venv
+./venv/bin/pip install -U pip wheel
+./venv/bin/pip install -r requirements.txt
+
+# 3) Environment
+nano .env
+# paste the example below, save
+
+# 4) Initialize the database
+./venv/bin/python - <<'PY'
+from tv_app.app import app
+from tv_app.models import db
+with app.app_context():
+    db.create_all()
+print("DB created.")
+PY
+```
+
+### `.env` example
+
+```ini
+# Flask
+SECRET_KEY=change_this
+FLASK_ENV=production
+DATABASE_URL=sqlite:////root/tvweb/tv_shows.db
+# or Postgres:
+# DATABASE_URL=postgresql+psycopg2://user:password@localhost:5432/tvweb
+
+# Redis
+REDIS_URL=redis://localhost:6379/0
+
+# Telegram ingest
+TELEGRAM_BOT_TOKEN=123456:abc_your_bot_token
+TELEGRAM_CHANNEL_ID=-1001234567890
+
+# TMDb
+TMDB_BEARER_TOKEN=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+
+# Nuke admin
+ADMIN_TOKEN=W@ngari327
+NUKE_COOKIE_TTL_DAYS=30
+```
+
+---
+
+## Supervisor
+
+Three services: Gunicorn (Flask), Celery worker, Celery beat.
+
+```ini
+# /etc/supervisor/conf.d/ibox-gunicorn.conf
+[program:ibox-gunicorn]
+directory=/root/tvweb
+command=/root/tvweb/venv/bin/gunicorn -w 3 -b 127.0.0.1:8001 'tv_app.app:app'
+user=root
+autostart=true
+autorestart=true
+stdout_logfile=/var/log/ibox/gunicorn.out.log
+stderr_logfile=/var/log/ibox/gunicorn.err.log
+stopsignal=TERM
+stopasgroup=true
+killasgroup=true
+environment=PYTHONPATH="/root/tvweb"
+```
+
+```ini
+# /etc/supervisor/conf.d/ibox-celery.conf
+[program:ibox-celery]
+directory=/root/tvweb
+command=/root/tvweb/venv/bin/celery -A tv_app.tasks worker --loglevel=INFO --concurrency=2
+user=root
+autostart=true
+autorestart=true
+stdout_logfile=/var/log/ibox/celery.out.log
+stderr_logfile=/var/log/ibox/celery.err.log
+stopsignal=TERM
+stopasgroup=true
+killasgroup=true
+environment=PYTHONPATH="/root/tvweb"
+```
+
+```ini
+# /etc/supervisor/conf.d/ibox-celerybeat.conf
+[program:ibox-celerybeat]
+directory=/root/tvweb
+command=/root/tvweb/venv/bin/celery -A tv_app.tasks beat --loglevel=INFO
+user=root
+autostart=true
+autorestart=true
+stdout_logfile=/var/log/ibox/celerybeat.out.log
+stderr_logfile=/var/log/ibox/celerybeat.err.log
+stopsignal=TERM
+stopasgroup=true
+killasgroup=true
+environment=PYTHONPATH="/root/tvweb"
+```
+
+```bash
+# Create log dir and start
+sudo mkdir -p /var/log/ibox
+sudo supervisorctl reread
+sudo supervisorctl update
+sudo supervisorctl restart ibox-gunicorn ibox-celery ibox-celerybeat
+sudo supervisorctl status
+```
+
+---
+
+## Nginx
+
+Proxies to Gunicorn on `127.0.0.1:8001`, serves `/static/`, exposes `/healthz`.
+
+```nginx
+# /etc/nginx/sites-available/ibox-tv.com
+server {
+    listen 80;
+    server_name ibox-tv.com www.ibox-tv.com;
+
+    client_max_body_size 32m;
+    keepalive_timeout 65;
+
+    # Health
+    location /healthz {
+        proxy_pass http://127.0.0.1:8001/healthz;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $remote_addr;
+    }
+
+    # Static
+    location /static/ {
+        alias /root/tvweb/tv_app/static/;
+        access_log off;
+        expires 7d;
+        add_header Cache-Control "public, max-age=604800";
+    }
+
+    # App
+    location / {
+        proxy_pass http://127.0.0.1:8001;
+        proxy_read_timeout 300s;
+        proxy_connect_timeout 60s;
+        proxy_send_timeout 60s;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    gzip on;
+    gzip_types text/plain text/css application/json application/javascript application/xml image/svg+xml;
+    gzip_min_length 1024;
+    gzip_comp_level 5;
+}
+```
+
+```bash
+sudo ln -s /etc/nginx/sites-available/ibox-tv.com /etc/nginx/sites-enabled/ibox-tv.com
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+> Using TLS? Put a 301 HTTP→HTTPS server and a separate 443 block with your certs.
+
+---
+
+## App Features
+
+* **Show pages**: `/show/<slug>` with canonical, social meta, JSON-LD.
+* **Search**: homepage `?search=` uses trigram similarity on Postgres, falls back to `ILIKE` otherwise.
+* **Listing**: `/shows` with filters (genre, rating bucket, year) + pagination.
+* **Trending**: homepage “Most Watched Today” uses `TVShow.clicks`.
+* **Sitemap/robots**: `/sitemap.xml`, robots disallow `/admin` and serve 404 on `/admin`.
+* **ads.txt**: `/ads.txt` 301s to your Ezoic manager URL.
+* **Health**: `/healthz` to check liveness.
+* **Nuke panel**: `/nuke` guarded by `ADMIN_TOKEN`, cookie-based session, lockout after repeated failures.
+* **Pipeline**: Telegram → Celery → TMDb → DB. Matching tolerates dotted acronyms, dropped articles, tiny stems, and uses year/season hints.
+
+---
+
+## Data Flow (Telegram → TMDb → DB)
+
+1. **Telegram post**
+   Line 1: title. Line 2: season/episode info. Link is taken from a `text_link` “CLICK HERE” entity or the last URL found.
+2. **Normalizer & Scoring**
+
+   * “A.T.O.M.” collapses to “ATOM” for matching.
+   * Leading articles (“The”, “A”, “An”) are ignored.
+   * Short stems allowed (e.g., `atom` vs `atomic`) when other signals align.
+   * Year and season count are hints to break ties.
+   * Small penalty when picking an all-caps acronym if your query was a normal word (to avoid “ATOM” stealing “Atomic”).
+3. **De-dupe**
+   If a row with the same `tmdb_id` exists, it’s replaced by the newest post.
+4. **Slug**
+   SEO-safe, unique, auto-generated on insert.
+
+---
+
+## Common Ops
+
+### Your preferred edit flow
+
+```bash
+# Example: update a template
+cd /root/tvweb/tv_app/templates
+rm -f index.html
+nano index.html
+sudo supervisorctl restart ibox-gunicorn
+```
+
+### Reset database (drop and recreate tables)
+
+```bash
+cd /root/tvweb
+./venv/bin/python - <<'PY'
+from tv_app.app import app
+from tv_app.models import db
+with app.app_context():
+    db.drop_all()
+    db.create_all()
+print("DB reset complete.")
+PY
+sudo supervisorctl restart ibox-gunicorn ibox-celery ibox-celerybeat
+```
+
+### Trigger an update
+
+```bash
+# via route (returns 202 Accepted)
+curl -s -X POST https://ibox-tv.com/update
+```
+
+### Reprocess a specific Telegram post
+
+```bash
+# remove its dedupe flag in Redis, then trigger update
+redis-cli DEL processed_messages:<message_id>
+curl -s -X POST https://ibox-tv.com/update
+```
+
+### Logs
+
+```bash
+sudo supervisorctl status
+sudo supervisorctl tail -200 ibox-gunicorn stderr
+sudo supervisorctl tail -200 ibox-celery stderr
+sudo tail -200 /var/log/nginx/error.log
+sudo tail -200 /var/log/nginx/access.log
+```
+
+---
+
+## Nuke Panel
+
+* **URL**: `/nuke`
+* **Auth**: prompts for key (`ADMIN_TOKEN`). On success sets a signed cookie for `NUKE_COOKIE_TTL_DAYS` (default 30).
+* **Lockout**: two failed attempts disable the panel until manually re-enabled (clear Redis lock or restart).
+* **Actions**: search, delete, and “group by identical download\_link” to purge duplicates fast.
+* **Robots**: `noindex, nofollow` on all nuke pages.
+
+> Clear lock example (key name may vary):
+
+```bash
+redis-cli DEL nuke:enabled
+sudo supervisorctl restart ibox-gunicorn
+```
+
+---
+
+## SEO
+
+* Clean slugs and canonical tags on detail pages.
+* Listing pages emit `prev/next` when applicable.
+* `sitemap.xml` advertises all detail pages and recent lists.
+* `/admin` answered with a dedicated 404 and disallowed in `robots.txt`.
+
+---
+
+## Postgres Trigram (optional)
+
+```sql
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+```
+
+Your `models.py` defines a GIN trigram index for `show_name` when Postgres is in use.
+
+---
+
+## Updating the App
+
+```bash
+cd /root/tvweb
+git pull
+./venv/bin/pip install -r requirements.txt
+sudo supervisorctl restart ibox-gunicorn ibox-celery ibox-celerybeat
+```
+
+Manual edits (the caveman way you like):
+
+```bash
+cd /root/tvweb/tv_app
+rm -f app.py
+nano app.py
+sudo supervisorctl restart ibox-gunicorn
+```
+
+---
+
+## Troubleshooting
+
+* **Homepage 500: `no such column: tv_shows.clicks`**
+  You changed models but didn’t migrate. Drop/create tables, then restart.
+* **Search fails on `func.similarity`**
+  Not on Postgres or `pg_trgm` missing. Route falls back to `ILIKE`; check gunicorn stderr.
+* **Template errors**
+  Paste the whole file, not Frankenstein chunks. Restart gunicorn.
+* **Nuke shows maintenance instantly**
+  Lockout triggered. Clear Redis key, restart gunicorn, try again.
+
+---
+
+## License
+
+You own your mess. Ship responsibly.
