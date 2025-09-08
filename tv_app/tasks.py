@@ -1,232 +1,274 @@
-# tv_app/tasks.py - DEFINITIVE FINAL version with all logic preserved and enhanced
+# tv_app/tasks.py — acronym-aware, article-tolerant matching; season hint kept
 import os
 import re
-import json
 import asyncio
 import logging
-import hashlib
-import unicodedata
 from typing import Dict, Optional, List
-from datetime import datetime
 
 import aiohttp
 from celery import Celery
 from dotenv import load_dotenv
 from redis import Redis
-from thefuzz import process
+from thefuzz import fuzz, process
 from urllib.parse import quote_plus
 
-# Load environment variables
 load_dotenv()
 
-# --- Configuration ---
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
-# Celery Configuration
 celery = Celery(__name__)
-celery.config_from_object('celeryconfig')
+celery.config_from_object("celeryconfig")
 
-# Constants
 TMDB_BASE_URL = "https://api.themoviedb.org/3"
 TMDB_IMAGE_BASE_URL = "https://image.tmdb.org/t/p/w500"
 
-# --- Helper Functions ---
-def normalize_string(text: Optional[str]) -> str:
-    """Normalizes a string for searching: lowercase, removes emojis/special chars."""
-    if text is None: return ""
-    text = ''.join(c for c in text if c.isprintable())
-    text = text.lower()
-    text = re.sub(r'[^\w\s,&\'-.:]', '', text) # Keep colon for titles like "Dead City"
-    return re.sub(r'\s+', ' ', text).strip()
+# ---------------- text helpers ----------------
+_ACRONYM_DOTS = re.compile(r"\b([A-Z]\.){2,}\b")       # A.T.O.M.
+_NON_BASIC = re.compile(r"[^\w\s,&'\-.:]")
+_TOK = re.compile(r"[a-z0-9]+")
+
+ARTICLES = {"the", "a", "an"}
+
+def collapse_dotted_acronyms(s: str) -> str:
+    def _join(m): return m.group(0).replace(".", "")
+    return _ACRONYM_DOTS.sub(_join, s)
+
+def normalize(s: Optional[str]) -> str:
+    if not s: return ""
+    s = collapse_dotted_acronyms(s)
+    s = "".join(c for c in s if c.isprintable())
+    s = _NON_BASIC.sub("", s)
+    s = re.sub(r"\s+", " ", s).strip()
+    return s.lower()
+
+def tokens(s: str) -> List[str]:
+    return _TOK.findall(s.lower())
+
+def strip_leading_article(s: str) -> str:
+    toks = tokens(s)
+    if toks and toks[0] in ARTICLES:
+        return " ".join(toks[1:])
+    return " ".join(toks)
+
+def stemlike(a: str, b: str) -> bool:
+    # tolerates tiny stems like "atom" vs "atomic"
+    if not a or not b: return False
+    x, y = a.lower(), b.lower()
+    shorter, longer = (x, y) if len(x) <= len(y) else (y, x)
+    return longer.startswith(shorter) and len(longer) - len(shorter) <= 2
+
+def strong_title_score(query: str, candidate: str) -> int:
+    """
+    Prefer exact/token coverage; tolerate dropped leading articles and tiny stems.
+    """
+    qn = normalize(query)
+    cn = normalize(candidate)
+
+    # exact after article-strip
+    if strip_leading_article(qn) == strip_leading_article(cn):
+        return 100
+
+    q_t = tokens(strip_leading_article(qn))
+    c_t = tokens(strip_leading_article(cn))
+    if not q_t or not c_t: return 0
+
+    # single-token: prefer exact, allow tiny stem if very similar
+    if len(q_t) == 1:
+        if c_t == q_t: return 96
+        if len(c_t) == 1 and stemlike(q_t[0], c_t[0]): return 92
+
+    # multi-token: coverage ratio
+    cover = len(set(q_t) & set(c_t)) / len(set(q_t))
+    base = int(85 * cover)
+
+    # small bonus if fuzzy token_set is very high
+    ts = fuzz.token_set_ratio(qn, cn)
+    bonus = 10 if ts >= 92 else 0
+    return min(95, base + bonus)
 
 def parse_season_info(line: str) -> Optional[int]:
-    """Correctly parses a line to find the highest season number from ranges."""
-    # Find all individual numbers in the line
-    numbers = re.findall(r'\d+', line)
-    if not numbers:
-        return None
+    nums = re.findall(r"\d+", line)
+    return max(int(n) for n in nums) if nums else None
 
-    # Convert all found numbers to integers and return the highest one
-    season_numbers = [int(num) for num in numbers]
-    return max(season_numbers) if season_numbers else None
-
+# --------------- telegram ingest ----------------
 async def fetch_new_telegram_posts() -> list:
-    token = os.environ.get('TELEGRAM_BOT_TOKEN')
-    channel_id = os.environ.get('TELEGRAM_CHANNEL_ID')
-    redis_client = Redis.from_url(os.environ.get('REDIS_URL'), decode_responses=True)
+    token = os.environ.get("TELEGRAM_BOT_TOKEN")
+    channel_id = os.environ.get("TELEGRAM_CHANNEL_ID")
+    redis_client = Redis.from_url(os.environ.get("REDIS_URL"), decode_responses=True)
     last_offset_key = f"last_telegram_update_id:{channel_id}"
-    last_offset = redis_client.get(last_offset_key) or 0
+    last_offset = int(redis_client.get(last_offset_key) or 0)
 
     from telegram.ext import Application
 
     try:
-        appli = Application.builder().token(token).build()
-        updates = await appli.bot.get_updates(offset=int(last_offset) + 1, allowed_updates=['channel_post', 'edited_channel_post'], timeout=60)
-        await appli.shutdown()
+        app = Application.builder().token(token).build()
+        updates = await app.bot.get_updates(
+            offset=last_offset + 1,
+            allowed_updates=["channel_post", "edited_channel_post"],
+            timeout=60,
+        )
+        await app.shutdown()
 
-        new_posts = []
-        for update in updates:
-            post_obj = update.channel_post or update.edited_channel_post
-            if (post_obj and post_obj.sender_chat and str(post_obj.sender_chat.id) == channel_id and post_obj.caption):
-                new_posts.append(post_obj)
+        posts = []
+        for u in updates:
+            p = u.channel_post or u.edited_channel_post
+            if p and p.sender_chat and str(p.sender_chat.id) == channel_id and p.caption:
+                posts.append(p)
 
         if updates:
             redis_client.set(last_offset_key, updates[-1].update_id)
-        return new_posts
+        return posts
     except Exception as e:
         logger.exception(f"Error fetching Telegram posts: {e}")
         return []
 
 def parse_telegram_post(post) -> Optional[Dict]:
-    """Parses a Telegram post using the robust, multi-stage logic."""
     try:
         text = post.caption
-        lines = [line.strip() for line in text.splitlines() if line.strip()]
-
+        lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
         if len(lines) < 2: return None
 
-        full_title_from_post = lines[0]
-        season_episode_from_post = lines[1]
+        title_line = lines[0]
+        season_line = lines[1]
 
-        normalized_title = normalize_string(full_title_from_post)
-        show_name_for_search = re.sub(r'\s+\d{4}$', '', normalized_title).strip()
-        search_year_match = re.search(r'(\d{4})$', normalized_title)
-        search_year = int(search_year_match.group(1)) if search_year_match else None
+        norm_title = normalize(title_line)
+        show_name_for_search = re.sub(r"\s+\d{4}$", "", norm_title).strip()
+        year_match = re.search(r"(\d{4})$", norm_title)
+        search_year = int(year_match.group(1)) if year_match else None
+        search_season = parse_season_info(season_line)
 
-        search_season = parse_season_info(season_episode_from_post)
-
-        # --- Flexible, Multi-Method Link Parsing (RESTORED and PRESERVED) ---
+        # link extraction with preference on explicit "click here"
         download_link_from_post = None
         if post.caption_entities:
-            for entity in post.caption_entities:
-                if entity.type == 'text_link':
-                    entity_text = text[entity.offset:entity.offset + entity.length]
-                    if "click here" in entity_text.lower():
-                        download_link_from_post = entity.url
+            for ent in post.caption_entities:
+                if ent.type == "text_link":
+                    et = text[ent.offset: ent.offset + ent.length]
+                    if "click here" in et.lower():
+                        download_link_from_post = ent.url
                         break
-
         if not download_link_from_post and post.caption_entities:
-             for entity in reversed(post.caption_entities):
-                if entity.type == 'text_link':
-                    entity_text = text[entity.offset:entity.offset + entity.length]
-                    if '#_' not in entity_text:
-                        download_link_from_post = entity.url
+            for ent in reversed(post.caption_entities):
+                if ent.type == "text_link":
+                    et = text[ent.offset: ent.offset + ent.length]
+                    if "#_" not in et:
+                        download_link_from_post = ent.url
                         break
-
         if not download_link_from_post:
-            for line in reversed(lines):
-                if '#_' not in line:
-                    match = re.search(r'(https?://\S+)', line)
-                    if match:
-                        download_link_from_post = match.group(1)
-                        break
+            for ln in reversed(lines):
+                if "#_" in ln: continue
+                m = re.search(r"(https?://\S+)", ln)
+                if m:
+                    download_link_from_post = m.group(1)
+                    break
 
         return {
-            'show_name_for_search': show_name_for_search,
-            'search_year': search_year,
-            'search_season': search_season,
-            'season_episode_from_post': season_episode_from_post,
-            'download_link_from_post': download_link_from_post,
-            'message_id': int(post.message_id),
+            "show_name_for_search": show_name_for_search,
+            "search_year": search_year,
+            "search_season": search_season,
+            "season_episode_from_post": season_line,
+            "download_link_from_post": download_link_from_post,
+            "message_id": int(post.message_id),
         }
     except Exception as e:
         logger.exception(f"Error parsing post {post.message_id}: {e}")
         return None
 
+# --------------- tmdb lookup ----------------
 async def fetch_tmdb_data(show_name: str, search_year: Optional[int], search_season: Optional[int]) -> Optional[Dict]:
-    tmdb_bearer_token = os.environ.get('TMDB_BEARER_TOKEN')
+    tmdb_bearer_token = os.environ.get("TMDB_BEARER_TOKEN")
     headers = {"Authorization": f"Bearer {tmdb_bearer_token}"}
 
+    q_name = show_name.strip()
     async with aiohttp.ClientSession(headers=headers) as session:
-        search_url = f"{TMDB_BASE_URL}/search/tv?query={quote_plus(show_name)}&language=en-US"
+        search_url = f"{TMDB_BASE_URL}/search/tv?query={quote_plus(q_name)}&language=en-US"
         try:
-            async with session.get(search_url, timeout=10) as response:
-                response.raise_for_status()
-                search_data = await response.json()
+            async with session.get(search_url, timeout=10) as resp:
+                resp.raise_for_status()
+                search_data = await resp.json()
         except Exception as e:
-            logger.error(f"TMDb API request failed for '{show_name}': {e}")
+            logger.error(f"TMDb search failed for '{q_name}': {e}")
             return None
 
-        if not search_data.get('results'): return None
+        if not search_data.get("results"):
+            return None
 
-        tmdb_results = search_data['results']
-
-        detailed_results = []
-        for result in tmdb_results:
-            detail_url = f"{TMDB_BASE_URL}/tv/{result['id']}?language=en-US"
+        detailed = []
+        for r in search_data["results"]:
+            detail_url = f"{TMDB_BASE_URL}/tv/{r['id']}?language=en-US"
             try:
-                async with session.get(detail_url, timeout=5) as resp:
-                    if resp.status == 200: detailed_results.append(await resp.json())
-            except Exception: continue 
+                async with session.get(detail_url, timeout=5) as d:
+                    if d.status == 200:
+                        detailed.append(await d.json())
+            except Exception:
+                continue
+        if not detailed:
+            return None
 
-        found_result = None
-        if search_year:
-            for result in detailed_results:
-                if result.get('first_air_date') and str(search_year) in result['first_air_date']:
-                    found_result = result
-                    break
+        # rank candidates
+        best = (None, -1)
+        qn = normalize(q_name)
 
-        if not found_result and search_season:
-            best_season_match = None
-            smallest_season_diff = float('inf')
-            for result in detailed_results:
-                season_count = result.get('number_of_seasons', 0)
-                if season_count >= search_season:
-                    diff = abs(season_count - search_season)
-                    if diff < smallest_season_diff:
-                        smallest_season_diff = diff
-                        best_season_match = result
-            if best_season_match: found_result = best_season_match
+        for r in detailed:
+            name = r.get("name") or ""
+            oname = r.get("original_name") or ""
+            s = max(strong_title_score(qn, name), strong_title_score(qn, oname))
 
-        if not found_result:
-            # --- User-Designed "Fuzz First, Length Last" Logic ---
-            show_titles = [r.get('name') for r in detailed_results if r.get('name')]
-            if show_titles:
-                high_confidence_matches = process.extractBests(show_name, show_titles, score_cutoff=85)
+            # year boost
+            fa = r.get("first_air_date") or ""
+            if search_year and fa[:4].isdigit() and int(fa[:4]) == search_year:
+                s += 8
 
-                if high_confidence_matches:
-                    best_match_by_length = None
-                    smallest_length_diff = float('inf')
+            # season-count hint: closer is better; prefer >= requested
+            if search_season:
+                sc = int(r.get("number_of_seasons") or 0)
+                if sc >= search_season:
+                    s += max(0, 6 - abs(sc - search_season))
 
-                    for match_tuple in high_confidence_matches:
-                        match_name = match_tuple[0]
-                        diff = abs(len(match_name) - len(show_name))
-                        if diff < smallest_length_diff:
-                            smallest_length_diff = diff
-                            best_match_by_length = match_name
+            # tiny penalty if candidate looks like pure acronym and query is a real word
+            if len(tokens(name)) == 1 and name.isupper() and len(tokens(qn)) == 1 and not qn.isupper():
+                s -= 8
 
-                    if best_match_by_length:
-                         for r in detailed_results:
-                            if r.get('name') == best_match_by_length:
-                                found_result = r
-                                break
+            if s > best[1]:
+                best = (r, s)
 
-        if not found_result:
-            detailed_results.sort(key=lambda x: x.get('popularity', 0), reverse=True)
-            if detailed_results: found_result = detailed_results[0]
+        found = best[0]
+        if not found:
+            # fuzzy safety net
+            names = [r.get("name") for r in detailed if r.get("name")]
+            pick = process.extractOne(qn, names, scorer=fuzz.token_set_ratio)
+            if pick:
+                for r in detailed:
+                    if r.get("name") == pick[0]:
+                        found = r
+                        break
 
-        if not found_result: return None
+        if not found:
+            return None
 
-        tmdb_id = found_result.get('id')
-        year = int(found_result['first_air_date'][:4]) if found_result.get('first_air_date') else None
+        year = None
+        fa = found.get("first_air_date") or ""
+        if fa[:4].isdigit():
+            year = int(fa[:4])
+
+        logger.info(f"TMDb resolved '{q_name}' -> {found.get('name')} (id={found.get('id')})")
 
         return {
-            'tmdb_id': tmdb_id,
-            'show_name_from_tmdb': found_result.get('name'),
-            'poster_path': f"{TMDB_IMAGE_BASE_URL}{found_result.get('poster_path')}" if found_result.get('poster_path') else None,
-            'overview': found_result.get('overview'),
-            'vote_average': found_result.get('vote_average'),
-            'year': year,
-            'rating': found_result.get('vote_average'),
+            "tmdb_id": found.get("id"),
+            "show_name_from_tmdb": found.get("name"),
+            "poster_path": f"{TMDB_IMAGE_BASE_URL}{found.get('poster_path')}" if found.get("poster_path") else None,
+            "overview": found.get("overview"),
+            "vote_average": found.get("vote_average"),
+            "year": year,
+            "rating": found.get("vote_average"),
         }
 
+# --------------- tasks ----------------
 @celery.task(bind=True, retry_backoff=True, max_retries=3)
 def update_tv_shows(self):
-    redis_client = Redis.from_url(os.environ.get('REDIS_URL'), decode_responses=True)
+    redis_client = Redis.from_url(os.environ.get("REDIS_URL"), decode_responses=True)
     lock = redis_client.lock("update_tv_shows_lock", timeout=120)
     if not lock.acquire(blocking=False): return
-
     try:
         posts = asyncio.run(fetch_new_telegram_posts())
         if not posts: return
@@ -238,51 +280,50 @@ def update_tv_shows(self):
                 processed_key = f"processed_messages:{post.message_id}"
                 if redis_client.exists(processed_key): continue
 
-                parsed_data = parse_telegram_post(post)
-                if not parsed_data: continue
+                parsed = parse_telegram_post(post)
+                if not parsed: continue
 
-                tmdb_data = asyncio.run(fetch_tmdb_data(
-                    parsed_data['show_name_for_search'], 
-                    parsed_data['search_year'], 
-                    parsed_data['search_season']
-                ))
-                if not tmdb_data: continue
+                tmdb = asyncio.run(
+                    fetch_tmdb_data(
+                        parsed["show_name_for_search"],
+                        parsed["search_year"],
+                        parsed["search_season"],
+                    )
+                )
+                if not tmdb: continue
 
-                tmdb_id = tmdb_data.get('tmdb_id')
+                tmdb_id = tmdb["tmdb_id"]
 
-                existing_show = TVShow.query.filter_by(tmdb_id=tmdb_id).first()
-                if existing_show:
-                    db.session.delete(existing_show)
+                existing = TVShow.query.filter_by(tmdb_id=tmdb_id).first()
+                if existing:
+                    db.session.delete(existing)
                     db.session.commit()
-
-                title_to_save = tmdb_data['show_name_from_tmdb']
-                episode_to_save = parsed_data['season_episode_from_post']
-                link_to_save = parsed_data['download_link_from_post']
 
                 new_show = TVShow(
                     tmdb_id=tmdb_id,
-                    show_name=title_to_save,
-                    episode_title=episode_to_save,
-                    download_link=link_to_save,
-                    message_id=parsed_data['message_id'],
-                    poster_path=tmdb_data['poster_path'],
-                    overview=tmdb_data['overview'],
-                    vote_average=tmdb_data['vote_average'],
-                    year=tmdb_data['year'],
-                    rating=tmdb_data['rating'],
-                    content_hash=f"{tmdb_id}-{episode_to_save}"
+                    message_id=parsed["message_id"],
+                    show_name=tmdb["show_name_from_tmdb"],
+                    episode_title=parsed["season_episode_from_post"],
+                    download_link=parsed["download_link_from_post"],
+                    poster_path=tmdb["poster_path"],
+                    overview=tmdb["overview"],
+                    vote_average=tmdb["vote_average"],
+                    year=tmdb["year"],
+                    rating=tmdb["rating"],
+                    content_hash=f"{tmdb_id}-{parsed['season_episode_from_post']}",
                 )
                 db.session.add(new_show)
                 redis_client.set(processed_key, 1, ex=86400)
 
             db.session.commit()
     except Exception as e:
-        logger.exception(f"An error occurred in update_tv_shows: {e}")
+        logger.exception(f"Error in update_tv_shows: {e}")
+        from tv_app.models import db
         db.session.rollback()
     finally:
         if lock.locked(): lock.release()
 
-@celery.task(name='tv_app.tasks.reset_clicks')
+@celery.task(name="tv_app.tasks.reset_clicks")
 def reset_clicks():
     try:
         from tv_app.app import app
@@ -292,8 +333,9 @@ def reset_clicks():
             db.session.commit()
     except Exception as e:
         logger.exception(f"Error in reset_clicks: {e}")
+        from tv_app.models import db
         db.session.rollback()
 
-@celery.task(name='tv_app.tasks.test_task')
+@celery.task(name="tv_app.tasks.test_task")
 def test_task():
     return "Test task complete"
