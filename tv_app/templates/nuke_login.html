@@ -1,5 +1,4 @@
 {% extends "base.html" %}
-
 {% block title %}Nuke Login{% endblock %}
 {% block meta_description %}Restricted maintenance access for iBOX TV housekeeping.{% endblock %}
 {% block head_extra %}<meta name="robots" content="noindex, nofollow">{% endblock %}
@@ -8,18 +7,16 @@
 <div class="container" style="max-width:520px; margin:40px auto;">
   <h1 style="margin-bottom:16px;">Nuke · Login</h1>
 
-  {% if error %}
+  {% if request.args.get('msg') %}
     <div class="alert alert-danger" role="alert" style="margin-bottom:16px;">
-      {{ error }}
+      {{ request.args.get('msg') }}
     </div>
   {% endif %}
 
-  <form method="post" action="{{ url_for('nuke_panel') }}">
-    <input type="hidden" name="next" value="{{ request.args.get('next','') }}">
-
+  <form method="post" action="{{ url_for('nuke_login') }}">
     <div class="form-group" style="margin-bottom:12px;">
-      <label for="key">Access key</label>
-      <input id="key" name="key" type="password" autocomplete="current-password" required
+      <label for="token">Access key</label>
+      <input id="token" name="token" type="password" autocomplete="current-password" required
              style="width:100%; padding:10px; border-radius:8px; border:1px solid #444; background:#111; color:#eee;">
     </div>
 
