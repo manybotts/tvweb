@@ -1,49 +1,64 @@
-# iBOX TV (tvweb) — Deployment & Ops Guide
+# iBOX TV (tvweb) — Deployment & Operations Guide
 
-Flask + Celery + Redis pipeline that ingests TV posts from Telegram, enriches with TMDb, and serves SEO-friendly show pages with clean slugs. Deployed with Nginx + Supervisor. Yes, it actually works.
+A compact, real‑world README that merges the latest deployment process with the important lessons from the older guide. It explains not just **what** to do, but **why**, so you avoid dependency roulette and broken servers at 3 a.m.
 
 ---
 
-## Quick Start (Fresh VPS)
+## 0) What you’re deploying
 
-> Paths assume `/root/tvweb`. Adjust if you like suffering.
+* **Stack**: Flask (Gunicorn) + Celery + Redis + TMDb + Telegram ingest
+* **DB**: SQLite by default; Postgres (e.g., Supabase) recommended for production
+* **Front**: Nginx reverse proxy
+* **Admin**: `/nuke` protected by `ADMIN_TOKEN`, with cookie auth and lockout
+* **SEO**: clean slugs, canonical tags, sitemap, robots, JSON‑LD on show pages
+
+---
+
+## 1) Requirements and versions (important)
+
+**Python:** pinned to **3.8.x** for painless installs. That’s what the repo is tested on. Newer interpreters *may* work, but expect dependency whack‑a‑mole.
+
+**System packages:** you need build tools and headers so pip can compile wheels that aren’t prebuilt for your OS/Python combo.
 
 ```bash
-# 1) System deps
-sudo apt update
-sudo apt install -y python3-venv python3-dev build-essential nginx redis-server supervisor
+sudo apt update && sudo apt upgrade -y
+sudo apt install -y python3.8 python3.8-venv python3.8-dev \
+    build-essential git libpq-dev nginx redis-server supervisor
+```
 
-# 2) App checkout and venv
+> Why: `libpq-dev` is required for Postgres drivers, `build-essential` for C/C++ extensions. Installing these **before** `pip install -r requirements.txt` avoids the failure loop.
+
+---
+
+## 2) Clone, virtualenv, and dependencies
+
+```bash
 cd /root
 git clone https://github.com/<you>/tvweb.git
 cd /root/tvweb
-python3 -m venv venv
+python3.8 -m venv venv
 ./venv/bin/pip install -U pip wheel
 ./venv/bin/pip install -r requirements.txt
-
-# 3) Environment
-nano .env
-# paste the example below, save
-
-# 4) Initialize the database
-./venv/bin/python - <<'PY'
-from tv_app.app import app
-from tv_app.models import db
-with app.app_context():
-    db.create_all()
-print("DB created.")
-PY
 ```
 
-### `.env` example
+> The `requirements.txt` is tailored to Python 3.8 and this stack. Don’t freestyle versions unless you’re ready to debug transitive conflicts.
+
+---
+
+## 3) Environment configuration
+
+Create `.env` in the project root:
 
 ```ini
 # Flask
 SECRET_KEY=change_this
 FLASK_ENV=production
+
+# Database (choose one)
+# SQLite (quick start)
 DATABASE_URL=sqlite:////root/tvweb/tv_shows.db
-# or Postgres:
-# DATABASE_URL=postgresql+psycopg2://user:password@localhost:5432/tvweb
+# Postgres (production recommended: e.g., Supabase session pooler)
+# DATABASE_URL=postgresql+psycopg2://USER:PASSWORD@HOST:PORT/DBNAME
 
 # Redis
 REDIS_URL=redis://localhost:6379/0
@@ -60,14 +75,52 @@ ADMIN_TOKEN=W@ngari327
 NUKE_COOKIE_TTL_DAYS=30
 ```
 
+> Postgres on Supabase: Project Settings → Database → copy the **Session pooler** connection string.
+
 ---
 
-## Supervisor
+## 4) Database create/reset
 
-Three services: Gunicorn (Flask), Celery worker, Celery beat.
+```bash
+# Create tables (first run)
+./venv/bin/python - <<'PY'
+from tv_app.app import app
+from tv_app.models import db
+with app.app_context():
+    db.create_all()
+print("DB created")
+PY
+```
+
+Drop and recreate (when schemas change):
+
+```bash
+./venv/bin/python - <<'PY'
+from tv_app.app import app
+from tv_app.models import db
+with app.app_context():
+    db.drop_all(); db.create_all()
+print("DB reset complete")
+PY
+```
+
+> Legacy backfill (old DB only): if you previously added a `tmdb_id` column and needed to populate it, run your backfill script after adding indices. Fresh installs don’t need this.
+
+---
+
+## 5) Supervisor (process manager)
+
+We recommend **three programs**: Gunicorn web, Celery worker, Celery beat. (You can use a one‑process alternative with `-B`, see below.)
+
+Create logs dir and configs:
+
+```bash
+sudo mkdir -p /var/log/ibox
+```
+
+**Gunicorn** → `/etc/supervisor/conf.d/ibox-gunicorn.conf`
 
 ```ini
-# /etc/supervisor/conf.d/ibox-gunicorn.conf
 [program:ibox-gunicorn]
 directory=/root/tvweb
 command=/root/tvweb/venv/bin/gunicorn -w 3 -b 127.0.0.1:8001 'tv_app.app:app'
@@ -82,8 +135,9 @@ killasgroup=true
 environment=PYTHONPATH="/root/tvweb"
 ```
 
+**Celery worker** → `/etc/supervisor/conf.d/ibox-celery.conf`
+
 ```ini
-# /etc/supervisor/conf.d/ibox-celery.conf
 [program:ibox-celery]
 directory=/root/tvweb
 command=/root/tvweb/venv/bin/celery -A tv_app.tasks worker --loglevel=INFO --concurrency=2
@@ -98,8 +152,9 @@ killasgroup=true
 environment=PYTHONPATH="/root/tvweb"
 ```
 
+**Celery beat** → `/etc/supervisor/conf.d/ibox-celerybeat.conf`
+
 ```ini
-# /etc/supervisor/conf.d/ibox-celerybeat.conf
 [program:ibox-celerybeat]
 directory=/root/tvweb
 command=/root/tvweb/venv/bin/celery -A tv_app.tasks beat --loglevel=INFO
@@ -114,20 +169,39 @@ killasgroup=true
 environment=PYTHONPATH="/root/tvweb"
 ```
 
+Apply and start:
+
 ```bash
-# Create log dir and start
-sudo mkdir -p /var/log/ibox
 sudo supervisorctl reread
 sudo supervisorctl update
 sudo supervisorctl restart ibox-gunicorn ibox-celery ibox-celerybeat
 sudo supervisorctl status
 ```
 
+**Alternate (single process with beat):** if you prefer the older style:
+
+```ini
+# /etc/supervisor/conf.d/ibox-celery-one.conf
+[program:ibox-celery-one]
+directory=/root/tvweb
+command=/root/tvweb/venv/bin/celery -A tv_app.tasks worker -l INFO -c 1 -B
+user=root
+autostart=true
+autorestart=true
+stdout_logfile=/var/log/ibox/celery-one.out.log
+stderr_logfile=/var/log/ibox/celery-one.err.log
+stopasgroup=true
+killasgroup=true
+environment=PYTHONPATH="/root/tvweb"
+```
+
+Use either the 3‑process setup **or** the single `-B` program, not both.
+
 ---
 
-## Nginx
+## 6) Nginx (reverse proxy)
 
-Proxies to Gunicorn on `127.0.0.1:8001`, serves `/static/`, exposes `/healthz`.
+HTTP on 80 proxying to Gunicorn on **127.0.0.1:8001**. Serve static files and expose `/healthz`.
 
 ```nginx
 # /etc/nginx/sites-available/ibox-tv.com
@@ -136,16 +210,13 @@ server {
     server_name ibox-tv.com www.ibox-tv.com;
 
     client_max_body_size 32m;
-    keepalive_timeout 65;
 
-    # Health
     location /healthz {
         proxy_pass http://127.0.0.1:8001/healthz;
         proxy_set_header Host $host;
         proxy_set_header X-Forwarded-For $remote_addr;
     }
 
-    # Static
     location /static/ {
         alias /root/tvweb/tv_app/static/;
         access_log off;
@@ -153,7 +224,6 @@ server {
         add_header Cache-Control "public, max-age=604800";
     }
 
-    # App
     location / {
         proxy_pass http://127.0.0.1:8001;
         proxy_read_timeout 300s;
@@ -163,119 +233,57 @@ server {
         proxy_set_header X-Forwarded-For $remote_addr;
         proxy_set_header X-Forwarded-Proto $scheme;
     }
-
-    gzip on;
-    gzip_types text/plain text/css application/json application/javascript application/xml image/svg+xml;
-    gzip_min_length 1024;
-    gzip_comp_level 5;
 }
 ```
 
+Enable and reload:
+
 ```bash
 sudo ln -s /etc/nginx/sites-available/ibox-tv.com /etc/nginx/sites-enabled/ibox-tv.com
-sudo nginx -t
-sudo systemctl reload nginx
+sudo nginx -t && sudo systemctl reload nginx
 ```
 
-> Using TLS? Put a 301 HTTP→HTTPS server and a separate 443 block with your certs.
-
----
-
-## App Features
-
-* **Show pages**: `/show/<slug>` with canonical, social meta, JSON-LD.
-* **Search**: homepage `?search=` uses trigram similarity on Postgres, falls back to `ILIKE` otherwise.
-* **Listing**: `/shows` with filters (genre, rating bucket, year) + pagination.
-* **Trending**: homepage “Most Watched Today” uses `TVShow.clicks`.
-* **Sitemap/robots**: `/sitemap.xml`, robots disallow `/admin` and serve 404 on `/admin`.
-* **ads.txt**: `/ads.txt` 301s to your Ezoic manager URL.
-* **Health**: `/healthz` to check liveness.
-* **Nuke panel**: `/nuke` guarded by `ADMIN_TOKEN`, cookie-based session, lockout after repeated failures.
-* **Pipeline**: Telegram → Celery → TMDb → DB. Matching tolerates dotted acronyms, dropped articles, tiny stems, and uses year/season hints.
-
----
-
-## Data Flow (Telegram → TMDb → DB)
-
-1. **Telegram post**
-   Line 1: title. Line 2: season/episode info. Link is taken from a `text_link` “CLICK HERE” entity or the last URL found.
-2. **Normalizer & Scoring**
-
-   * “A.T.O.M.” collapses to “ATOM” for matching.
-   * Leading articles (“The”, “A”, “An”) are ignored.
-   * Short stems allowed (e.g., `atom` vs `atomic`) when other signals align.
-   * Year and season count are hints to break ties.
-   * Small penalty when picking an all-caps acronym if your query was a normal word (to avoid “ATOM” stealing “Atomic”).
-3. **De-dupe**
-   If a row with the same `tmdb_id` exists, it’s replaced by the newest post.
-4. **Slug**
-   SEO-safe, unique, auto-generated on insert.
-
----
-
-## Common Ops
-
-### Your preferred edit flow
+**HTTPS:** Install Certbot and issue a certificate:
 
 ```bash
-# Example: update a template
+sudo apt install -y certbot python3-certbot-nginx
+sudo certbot --nginx -d ibox-tv.com -d www.ibox-tv.com
+```
+
+> Older docs that used port **8000** still work if you change Gunicorn `-b 127.0.0.1:8000` and update Nginx `proxy_pass` accordingly.
+
+---
+
+## 7) DNS
+
+Create A records pointing your domain (and `www`) to the VPS IP. If using Cloudflare, proxied orange cloud is fine.
+
+---
+
+## 8) Operating the app (your preferred flow)
+
+```bash
+# edit a file
 cd /root/tvweb/tv_app/templates
 rm -f index.html
 nano index.html
+
+# restart web
 sudo supervisorctl restart ibox-gunicorn
-```
 
-### Reset database (drop and recreate tables)
-
-```bash
-cd /root/tvweb
-./venv/bin/python - <<'PY'
-from tv_app.app import app
-from tv_app.models import db
-with app.app_context():
-    db.drop_all()
-    db.create_all()
-print("DB reset complete.")
-PY
-sudo supervisorctl restart ibox-gunicorn ibox-celery ibox-celerybeat
-```
-
-### Trigger an update
-
-```bash
-# via route (returns 202 Accepted)
+# trigger an ingest/update
 curl -s -X POST https://ibox-tv.com/update
-```
 
-### Reprocess a specific Telegram post
-
-```bash
-# remove its dedupe flag in Redis, then trigger update
-redis-cli DEL processed_messages:<message_id>
-curl -s -X POST https://ibox-tv.com/update
-```
-
-### Logs
-
-```bash
-sudo supervisorctl status
+# logs
 sudo supervisorctl tail -200 ibox-gunicorn stderr
 sudo supervisorctl tail -200 ibox-celery stderr
 sudo tail -200 /var/log/nginx/error.log
-sudo tail -200 /var/log/nginx/access.log
 ```
 
----
+**Nuke panel**
 
-## Nuke Panel
-
-* **URL**: `/nuke`
-* **Auth**: prompts for key (`ADMIN_TOKEN`). On success sets a signed cookie for `NUKE_COOKIE_TTL_DAYS` (default 30).
-* **Lockout**: two failed attempts disable the panel until manually re-enabled (clear Redis lock or restart).
-* **Actions**: search, delete, and “group by identical download\_link” to purge duplicates fast.
-* **Robots**: `noindex, nofollow` on all nuke pages.
-
-> Clear lock example (key name may vary):
+* URL: `/nuke` → prompts for key `ADMIN_TOKEN`. On success sets a cookie for `NUKE_COOKIE_TTL_DAYS`.
+* Lockout after repeated failures. To re‑enable:
 
 ```bash
 redis-cli DEL nuke:enabled
@@ -284,26 +292,42 @@ sudo supervisorctl restart ibox-gunicorn
 
 ---
 
-## SEO
+## 9) Search, SEO, and slugs
 
-* Clean slugs and canonical tags on detail pages.
-* Listing pages emit `prev/next` when applicable.
-* `sitemap.xml` advertises all detail pages and recent lists.
-* `/admin` answered with a dedicated 404 and disallowed in `robots.txt`.
+* Detail pages live at `/show/<slug>`; slugs are generated on insert and guaranteed unique.
+* Homepage search uses Postgres trigram similarity when available, else `ILIKE` fallback.
+* `sitemap.xml` lists detail pages and key lists; `/admin` intentionally 404s and is disallowed in `robots.txt`.
 
----
-
-## Postgres Trigram (optional)
-
-```sql
-CREATE EXTENSION IF NOT EXISTS pg_trgm;
-```
-
-Your `models.py` defines a GIN trigram index for `show_name` when Postgres is in use.
+> If using Postgres: `CREATE EXTENSION IF NOT EXISTS pg_trgm;` for fast fuzzy search.
 
 ---
 
-## Updating the App
+## 10) Why the dependency strategy works
+
+* **Pin Python** (3.8.x) + **pin requirements** → reproducible installs.
+* **Install system headers before pip** → builds succeed first try.
+* **Use venv per project** → no global pollution.
+* When upgrading, do it deliberately: bump one lib, test, commit the new lock.
+
+---
+
+## 11) Troubleshooting
+
+* **Homepage 500, `no such column: tv_shows.clicks`**
+  You changed models without migrating. Run the DB reset snippet, then restart services.
+
+* **Celery won’t start**
+  Run the exact Supervisor command manually to see the real traceback. Syntax errors in `tasks.py` are common.
+
+* **`func.similarity` errors**
+  You’re not on Postgres with `pg_trgm`. The app falls back to `ILIKE`, but you’ll lose the fuzzy ranking.
+
+* **Nuke jumps to maintenance**
+  Lockout tripped. Clear the Redis key shown above and restart Gunicorn.
+
+---
+
+## 12) Updating the app
 
 ```bash
 cd /root/tvweb
@@ -312,7 +336,7 @@ git pull
 sudo supervisorctl restart ibox-gunicorn ibox-celery ibox-celerybeat
 ```
 
-Manual edits (the caveman way you like):
+> Manual edits the old‑school way:
 
 ```bash
 cd /root/tvweb/tv_app
@@ -323,19 +347,6 @@ sudo supervisorctl restart ibox-gunicorn
 
 ---
 
-## Troubleshooting
-
-* **Homepage 500: `no such column: tv_shows.clicks`**
-  You changed models but didn’t migrate. Drop/create tables, then restart.
-* **Search fails on `func.similarity`**
-  Not on Postgres or `pg_trgm` missing. Route falls back to `ILIKE`; check gunicorn stderr.
-* **Template errors**
-  Paste the whole file, not Frankenstein chunks. Restart gunicorn.
-* **Nuke shows maintenance instantly**
-  Lockout triggered. Clear Redis key, restart gunicorn, try again.
-
----
-
 ## License
 
-You own your mess. Ship responsibly.
+You own your deployment. Ship responsibly.
