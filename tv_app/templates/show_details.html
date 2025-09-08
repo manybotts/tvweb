@@ -1,10 +1,21 @@
 {% extends 'base.html' %}
 
-{# --- SEO Change: Use title variable passed from route --- #}
 {% block title %}{{ title }}{% endblock %}
-
-{# --- SEO Change: Use meta_description variable passed from route --- #}
 {% block meta_description %}{{ meta_description }}{% endblock %}
+
+{% block social_meta %}
+<meta property="og:title" content="{{ title }}">
+<meta property="og:type" content="article">
+<meta property="og:url" content="{{ canonical_url }}">
+{% if show.poster_path %}<meta property="og:image" content="{{ show.poster_path }}">{% endif %}
+<meta property="og:site_name" content="iBOX TV">
+<meta property="og:description" content="{{ meta_description }}">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="{{ title }}">
+<meta name="twitter:description" content="{{ meta_description }}">
+{% if show.poster_path %}<meta name="twitter:image" content="{{ show.poster_path }}">{% endif %}
+{% endblock %}
 
 {% block content %}
 <div class="show-details-container">
@@ -49,34 +60,43 @@
             {% if show.download_link %}
                 <a href="{{ url_for('redirect_to_download', show_id=show.id) }}" class="download-button">Download Now</a>
 
-                {# --- START OF UPDATED ADVERTISEMENT CONTAINER --- #}
+                <!-- AD CONTAINER (kept) -->
                 <div id="custom-ad-container">
                     <button id="hide-ads-btn" title="Hide ads for this session">Hide Ads &times;</button>
-                    
-                    {# Netflix Ad Block #}
                     <div class="custom-ad-tile">
                         <span class="custom-ad-disclaimer">(AD)</span>
-                        <strong style="color: #ffcc00;">Free Netflix Premium Mod.apk</strong><br>
+                        <strong style="color:#ffcc00;">Free Netflix Premium Mod.apk</strong><br>
                         <a href="https://ycapp.co/infmb" class="custom-ad-link">ANDROID USERS</a> |
                         <a href="https://tvapk.link/inyc/" class="custom-ad-link">IOS OR PC USERS</a>
                     </div>
-
-                    {# Adult Content Ad Block with Red Text #}
                     <div class="custom-ad-tile">
                         <span class="custom-ad-disclaimer">(AD)</span>
-                        <strong style="color: #ff4d4d;">Click for Adult/Erotic Content</strong><br>
-                        <a href="https://t.me/+m4TxlUvDjWpjOTNk" style="color: #ff8080;" class="custom-ad-link">JOIN NOW</a>
+                        <strong style="color:#ff4d4d;">Click for Adult/Erotic Content</strong><br>
+                        <a href="https://t.me/+m4TxlUvDjWpjOTNk" style="color:#ff8080;" class="custom-ad-link">JOIN NOW</a>
                     </div>
                 </div>
-                {# --- END OF UPDATED ADVERTISEMENT CONTAINER --- #}
-
             {% else %}
                 <p><em>Download link not available for this item.</em></p>
             {% endif %}
         </div>
 
-        <div class="text-center my-4">
-        </div>
+        <div class="text-center my-4"></div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts_extra %}
+<script type="application/ld+json">
+{
+  "@context":"https://schema.org",
+  "@type":"TVEpisode",
+  "name": {{ (show.episode_title or show.show_name)|tojson }},
+  {% if show.overview %}"description": {{ show.overview|tojson }},{% endif %}
+  {% if show.poster_path %}"image": {{ show.poster_path|tojson }},{% endif %}
+  "url": {{ canonical_url|tojson }},
+  "partOfSeries":{"@type":"TVSeries","name": {{ show.show_name|tojson }}},
+  {% if show.rating or show.vote_average %}"aggregateRating":{"@type":"AggregateRating","ratingValue": "{{ show.rating or show.vote_average }}","ratingCount":"1"}, {% endif %}
+  {% if show.created_at %}"datePublished": "{{ show.created_at.date().isoformat() }}"{% endif %}
+}
+</script>
 {% endblock %}
