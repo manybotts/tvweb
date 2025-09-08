@@ -3,47 +3,47 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    {# --- SEO Change: Updated Title Structure --- #}
-    <title>{% block title %}{% endblock %} | iBOX TV</title> {# Changed suffix to brand name #}
 
-    {# --- SEO Change: Added Meta Description Block --- #}
-    <meta name="description" content="{% block meta_description %}Find, search, and download your favorite TV shows and series quickly and easily on iBOX TV.{% endblock %}"> {# Default description #}
+    <title>{% block title %}{% endblock %} | iBOX TV</title>
+    <meta name="description" content="{% block meta_description %}Find, search, and download your favorite TV shows and series quickly and easily on iBOX TV.{% endblock %}">
 
+    <!-- Cookie consent + CMP + ads (unchanged) -->
     <script type="text/javascript" src="https://www.termsfeed.com/public/cookie-consent/4.2.0/cookie-consent.js" charset="UTF-8"></script>
     <script type="text/javascript" charset="UTF-8">
     document.addEventListener('DOMContentLoaded', function () {
-    cookieconsent.run({"notice_banner_type":"simple","consent_type":"express","palette":"dark","language":"en","page_load_consent_levels":["strictly-necessary"],"notice_banner_reject_button_hide":false,"preferences_center_close_button_hide":false,"page_refresh_confirmation_buttons":false,"website_name":"iBOX TV","website_privacy_policy_url":"https://ibox-tv.com/privacy-policy"});
+      cookieconsent.run({"notice_banner_type":"simple","consent_type":"express","palette":"dark","language":"en","page_load_consent_levels":["strictly-necessary"],"notice_banner_reject_button_hide":false,"preferences_center_close_button_hide":false,"page_refresh_confirmation_buttons":false,"website_name":"iBOX TV","website_privacy_policy_url":"https://ibox-tv.com/privacy-policy"});
     });
     </script>
-    
     <script src="https://cmp.gatekeeperconsent.com/min.js" data-cfasync="false"></script>
     <script src="https://the.gatekeeperconsent.com/cmp.min.js" data-cfasync="false"></script>
-
     <script async src="//www.ezojs.com/ezoic/sa.min.js"></script>
     <script>
-    window.ezstandalone = window.ezstandalone || {};
-    ezstandalone.cmd = ezstandalone.cmd || [];
+      window.ezstandalone = window.ezstandalone || {};
+      ezstandalone.cmd = ezstandalone.cmd || [];
     </script>
-    
-    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3351229899410110"
-     crossorigin="anonymous"></script>
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3351229899410110" crossorigin="anonymous"></script>
 
-    <script type="text/plain" data-cookie-consent="tracking" async src="https://www.googletagmanager.com/gtag/js?id=G-XJQ6LC2PP9"></script> {# Use YOUR ID #}
+    <!-- RESTORED: Font Awesome so your nav icons show up -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" integrity="sha512-9usAa10IRO0HhonpyAIVpjrylPvoDwiPUiKdWk5t3PyolY1cOd4DSE0Ga+ri4AuTroPR5aQvXU9xC6qOPnzFeg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+
+    <script type="text/plain" data-cookie-consent="tracking" async src="https://www.googletagmanager.com/gtag/js?id=G-XJQ6LC2PP9"></script>
     <script type="text/plain" data-cookie-consent="tracking">
-      window.dataLayer = window.dataLayer || [];
+      window.dataLayer=window.dataLayer||[];
       function gtag(){dataLayer.push(arguments);}
       gtag('js', new Date());
-
-      gtag('config', 'G-XJQ6LC2PP9'); {# Use YOUR ID #}
+      gtag('config','G-XJQ6LC2PP9');
     </script>
-    <noscript>Free cookie consent management tool by <a href="https://www.termsfeed.com/">TermsFeed Generator</a></noscript>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" integrity="sha512-9usAa10IRO0HhonpyAIVpjrylPvoDwiPUiKdWk5t3PyolY1cOd4DSE0Ga+ri4AuTroPR5aQvXU9xC6qOPnzFeg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+
     <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v={{ range(1, 10000) | random }}">
     <script src="{{ url_for('static', filename='script.js') }}?v={{ range(1, 10000) | random }}"></script>
 
-    {# Removed Plausible script line #}
-
+    <!-- SEO controls -->
+    {% if canonical_url %}<link rel="canonical" href="{{ canonical_url }}">{% endif %}
+    {% if meta_robots %}<meta name="robots" content="{{ meta_robots }}">{% endif %}
+    {% if prev_url %}<link rel="prev" href="{{ prev_url }}">{% endif %}
+    {% if next_url %}<link rel="next" href="{{ next_url }}">{% endif %}
+    {% block social_meta %}{% endblock %}
     {% block head_extra %}{% endblock %}
 </head>
 <body>
@@ -53,8 +53,12 @@
                 <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" class="logo">
             </a>
             <div class="nav-links">
-                <a href="{{ url_for('index') }}" class="nav-link"><i class="fas fa-home"></i><span class="link-text">Home</span></a>
-                <a href="{{ url_for('list_shows') }}" class="nav-link"><i class="fas fa-tv"></i><span class="link-text">Shows</span></a>
+                <a href="{{ url_for('index') }}" class="nav-link">
+                  <i class="fas fa-home"></i><span class="link-text">Home</span>
+                </a>
+                <a href="{{ url_for('list_shows') }}" class="nav-link">
+                  <i class="fas fa-tv"></i><span class="link-text">Shows</span>
+                </a>
                 <span class="brand-text"><span class="ibox-text">iBOX</span><span class="tv-text">TV</span></span>
                 <button type="button" class="search-icon-button">
                     <i class="fas fa-search"></i>
@@ -62,7 +66,7 @@
             </div>
             <div class="floating-search">
                 <form action="{{ url_for('index') }}" method="GET">
-                    <input type="text" name="search" placeholder="Search for shows..." class="search-input">
+                    <input type="text" name="search" placeholder="Search for shows..." class="search-input" value="{{ search_query or '' }}">
                     <button type="submit" class="search-button"><i class="fas fa-search"></i></button>
                 </form>
             </div>
@@ -74,34 +78,24 @@
     </div>
 
     <footer>
-        <div class="container" style="text-align: center; padding: 15px; font-size: 0.9em; color: #ccc;"> {# Basic inline style example #}
-            <p>
-                {# Ensure 'now' object is passed to context or handle year differently #}
-                &copy; {% set current_year = now().year %}{{ current_year }} iBOX TV |
-                <a href="{{ url_for('privacy_policy') }}" style="color: #ccc;">Privacy Policy</a> |
-                <a href="#" id="open_preferences_center" style="color: #ccc;">Update Cookies Preferences</a>
+        <div class="container" style="text-align:center;padding:15px;font-size:.9em;color:#ccc;">
+            <p>&copy; {{ now().year }} iBOX TV |
+               <a href="{{ url_for('privacy_policy') }}" style="color:#ccc;">Privacy Policy</a> |
+               <a href="#" id="open_preferences_center" style="color:#ccc;">Update Cookies Preferences</a>
             </p>
         </div>
     </footer>
 
     {% block scripts_extra %}{% endblock %}
 
-    {# EZOIC - Add this script block before the closing </body> tag - START #}
     <script type="text/javascript">
-        window.ezstandalone = window.ezstandalone || {};
-        ezstandalone.cmd = ezstandalone.cmd || [];
-        ezstandalone.cmd.push(function() {
-            // This will call showAds for all Ezoic placeholders found on the current page
-            if (typeof ezstandalone === 'object' && typeof ezstandalone.showAds === 'function') { // Extra safety check
-                 ezstandalone.showAds();
-                // Optional: for your debugging in the browser console. Remove for production if desired.
-                console.log("Ezoic: ezstandalone.showAds() called for all placeholders on this page.");
-            } else {
-                // Optional: for your debugging. Remove for production if desired.
-                console.log("Ezoic: ezstandalone object or showAds function not found.");
-            }
-        });
+      window.ezstandalone=window.ezstandalone||{};
+      ezstandalone.cmd=ezstandalone.cmd||[];
+      ezstandalone.cmd.push(function(){
+        if(typeof ezstandalone==='object' && typeof ezstandalone.showAds==='function'){
+          ezstandalone.showAds();
+        }
+      });
     </script>
-    {# EZOIC - Add this script block before the closing </body> tag - END #}
 </body>
 </html>
