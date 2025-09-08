@@ -1,18 +1,13 @@
 {% extends "base.html" %}
 
-{# --- SEO Change: Updated Title --- #}
 {% block title %}Browse All TV Shows for Download{% endblock %}
-
-{# --- SEO Change: Added Meta Description --- #}
 {% block meta_description %}Explore the full list of available TV shows on iBOX TV. Filter by genre, rating, year, and sort results to find your next download.{% endblock %}
 
 {% block content %}
     <h2><span class="show-label-icon"></span>Available TV Shows</h2>
 
-    {# --- FILTER FORM --- #}
     <form method="GET" action="{{ url_for('list_shows') }}" class="filter-form">
-        {# ... filter groups remain the same as your last version ... #}
-         <div class="filter-group">
+        <div class="filter-group">
             <label for="genre">Genre:</label>
             <select id="genre" name="genre">
                 <option value="">All Genres</option>
@@ -58,7 +53,6 @@
         <a href="{{ url_for('list_shows') }}" class="reset-button">Reset</a>
     </form>
 
-    {# Pagination Links (TOP) #}
     <div class="pagination">
         {% if shows.has_prev %}
             <a href="{{ url_for('list_shows', page=shows.prev_num, genre=selected_genre, rating=selected_rating, year=selected_year, sort_by=current_sort_by) }}">Previous</a>
@@ -85,12 +79,10 @@
         {% endif %}
     </div>
 
-    {# --- Show List --- Changed link target based on review --- #}
     <div class="show-list">
         {% for show in shows.items %}
-             {# Link to the show details page directly #}
-            <a href="{{ url_for('show_details', show_id=show.id) }}" class="show-item">
-                {{ show.show_name }} {% if show.rating is not none %} ({{ "%.1f"|format(show.rating) }}) {% endif %} {# Format rating #}
+            <a href="{{ url_for('show_details', slug=show.slug) }}" class="show-item">
+                {{ show.show_name }}{% if show.rating is not none %} ({{ "%.1f"|format(show.rating) }}){% endif %}
             </a>
         {% endfor %}
         {% if not shows.items %}
@@ -98,11 +90,9 @@
         {% endif %}
     </div>
 
-    {# Pagination Links (BOTTOM) - Identical to top #}
     <div class="pagination">
-       {# ... pagination code identical to the top ... #}
-         {% if shows.has_prev %}
-             <a href="{{ url_for('list_shows', page=shows.prev_num, genre=selected_genre, rating=selected_rating, year=selected_year, sort_by=current_sort_by) }}">Previous</a>
+        {% if shows.has_prev %}
+            <a href="{{ url_for('list_shows', page=shows.prev_num, genre=selected_genre, rating=selected_rating, year=selected_year, sort_by=current_sort_by) }}">Previous</a>
         {% else %}
             <span class="disabled">Previous</span>
         {% endif %}
@@ -126,4 +116,3 @@
         {% endif %}
     </div>
 {% endblock %}
-
