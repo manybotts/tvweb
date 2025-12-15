@@ -181,9 +181,9 @@ h2 {
 }
 
 @media (max-width: 768px) {
-	.nav-link .link-text {
-		display: none;
-	}
+    .nav-link .link-text {
+        display: none;
+    }
 }
 
 .eye-icon::before {
@@ -235,7 +235,7 @@ h2 {
     margin-bottom: 4vw;
 }
 .show-card:hover {
-	transform: translateY(-7px);
+    transform: translateY(-7px);
 }
 
 .show-card a {
@@ -429,6 +429,10 @@ h2 {
 .download-button:hover {
     background-color: #0056b3;
 }
+/* --- PART 1 END --- */
+/* --- PART 2 START --- */
+
+/* --- Slideshow Logic --- */
 
 .slideshow-container {
     position: relative;
@@ -474,13 +478,14 @@ h2 {
 }
 
 .mobile-slideshow .mySlides.active-slide {
-	opacity: 1;
-	transform: scale(1);
-	z-index: 2;
-     margin: 0;
+    opacity: 1;
+    transform: scale(1);
+    z-index: 2;
+    margin: 0;
 }
-.mobile-slideshow .mySlides:not(.active-slide){
-        filter: brightness(0.5) blur(2px);
+
+.mobile-slideshow .mySlides:not(.active-slide) {
+    filter: brightness(0.5) blur(2px);
     transform: scale(0.8);
 }
 
@@ -576,7 +581,7 @@ h2 {
     width: 100%;
     height: 100%;
     align-items: center;
-     transition: transform 0.5s ease;
+    transition: transform 0.5s ease;
 }
 
 .desktop-slideshow .mySlides {
@@ -591,24 +596,26 @@ h2 {
     display: none;
 }
 
-.desktop-slideshow .mySlides.active-slide{
-     opacity: 1;
+.desktop-slideshow .mySlides.active-slide {
+    opacity: 1;
     transform: scale(1.1);
     z-index: 2;
 }
-.desktop-slideshow .mySlides:not(.active-slide){
-     filter: brightness(0.5) blur(1px);
+
+.desktop-slideshow .mySlides:not(.active-slide) {
+    filter: brightness(0.5) blur(1px);
     transform: scale(0.8);
 }
 
-.desktop-slideshow .slideshow-image{
+.desktop-slideshow .slideshow-image {
     width: 100%;
     height: 100%;
     object-fit: cover;
     display: block;
-     border-radius: 8px;
+    border-radius: 8px;
 }
-.desktop-slideshow .slide-caption{
+
+.desktop-slideshow .slide-caption {
     position: absolute;
     bottom: 10px;
     left: 50%;
@@ -622,12 +629,12 @@ h2 {
     text-align: center;
     width: auto;
     white-space: nowrap;
-     z-index: 3;
+    z-index: 3;
 }
 
 .desktop-slideshow .prev,
-.desktop-slideshow .next{
-     cursor: pointer;
+.desktop-slideshow .next {
+    cursor: pointer;
     position: absolute;
     top: 50%;
     transform: translateY(-50%);
@@ -644,20 +651,20 @@ h2 {
     border-radius: 5px;
 }
 
-.desktop-slideshow .next{
-     right: 0;
+.desktop-slideshow .next {
+    right: 0;
     border-radius: 5px 0 0 5px;
 }
 
-.desktop-slideshow .prev{
+.desktop-slideshow .prev {
     left: 0;
     border-radius: 0 5px 5px 0;
 }
-.desktop-slideshow .prev:hover,
-.desktop-slideshow .next:hover{
-   background-color: rgba(0, 0, 0, 0.8);
-}
 
+.desktop-slideshow .prev:hover,
+.desktop-slideshow .next:hover {
+    background-color: rgba(0, 0, 0, 0.8);
+}
 
 @media (max-width: 768px) {
     .desktop-slideshow {
@@ -666,35 +673,35 @@ h2 {
     .mobile-slideshow {
         display: block;
     }
-
 }
 
-    @media (min-width: 992px) and (max-width: 1199px) {
-        .desktop-slideshow .mySlides {
-           width: calc((100% / 4) - 16px);
-           margin: 0 8px;
-        }
-         .mobile-slideshow{
-            display:none
-         }
-         .desktop-slideshow{
-            display:block;
-         }
+@media (min-width: 992px) and (max-width: 1199px) {
+    .desktop-slideshow .mySlides {
+        width: calc((100% / 4) - 16px);
+        margin: 0 8px;
     }
-
-    @media (min-width: 1200px) {
-
-          .desktop-slideshow .mySlides {
-           width: calc((100% / 5) - 16px);
-            margin: 0 8px;
-        }
-         .mobile-slideshow{
-            display:none
-         }
-         .desktop-slideshow{
-            display:block;
-         }
+    .mobile-slideshow {
+        display: none
     }
+    .desktop-slideshow {
+        display: block;
+    }
+}
+
+@media (min-width: 1200px) {
+    .desktop-slideshow .mySlides {
+        width: calc((100% / 5) - 16px);
+        margin: 0 8px;
+    }
+    .mobile-slideshow {
+        display: none
+    }
+    .desktop-slideshow {
+        display: block;
+    }
+}
+
+/* --- Show Details & Ad Layout --- */
 
 .show-details-container {
     padding: 20px;
@@ -723,10 +730,21 @@ h2 {
     margin-bottom: 10px;
 }
 
-.show-details-content {
+/* UPDATED: Ad Layout Wrapper */
+.ad-layout-wrapper {
+    display: flex;
+    flex-direction: column; /* Mobile: Stack Vertically */
+    gap: 20px;
+    width: 100%;
+    margin-top: 20px;
+}
+
+/* UPDATED: Main Content Area (Renamed from .show-details-content) */
+.show-details-main {
     display: flex;
     flex-direction: column;
     gap: 15px;
+    flex: 1;
 }
 
 .show-image-container {
@@ -752,22 +770,35 @@ h2 {
     margin-bottom: 5px;
 }
 
-.overview,
-.rating,
-.genres,
-.year {
+.overview, .rating, .genres, .year {
     margin-top: 0;
     margin-bottom: 8px;
     line-height: 1.4;
 }
 
-.text-center.my-4 {
-    margin-top: 10px;
-    margin-bottom: 10px;
+/* New Horizontal Ad Slots */
+.ad-horizontal-top {
+    width: 100%;
+    margin: 15px 0;
+    text-align: center;
+    min-height: 50px;
 }
 
+.ad-horizontal-bottom {
+    width: 100%;
+    margin: 20px 0;
+    text-align: center;
+    min-height: 250px;
+}
+
+/* Sidebars (Hidden by default) */
+.ad-sidebar {
+    display: none;
+}
+
+/* Tablet View: Poster next to Info, Sidebars still hidden */
 @media (min-width: 769px) {
-    .show-details-content {
+    .show-details-main {
         flex-direction: row;
     }
 
@@ -785,6 +816,29 @@ h2 {
         width: auto;
     }
 }
+
+/* Desktop View: Reveal Sidebars (Holy Grail Layout) */
+@media (min-width: 992px) {
+    .ad-layout-wrapper {
+        flex-direction: row; /* Left | Main | Right */
+        justify-content: center;
+    }
+
+    .ad-sidebar {
+        display: block;
+        width: 160px; /* Skyscraper width */
+        min-width: 160px;
+        flex-shrink: 0;
+    }
+    
+    .ad-sticky-container {
+        position: sticky;
+        top: 90px; /* Stick to top while scrolling */
+    }
+}
+
+
+/* --- Filter Form & Misc --- */
 
 .filter-form {
     display: flex;
@@ -821,13 +875,13 @@ h2 {
     flex-grow: 1;
     min-width: 100px;
 }
-.filter-form select{
+
+.filter-form select {
     height: 36px;
 }
 
 .filter-form button[type="submit"],
-.filter-form .reset-button
- {
+.filter-form .reset-button {
     padding: 8px 12px;
     background-color: #e50914;
     color: white;
@@ -840,11 +894,11 @@ h2 {
 }
 
 .filter-form button[type="submit"]:hover,
-.filter-form .reset-button:hover
- {
+.filter-form .reset-button:hover {
     background-color: #b20709;
 }
-.filter-form .reset-button{
+
+.filter-form .reset-button {
     text-decoration: none;
     display: inline-block;
 }
@@ -854,20 +908,20 @@ h2 {
         flex-direction: column;
         align-items: stretch;
     }
-    .filter-group{
-      width: 100%;
+    .filter-group {
+        width: 100%;
     }
-     .filter-form select,
+    .filter-form select,
     .filter-form input[type="number"] {
         width: 100%;
     }
 }
 
-/* --- Styles for Ad Tiles (Corrected with Unique Names) --- */
+/* --- Styles for Custom Ad Tiles --- */
 #custom-ad-container {
     position: relative;
     margin-top: 20px;
-    padding-top: 30px; /* Space for the hide button */
+    padding-top: 30px;
 }
 
 #custom-ad-container .custom-ad-tile {
@@ -912,5 +966,5 @@ h2 {
 #custom-ad-container #hide-ads-btn:hover {
     background: #555;
     color: #fff;
-	    }
-	
+}
+/* --- PART 2 END --- */
