@@ -26,45 +26,94 @@
     {% endif %}
   </div>
 
-  <div class="show-details-content">
-    <div class="show-image-container">
-      {% if show.poster_path %}
-        <img src="{{ show.poster_path }}" alt="{{ show.show_name }} Poster" class="show-image" loading="lazy">
-      {% else %}
-        <div class="placeholder-image">No Poster Available</div>
-      {% endif %}
+  <div class="ad-layout-wrapper">
+
+    <div class="ad-sidebar left-sidebar">
+      <div class="ad-sticky-container">
+        <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3351229899410110"
+             crossorigin="anonymous"></script>
+        <ins class="adsbygoogle"
+             style="display:block"
+             data-ad-client="ca-pub-3351229899410110"
+             data-ad-slot="9819581395"
+             data-ad-format="auto"
+             data-full-width-responsive="true"></ins>
+        <script>
+             (adsbygoogle = window.adsbygoogle || []).push({});
+        </script>
+      </div>
     </div>
 
-    <div class="show-info">
-      {% if show.overview %}
-        <h2>Overview</h2>
-        <p class="overview">{{ show.overview }}</p>
-      {% endif %}
+    <div class="show-details-main">
+      <div class="show-image-container">
+        {% if show.poster_path %}
+          <img src="{{ show.poster_path }}" alt="{{ show.show_name }} Poster" class="show-image" loading="lazy">
+        {% else %}
+          <div class="placeholder-image">No Poster Available</div>
+        {% endif %}
+      </div>
 
-      {% if show.vote_average %}
-        <p class="rating"><strong>Rating:</strong> {{ "%.1f"|format(show.vote_average) }}/10</p>
-      {% endif %}
+      <div class="show-info">
+        {% if show.overview %}
+          <h2>Overview</h2>
+          <p class="overview">{{ show.overview }}</p>
+        {% endif %}
 
-      {% if show.genres %}
-        <p class="genres"><strong>Genres:</strong>
-          {% for genre in show.genres %}
-            {{ genre.name }}{% if not loop.last %}, {% endif %}
-          {% endfor %}
-        </p>
-      {% endif %}
+        {% if show.vote_average %}
+          <p class="rating"><strong>Rating:</strong> {{ "%.1f"|format(show.vote_average) }}/10</p>
+        {% endif %}
 
-      {% if show.year %}
-        <p class="year"><strong>Year:</strong> {{ show.year }}</p>
-      {% endif %}
+        {% if show.genres %}
+          <p class="genres"><strong>Genres:</strong>
+            {% for genre in show.genres %}
+              {{ genre.name }}{% if not loop.last %}, {% endif %}
+            {% endfor %}
+          </p>
+        {% endif %}
 
-      {% if show.download_link %}
-        <a href="{{ url_for('redirect_to_download', show_id=show.id) }}" class="download-button" rel="nofollow">Download Now</a>
-      {% else %}
-        <p><em>Download link not available for this item.</em></p>
-      {% endif %}
+        {% if show.year %}
+          <p class="year"><strong>Year:</strong> {{ show.year }}</p>
+        {% endif %}
+
+        {% if show.download_link %}
+          <a href="{{ url_for('redirect_to_download', show_id=show.id) }}" class="download-button" rel="nofollow">Download Now</a>
+        {% else %}
+          <p><em>Download link not available for this item.</em></p>
+        {% endif %}
+
+        <div class="ad-horizontal-bottom">
+          <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3351229899410110"
+               crossorigin="anonymous"></script>
+          <ins class="adsbygoogle"
+               style="display:block"
+               data-ad-client="ca-pub-3351229899410110"
+               data-ad-slot="2469357376"
+               data-ad-format="auto"
+               data-full-width-responsive="true"></ins>
+          <script>
+               (adsbygoogle = window.adsbygoogle || []).push({});
+          </script>
+        </div>
+
+      </div>
     </div>
 
-    <div class="text-center my-4"></div>
+    <div class="ad-sidebar right-sidebar">
+      <div class="ad-sticky-container">
+        <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3351229899410110"
+             crossorigin="anonymous"></script>
+        <ins class="adsbygoogle"
+             style="display:block"
+             data-ad-client="ca-pub-3351229899410110"
+             data-ad-slot="6120009539"
+             data-ad-format="auto"
+             data-full-width-responsive="true"></ins>
+        <script>
+             (adsbygoogle = window.adsbygoogle || []).push({});
+        </script>
+      </div>
+    </div>
+
   </div>
 </div>
 {% endblock %}
