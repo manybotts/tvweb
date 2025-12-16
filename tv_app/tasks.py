@@ -1,4 +1,4 @@
-# tv_app/tasks.py — acronym-aware, article-tolerant matching; season hint kept
+# tv_app/tasks.py — aggressively clean years to fix search; fixed app context for rollback
 import os
 import re
 import asyncio
@@ -52,20 +52,15 @@ def strip_leading_article(s: str) -> str:
     return " ".join(toks)
 
 def stemlike(a: str, b: str) -> bool:
-    # tolerates tiny stems like "atom" vs "atomic"
     if not a or not b: return False
     x, y = a.lower(), b.lower()
     shorter, longer = (x, y) if len(x) <= len(y) else (y, x)
     return longer.startswith(shorter) and len(longer) - len(shorter) <= 2
 
 def strong_title_score(query: str, candidate: str) -> int:
-    """
-    Prefer exact/token coverage; tolerate dropped leading articles and tiny stems.
-    """
     qn = normalize(query)
     cn = normalize(candidate)
 
-    # exact after article-strip
     if strip_leading_article(qn) == strip_leading_article(cn):
         return 100
 
@@ -73,16 +68,12 @@ def strong_title_score(query: str, candidate: str) -> int:
     c_t = tokens(strip_leading_article(cn))
     if not q_t or not c_t: return 0
 
-    # single-token: prefer exact, allow tiny stem if very similar
     if len(q_t) == 1:
         if c_t == q_t: return 96
         if len(c_t) == 1 and stemlike(q_t[0], c_t[0]): return 92
 
-    # multi-token: coverage ratio
     cover = len(set(q_t) & set(c_t)) / len(set(q_t))
     base = int(85 * cover)
-
-    # small bonus if fuzzy token_set is very high
     ts = fuzz.token_set_ratio(qn, cn)
     bonus = 10 if ts >= 92 else 0
     return min(95, base + bonus)
@@ -93,15 +84,10 @@ def parse_season_info(line: str) -> Optional[int]:
 
 # --------------- telegram ingest ----------------
 async def fetch_new_telegram_posts(channel_env_var: str, redis_key_suffix: str) -> list:
-    """
-    Fetches posts from a specific channel defined by channel_env_var.
-    Tracks offset using redis_key_suffix.
-    """
     token = os.environ.get("TELEGRAM_BOT_TOKEN")
     channel_id = os.environ.get(channel_env_var)
     
     if not channel_id:
-        # Only log error if it's the main channel missing; anime might be optional initially
         if channel_env_var == 'TELEGRAM_CHANNEL_ID':
             logger.error(f"Missing env var: {channel_env_var}")
         return []
@@ -124,7 +110,6 @@ async def fetch_new_telegram_posts(channel_env_var: str, redis_key_suffix: str) 
         posts = []
         for u in updates:
             p = u.channel_post or u.edited_channel_post
-            # Check if post exists and matches the requested channel ID
             if p and p.sender_chat and str(p.sender_chat.id) == channel_id and p.caption:
                 posts.append(p)
 
@@ -144,13 +129,33 @@ def parse_telegram_post(post) -> Optional[Dict]:
         title_line = lines[0]
         season_line = lines[1]
 
-        norm_title = normalize(title_line)
-        show_name_for_search = re.sub(r"\s+\d{4}$", "", norm_title).strip()
+        # --- FIX: AGGRESSIVE YEAR STRIPPING ---
+        # 1. Replace brackets with spaces so (2024) becomes " 2024 "
+        clean_line = re.sub(r"[\[\]\(\)]", " ", title_line)
+        
+        # 2. Normalize (removes symbols, lowercases)
+        norm_title = normalize(clean_line)
+
+        # 3. Find Year at the END of the string
+        # \s* means "zero or more spaces", capturing attached years like "Show2024"
         year_match = re.search(r"(\d{4})$", norm_title)
-        search_year = int(year_match.group(1)) if year_match else None
+        
+        search_year = None
+        show_name_for_search = norm_title
+
+        if year_match:
+            search_year = int(year_match.group(1))
+            # 4. Remove the year from the search string
+            # This ensures "The Penguin 2024" becomes "the penguin"
+            show_name_for_search = re.sub(r"\s*\d{4}$", "", norm_title).strip()
+
+        # Fallback: If title WAS just a year (e.g. "2012"), keep it
+        if not show_name_for_search:
+            show_name_for_search = norm_title
+
         search_season = parse_season_info(season_line)
 
-        # link extraction with preference on explicit "click here"
+        # Link extraction (Unchanged)
         download_link_from_post = None
         if post.caption_entities:
             for ent in post.caption_entities:
@@ -217,7 +222,6 @@ async def fetch_tmdb_data(show_name: str, search_year: Optional[int], search_sea
         if not detailed:
             return None
 
-        # rank candidates
         best = (None, -1)
         qn = normalize(q_name)
 
@@ -226,18 +230,16 @@ async def fetch_tmdb_data(show_name: str, search_year: Optional[int], search_sea
             oname = r.get("original_name") or ""
             s = max(strong_title_score(qn, name), strong_title_score(qn, oname))
 
-            # year boost
             fa = r.get("first_air_date") or ""
+            # YEAR MATCH BOOST (Vital for One Piece 2023 vs 1999)
             if search_year and fa[:4].isdigit() and int(fa[:4]) == search_year:
                 s += 8
 
-            # season-count hint: closer is better; prefer >= requested
             if search_season:
                 sc = int(r.get("number_of_seasons") or 0)
                 if sc >= search_season:
                     s += max(0, 6 - abs(sc - search_season))
 
-            # tiny penalty if candidate looks like pure acronym and query is a real word
             if len(tokens(name)) == 1 and name.isupper() and len(tokens(qn)) == 1 and not qn.isupper():
                 s -= 8
 
@@ -246,7 +248,6 @@ async def fetch_tmdb_data(show_name: str, search_year: Optional[int], search_sea
 
         found = best[0]
         if not found:
-            # fuzzy safety net
             names = [r.get("name") for r in detailed if r.get("name")]
             pick = process.extractOne(qn, names, scorer=fuzz.token_set_ratio)
             if pick:
@@ -281,16 +282,15 @@ def update_tv_shows(self):
     redis_client = Redis.from_url(os.environ.get("REDIS_URL"), decode_responses=True)
     lock = redis_client.lock("update_tv_shows_lock", timeout=120)
     if not lock.acquire(blocking=False): return
-    try:
-        from tv_app.app import app
-        with app.app_context():
+    
+    # 1. Start App Context FIRST
+    from tv_app.app import app
+    with app.app_context():
+        try:
             from tv_app.models import db, TVShow
 
-            # --- CONFIGURATION FOR MULTIPLE CHANNELS ---
             sources = [
-                # 1. Main TV Channel
                 {'type': 'tv', 'env_var': 'TELEGRAM_CHANNEL_ID', 'offset_key': 'tv_main'},
-                # 2. Anime Channel
                 {'type': 'anime', 'env_var': 'TELEGRAM_ANIME_CHANNEL_ID', 'offset_key': 'anime_main'}
             ]
 
@@ -317,10 +317,7 @@ def update_tv_shows(self):
                     tmdb_id = tmdb["tmdb_id"]
                     current_category = source['type']
 
-                    # --- ISOLATION UPDATE ---
-                    # We now check for duplicates ONLY within the current category.
-                    # 'tv' overwrites 'tv', 'anime' overwrites 'anime'.
-                    # 'anime' will NOT overwrite 'tv'.
+                    # Isolation Check
                     existing = TVShow.query.filter_by(
                         tmdb_id=tmdb_id, 
                         category=current_category
@@ -328,7 +325,7 @@ def update_tv_shows(self):
 
                     if existing:
                         db.session.delete(existing)
-                        db.session.commit()
+                        db.session.flush() # Force delete before insert
 
                     new_show = TVShow(
                         tmdb_id=tmdb_id,
@@ -348,12 +345,14 @@ def update_tv_shows(self):
                     redis_client.set(processed_key, 1, ex=86400)
 
             db.session.commit()
-    except Exception as e:
-        logger.exception(f"Error in update_tv_shows: {e}")
-        from tv_app.models import db
-        db.session.rollback()
-    finally:
-        if lock.locked(): lock.release()
+            
+        except Exception as e:
+            # Now rollback works because we are still inside app_context
+            logger.exception(f"Error in update_tv_shows: {e}")
+            from tv_app.models import db
+            db.session.rollback()
+        finally:
+            if lock.locked(): lock.release()
 
 @celery.task(name="tv_app.tasks.reset_clicks")
 def reset_clicks():
