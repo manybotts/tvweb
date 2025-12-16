@@ -26,11 +26,11 @@ class TVShow(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
 
-    # TMDb id (you previously used unique=True; keeping that behavior)
-    tmdb_id = db.Column(db.Integer, unique=True, nullable=True, index=True)
+    # UPDATED: Removed unique=True so we can have duplicates across categories
+    tmdb_id = db.Column(db.Integer, unique=False, nullable=True, index=True)
 
-    # Telegram message id used by your pipeline
-    message_id = db.Column(db.BigInteger, unique=True, nullable=False, index=True)
+    # UPDATED: Removed unique=True (Message 100 in TV != Message 100 in Anime)
+    message_id = db.Column(db.BigInteger, unique=False, nullable=False, index=True)
 
     show_name = db.Column(db.String(255), nullable=False, index=True)
     episode_title = db.Column(db.String(255), default=None)
@@ -51,7 +51,10 @@ class TVShow(db.Model):
     year = db.Column(db.Integer)
     rating = db.Column(db.Float)
 
-    # NEW: SEO-friendly slug, unique
+    # Category column (defaults to 'tv')
+    category = db.Column(db.String(20), nullable=False, default='tv', index=True)
+
+    # SEO-friendly slug, unique
     slug = db.Column(db.String(255), nullable=False, unique=True, index=True)
 
     # Many-to-many to Genre
