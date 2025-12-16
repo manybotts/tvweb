@@ -26,10 +26,10 @@ class TVShow(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
 
-    # UPDATED: Removed unique=True so we can have duplicates across categories
+    # Removed unique=True so we can have duplicates across categories
     tmdb_id = db.Column(db.Integer, unique=False, nullable=True, index=True)
 
-    # UPDATED: Removed unique=True (Message 100 in TV != Message 100 in Anime)
+    # Removed unique=True (Message 100 in TV != Message 100 in Anime)
     message_id = db.Column(db.BigInteger, unique=False, nullable=False, index=True)
 
     show_name = db.Column(db.String(255), nullable=False, index=True)
@@ -66,6 +66,11 @@ class TVShow(db.Model):
 
     __table_args__ = (
         Index("ix_show_name_episode_title", "show_name", "episode_title"),
+        
+        # --- NEW: Composite Unique Key ---
+        # This mirrors the SQL: CREATE UNIQUE INDEX ix_tmdb_category ON tv_shows (tmdb_id, category);
+        db.UniqueConstraint('tmdb_id', 'category', name='ix_tmdb_category'),
+
         # trigram index for Postgres; harmless on SQLite (ignored)
         Index(
             "ix_show_name_trgm",
