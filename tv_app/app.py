@@ -1,3 +1,4 @@
+# --- tv_app/app.py (PART 1) ---
 import os
 import logging
 import hashlib
@@ -26,14 +27,29 @@ db.init_app(app)
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-@app.context_processor
-def inject_now():
-    return {'now': datetime.utcnow}
+# --- HELPERS ---
 
-# -------- helpers
-def get_trending_shows(limit: int = 6):
+def get_site_mode():
+    """Determines if we are on 'tv' or 'anime' based on subdomain."""
+    host = request.host.lower()
+    if 'anime' in host:
+        return 'anime'
+    return 'tv'
+
+@app.context_processor
+def inject_globals():
+    """Injects 'now' and 'site_mode' into every template."""
+    return {
+        'now': datetime.utcnow,
+        'site_mode': get_site_mode()
+    }
+
+def get_trending_shows(limit: int = 6, category: str = 'tv'):
+    """Fetches top clicked shows FOR THE CURRENT CATEGORY only."""
     with app.app_context():
-        return TVShow.query.order_by(TVShow.clicks.desc()).limit(limit).all()
+        return TVShow.query.filter_by(category=category)\
+                     .order_by(TVShow.clicks.desc())\
+                     .limit(limit).all()
 
 def _page_urls(base_endpoint: str, page_obj, extra_params=None):
     extra_params = extra_params or {}
@@ -54,63 +70,86 @@ def hostonly(url):
         return '—'
 
 # ----------------------------- Public pages -----------------------------
+
 @app.route('/')
 def index():
+    mode = get_site_mode() # 'tv' or 'anime'
+    other_mode = 'anime' if mode == 'tv' else 'tv'
+    
     search_query = (request.args.get('search') or '').strip()
     page = request.args.get('page', 1, type=int)
     per_page = 10
-    trending_shows = get_trending_shows()
+    
+    # Base query filters by the current site mode
+    base_query = TVShow.query.filter(TVShow.category == mode)
+
+    # Trending logic (scoped to current category)
+    trending_shows = get_trending_shows(limit=6, category=mode)
+    
     message = None
+    shows = None
+    other_count = 0
 
     if search_query:
+        # 1. SEARCH CURRENT CATEGORY
         try:
-            shows = TVShow.query.filter(
+            # Try Postgres fuzzy search first
+            shows = base_query.filter(
                 func.similarity(TVShow.show_name, search_query) > 0.1
             ).order_by(
                 func.similarity(TVShow.show_name, search_query).desc()
             ).paginate(page=page, per_page=per_page, error_out=False)
 
             if not shows.items:
-                shows = TVShow.query.filter(
+                # Fallback to ILIKE
+                shows = base_query.filter(
                     TVShow.show_name.ilike(f'%{search_query}%')
                 ).order_by(TVShow.created_at.desc()).paginate(page=page, per_page=per_page, error_out=False)
 
                 if not shows.items:
-                    shows = TVShow.query.order_by(TVShow.created_at.desc()).paginate(page=page, per_page=per_page, error_out=False)
-                    message = f"No matches found for '{search_query}'. Showing most recent additions."
+                    # If still nothing, show latest but warn user
+                    shows = base_query.order_by(TVShow.created_at.desc()).paginate(page=page, per_page=per_page, error_out=False)
+                    message = f"No matches found in {mode.upper()}. Showing recent additions."
                     page_title = f"No Results for '{search_query}'"
-                    canonical_url, prev_url, next_url, meta_robots = _page_urls('index', shows, extra_params={'search': search_query})
-                    return render_template('index.html',
-                        shows=shows, search_query=search_query, trending_shows=[],
-                        message=message, title=page_title,
-                        canonical_url=canonical_url, prev_url=prev_url, next_url=next_url, meta_robots=meta_robots
-                    )
         except Exception as e:
             logger.error(f"Database error during search: {e}")
-            shows = TVShow.query.order_by(TVShow.created_at.desc()).paginate(page=page, per_page=per_page, error_out=False)
-            message = "An error occurred during search. Please try again later."
+            shows = base_query.order_by(TVShow.created_at.desc()).paginate(page=page, per_page=per_page, error_out=False)
+            message = "An error occurred. Showing recent additions."
             page_title = "Search Error"
-            canonical_url, prev_url, next_url, meta_robots = _page_urls('index', shows, extra_params={'search': search_query})
-            return render_template('index.html',
-                shows=shows, search_query=search_query, trending_shows=trending_shows,
-                message=message, title=page_title,
-                canonical_url=canonical_url, prev_url=prev_url, next_url=next_url, meta_robots=meta_robots
-            )
-        page_title = f"Search Results: {search_query}"
+
+        if not message:
+            page_title = f"Search Results: {search_query}"
+
+        # 2. PEEK AT OTHER CATEGORY (Lightweight Count)
+        # This tells the user: "Hey, check the other site!"
+        try:
+            other_count = TVShow.query.filter(
+                TVShow.category == other_mode,
+                TVShow.show_name.ilike(f'%{search_query}%')
+            ).count()
+        except Exception:
+            other_count = 0
+
     else:
-        shows = TVShow.query.order_by(TVShow.created_at.desc()).paginate(page=page, per_page=per_page, error_out=False)
-        page_title = "Search & Download Latest TV Shows"
+        # Default Homepage View (No Search)
+        shows = base_query.order_by(TVShow.created_at.desc()).paginate(page=page, per_page=per_page, error_out=False)
+        page_title = "Search & Download Latest Anime" if mode == 'anime' else "Search & Download Latest TV Shows"
 
     canonical_url, prev_url, next_url, meta_robots = _page_urls('index', shows, extra_params={'search': search_query})
+    
     return render_template('index.html',
         shows=shows, search_query=search_query, trending_shows=trending_shows,
-        message=message, title=page_title,
+        message=message, title=page_title, site_mode=mode,
+        other_mode=other_mode, other_count=other_count,
         canonical_url=canonical_url, prev_url=prev_url, next_url=next_url, meta_robots=meta_robots
     )
+    # --- PART 2 START ---
 
 @app.route('/shows')
 def list_shows():
     try:
+        mode = get_site_mode() # 'tv' or 'anime'
+        
         page = request.args.get('page', 1, type=int)
         per_page = 30
         genre_filter = request.args.get('genre')
@@ -118,7 +157,9 @@ def list_shows():
         year_filter = request.args.get('year', type=int)
         sort_by = request.args.get('sort_by', 'name_asc')
 
-        query = TVShow.query
+        # ISOLATION FIX: Start query filtering by current category
+        query = TVShow.query.filter(TVShow.category == mode)
+        
         if genre_filter:
             query = query.join(TVShow.genres).filter(Genre.name == genre_filter)
         if year_filter:
@@ -151,7 +192,8 @@ def list_shows():
         min_year = min_year_result if min_year_result is not None else current_year - 20
         years = list(range(current_year, min_year - 1, -1))
         possible_ratings = list(range(10, -1, -1))
-        page_title = "Available TV Shows"
+        
+        page_title = "Available Anime" if mode == 'anime' else "Available TV Shows"
 
         canonical_url, prev_url, next_url, meta_robots = _page_urls('list_shows', shows_paginated, extra_params={
             'genre': genre_filter or '',
@@ -269,6 +311,9 @@ def robots_txt():
 @app.route('/sitemap.xml')
 def sitemap_xml():
     try:
+        # Filter sitemap items based on category if strictly needed, 
+        # but for SEO having all links is usually fine. 
+        # If you want isolation here too, add the filter logic.
         items = TVShow.query.order_by(
             (TVShow.updated_at.desc() if hasattr(TVShow, 'updated_at') else TVShow.created_at.desc())
         ).limit(50000).all()
@@ -337,12 +382,10 @@ def nuke_home():
 
     q = (request.args.get('q') or '').strip()
     view_dupes = request.args.get('dupes')
-    # Default to duplicates view when there's no search and no explicit toggle
     if not q and view_dupes is None:
         view_dupes = '1'
 
     if view_dupes:
-        # Build duplicate groups by download_link (count > 1)
         rows = db.session.query(
             TVShow.download_link, func.count(TVShow.id).label('cnt')
         ).filter(
@@ -365,7 +408,6 @@ def nuke_home():
             })
         return render_template('nuke.html', title="Nuke", view_dupes=True, dupe_groups=dupe_groups, q=q)
 
-    # Otherwise: search/list view
     page = request.args.get('page', 1, type=int)
     per_page = 30
     query = TVShow.query
@@ -461,6 +503,7 @@ def nuke_bulk_delete():
         db.session.rollback()
         logger.error(f"/nuke bulk-delete error: {e}")
         return redirect(url_for('nuke_home', dupes=1, msg="Bulk delete failed"))
+
 # ----------------------------- Health & errors -----------------------------
 @app.route('/healthz')
 def healthz():
