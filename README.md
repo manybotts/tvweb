@@ -350,3 +350,178 @@ sudo supervisorctl restart ibox-gunicorn
 ## License
 
 You own your deployment. Ship responsibly.
+# iBOX TV & Anime (Hybrid Platform)
+
+A high-performance Flask streaming platform serving two distinct sites from a single codebase:
+1. **TV Shows** (`ibox-tv.com`)
+2. **Anime** (`anime.ibox-tv.com`)
+
+## Features
+* **Hybrid Isolation:** Content is strictly scoped by domain. Anime requests only see Anime content; TV requests only see TV content.
+* **Smart Search:** Searches the current category first, but checks the other database for matches and prompts the user to switch if needed.
+* **Dual-Channel Ingest:** Celery workers fetch content from two separate Telegram channels (one for TV, one for Anime).
+* **PostgreSQL Search:** Utilizes `pg_trgm` for advanced fuzzy matching and performance.
+* **Mobile Optimized:** Smart navigation bars that adapt to screen size.
+
+---
+
+## 1. Prerequisites
+* Ubuntu VPS (20.04/22.04 recommended)
+* Python 3.9+
+* PostgreSQL
+* Redis (for Celery task queue)
+* Nginx (Web Server)
+* Supervisor (Process Control)
+
+---
+
+## 2. Installation
+
+1.  **Clone the repository:**
+    ```bash
+    git clone <your-repo-url> /root/tvweb
+    cd /root/tvweb
+    ```
+
+2.  **Set up Virtual Environment:**
+    ```bash
+    python3 -m venv venv
+    source venv/bin/activate
+    pip install -r requirements.txt
+    ```
+
+3.  **Environment Variables:**
+    Create a `.env` file in the root directory:
+    ```ini
+    # --- Security ---
+    SECRET_KEY=your_super_secret_key_here
+    ADMIN_TOKEN=your_nuke_panel_password
+
+    # --- Database (PostgreSQL) ---
+    DATABASE_URL=postgresql://user:password@localhost/tv_shows_db
+
+    # --- Telegram (Ingestion) ---
+    TELEGRAM_BOT_TOKEN=123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11
+    # Channel 1: TV Shows
+    TELEGRAM_CHANNEL_ID=-100xxxxxxxxxx
+    # Channel 2: Anime
+    TELEGRAM_ANIME_CHANNEL_ID=-100yyyyyyyyyy
+
+    # --- TMDb API (Metadata) ---
+    TMDB_BEARER_TOKEN=eyJhbGciOiJIUzI1NiJ9...
+
+    # --- Redis (Celery Broker) ---
+    REDIS_URL=redis://localhost:6379/0
+    ```
+
+---
+
+## 3. Database Setup (Critical)
+
+This project uses a custom schema to allow duplicate IDs across categories.
+
+1.  **Create Database & User:**
+    ```bash
+    sudo -u postgres psql
+    CREATE DATABASE tv_shows_db;
+    CREATE USER myuser WITH PASSWORD 'mypassword';
+    GRANT ALL PRIVILEGES ON DATABASE tv_shows_db TO myuser;
+    \c tv_shows_db
+    CREATE EXTENSION pg_trgm;  -- Required for fuzzy search
+    \q
+    ```
+
+2.  **Initialize Tables:**
+    ```bash
+    cd /root/tvweb
+    source venv/bin/activate
+    flask shell
+    >>> from tv_app.models import db
+    >>> db.create_all()
+    >>> exit()
+    ```
+
+3.  **Apply Hybrid Constraints:**
+    Run this SQL command to ensure the database allows the same show ID in different categories (e.g., ID 123 in TV and ID 123 in Anime):
+    ```bash
+    sudo -u postgres psql -d tv_shows_db -c "DROP INDEX IF EXISTS ix_tv_shows_tmdb_id; CREATE UNIQUE INDEX IF NOT EXISTS ix_tmdb_category ON tv_shows (tmdb_id, category);"
+    ```
+
+---
+
+## 4. Nginx Configuration
+
+Create a config file at `/etc/nginx/sites-available/ibox-tv` with the following content. This handles both subdomains.
+
+```nginx
+# --- 1. Main TV Site (ibox-tv.com) ---
+server {
+    listen 80;
+    server_name ibox-tv.com [www.ibox-tv.com](https://www.ibox-tv.com);
+
+    location / {
+        include proxy_params;
+        proxy_pass [http://127.0.0.1:8000](http://127.0.0.1:8000);
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+
+    location /static {
+        alias /root/tvweb/tv_app/static;
+        expires 30d;
+    }
+}
+
+# --- 2. Anime Subdomain (anime.ibox-tv.com) ---
+server {
+    listen 80;
+    server_name anime.ibox-tv.com;
+
+    location / {
+        include proxy_params;
+        proxy_pass [http://127.0.0.1:8000](http://127.0.0.1:8000);
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+
+    location /static {
+        alias /root/tvweb/tv_app/static;
+        expires 30d;
+    }
+}
+After saving, run sudo ln -s /etc/nginx/sites-available/ibox-tv /etc/nginx/sites-enabled/ and sudo service nginx restart.
+
+5. Supervisor Configuration
+Use Supervisor to keep the app and Celery worker running. File: /etc/supervisor/conf.d/tvweb.conf
+
+Ini, TOML
+
+[program:tvweb]
+directory=/root/tvweb
+command=/root/tvweb/venv/bin/gunicorn -w 4 -b 127.0.0.1:8000 run:app
+user=root
+autostart=true
+autorestart=true
+environment=PATH="/root/tvweb/venv/bin"
+
+[program:tvweb-celery]
+directory=/root/tvweb
+command=/root/tvweb/venv/bin/celery -A tv_app.tasks.celery worker --loglevel=info
+user=root
+autostart=true
+autorestart=true
+environment=PATH="/root/tvweb/venv/bin"
+6. Maintenance Commands
+Trigger an Update Manually:
+
+Bash
+
+curl -X POST http://localhost:8000/update
+Reset/Wipe Database:
+
+Bash
+
+flask shell
+>>> from tv_app.models import db, TVShow
+>>> TVShow.query.delete()
+>>> db.session.commit()
