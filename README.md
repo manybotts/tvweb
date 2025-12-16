@@ -471,8 +471,8 @@ server {
         expires 30d;
     }
 }
-
-# --- 2. Anime Subdomain (anime.ibox-tv.com) ---
+```
+## --- 2. Anime Subdomain (anime.ibox-tv.com) ---
 server {
     listen 80;
     server_name anime.ibox-tv.com;
@@ -515,13 +515,14 @@ environment=PATH="/root/tvweb/venv/bin"
 Trigger an Update Manually:
 
 Bash
-
+```
 curl -X POST http://localhost:8000/update
 Reset/Wipe Database:
-
+```
 Bash
-
+```
 flask shell
 >>> from tv_app.models import db, TVShow
 >>> TVShow.query.delete()
 >>> db.session.commit()
+```
