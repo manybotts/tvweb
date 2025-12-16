@@ -92,11 +92,22 @@ def parse_season_info(line: str) -> Optional[int]:
     return max(int(n) for n in nums) if nums else None
 
 # --------------- telegram ingest ----------------
-async def fetch_new_telegram_posts() -> list:
+async def fetch_new_telegram_posts(channel_env_var: str, redis_key_suffix: str) -> list:
+    """
+    Fetches posts from a specific channel defined by channel_env_var.
+    Tracks offset using redis_key_suffix.
+    """
     token = os.environ.get("TELEGRAM_BOT_TOKEN")
-    channel_id = os.environ.get("TELEGRAM_CHANNEL_ID")
+    channel_id = os.environ.get(channel_env_var)
+    
+    if not channel_id:
+        # Only log error if it's the main channel missing; anime might be optional initially
+        if channel_env_var == 'TELEGRAM_CHANNEL_ID':
+            logger.error(f"Missing env var: {channel_env_var}")
+        return []
+
     redis_client = Redis.from_url(os.environ.get("REDIS_URL"), decode_responses=True)
-    last_offset_key = f"last_telegram_update_id:{channel_id}"
+    last_offset_key = f"last_telegram_update_id:{redis_key_suffix}"
     last_offset = int(redis_client.get(last_offset_key) or 0)
 
     from telegram.ext import Application
@@ -113,6 +124,7 @@ async def fetch_new_telegram_posts() -> list:
         posts = []
         for u in updates:
             p = u.channel_post or u.edited_channel_post
+            # Check if post exists and matches the requested channel ID
             if p and p.sender_chat and str(p.sender_chat.id) == channel_id and p.caption:
                 posts.append(p)
 
@@ -120,7 +132,7 @@ async def fetch_new_telegram_posts() -> list:
             redis_client.set(last_offset_key, updates[-1].update_id)
         return posts
     except Exception as e:
-        logger.exception(f"Error fetching Telegram posts: {e}")
+        logger.exception(f"Error fetching Telegram posts for {channel_env_var}: {e}")
         return []
 
 def parse_telegram_post(post) -> Optional[Dict]:
@@ -270,50 +282,70 @@ def update_tv_shows(self):
     lock = redis_client.lock("update_tv_shows_lock", timeout=120)
     if not lock.acquire(blocking=False): return
     try:
-        posts = asyncio.run(fetch_new_telegram_posts())
-        if not posts: return
-
         from tv_app.app import app
         with app.app_context():
             from tv_app.models import db, TVShow
-            for post in posts:
-                processed_key = f"processed_messages:{post.message_id}"
-                if redis_client.exists(processed_key): continue
 
-                parsed = parse_telegram_post(post)
-                if not parsed: continue
+            # --- CONFIGURATION FOR MULTIPLE CHANNELS ---
+            sources = [
+                # 1. Main TV Channel
+                {'type': 'tv', 'env_var': 'TELEGRAM_CHANNEL_ID', 'offset_key': 'tv_main'},
+                # 2. Anime Channel
+                {'type': 'anime', 'env_var': 'TELEGRAM_ANIME_CHANNEL_ID', 'offset_key': 'anime_main'}
+            ]
 
-                tmdb = asyncio.run(
-                    fetch_tmdb_data(
-                        parsed["show_name_for_search"],
-                        parsed["search_year"],
-                        parsed["search_season"],
+            for source in sources:
+                posts = asyncio.run(fetch_new_telegram_posts(source['env_var'], source['offset_key']))
+                if not posts: continue
+
+                for post in posts:
+                    processed_key = f"processed_messages:{post.message_id}"
+                    if redis_client.exists(processed_key): continue
+
+                    parsed = parse_telegram_post(post)
+                    if not parsed: continue
+
+                    tmdb = asyncio.run(
+                        fetch_tmdb_data(
+                            parsed["show_name_for_search"],
+                            parsed["search_year"],
+                            parsed["search_season"],
+                        )
                     )
-                )
-                if not tmdb: continue
+                    if not tmdb: continue
 
-                tmdb_id = tmdb["tmdb_id"]
+                    tmdb_id = tmdb["tmdb_id"]
+                    current_category = source['type']
 
-                existing = TVShow.query.filter_by(tmdb_id=tmdb_id).first()
-                if existing:
-                    db.session.delete(existing)
-                    db.session.commit()
+                    # --- ISOLATION UPDATE ---
+                    # We now check for duplicates ONLY within the current category.
+                    # 'tv' overwrites 'tv', 'anime' overwrites 'anime'.
+                    # 'anime' will NOT overwrite 'tv'.
+                    existing = TVShow.query.filter_by(
+                        tmdb_id=tmdb_id, 
+                        category=current_category
+                    ).first()
 
-                new_show = TVShow(
-                    tmdb_id=tmdb_id,
-                    message_id=parsed["message_id"],
-                    show_name=tmdb["show_name_from_tmdb"],
-                    episode_title=parsed["season_episode_from_post"],
-                    download_link=parsed["download_link_from_post"],
-                    poster_path=tmdb["poster_path"],
-                    overview=tmdb["overview"],
-                    vote_average=tmdb["vote_average"],
-                    year=tmdb["year"],
-                    rating=tmdb["rating"],
-                    content_hash=f"{tmdb_id}-{parsed['season_episode_from_post']}",
-                )
-                db.session.add(new_show)
-                redis_client.set(processed_key, 1, ex=86400)
+                    if existing:
+                        db.session.delete(existing)
+                        db.session.commit()
+
+                    new_show = TVShow(
+                        tmdb_id=tmdb_id,
+                        message_id=parsed["message_id"],
+                        show_name=tmdb["show_name_from_tmdb"],
+                        episode_title=parsed["season_episode_from_post"],
+                        download_link=parsed["download_link_from_post"],
+                        poster_path=tmdb["poster_path"],
+                        overview=tmdb["overview"],
+                        vote_average=tmdb["vote_average"],
+                        year=tmdb["year"],
+                        rating=tmdb["rating"],
+                        content_hash=f"{tmdb_id}-{parsed['season_episode_from_post']}",
+                        category=current_category 
+                    )
+                    db.session.add(new_show)
+                    redis_client.set(processed_key, 1, ex=86400)
 
             db.session.commit()
     except Exception as e:
