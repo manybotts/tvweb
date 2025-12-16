@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 
-{% block title %}Search & Download Latest TV Shows{% endblock %}
-{% block meta_description %}Your ultimate source for searching and downloading the latest TV shows and series. Explore trending shows and find download links easily on iBOX TV.{% endblock %}
+{% block title %}{{ title }}{% endblock %}
+{% block meta_description %}Your ultimate source for searching and downloading the latest {{ site_mode|upper }} shows. Explore trending content and find download links easily on iBOX TV.{% endblock %}
 
 {% block content %}
 <div class="container-fluid">
@@ -13,12 +13,70 @@
     </div>
 
     <div class="col-12 col-lg-8">
-      {% if message %}
-        <div class="alert alert-warning" role="alert">{{ message }}</div>
-      {% endif %}
+      
+      {% if search_query %}
+        
+        <div class="search-tabs">
+            <div class="search-tab active">
+                <i class="fas {% if site_mode == 'anime' %}fa-torii-gate{% else %}fa-tv{% endif %}"></i>
+                {{ site_mode|upper }} Results 
+                <span class="count-badge" style="background:rgba(255,255,255,0.2); color:#fff;">
+                    {{ shows.total if not message else 0 }}
+                </span>
+            </div>
 
-      {% if not search_query %}
+            {% if other_count > 0 %}
+            <a href="https://{{ 'ibox-tv.com' if site_mode == 'anime' else 'anime.ibox-tv.com' }}/?search={{ search_query }}" class="search-tab">
+                <i class="fas fa-exchange-alt"></i>
+                Switch to {{ other_mode|upper }}
+                <span class="count-badge" style="background:#e50914; color:#fff;">{{ other_count }}</span>
+            </a>
+            {% endif %}
+        </div>
+
+        {% if message %}
+            <div class="alert alert-warning text-center" role="alert" style="background:#222; border:1px solid #444; color:#ddd;">
+                <p style="margin-bottom:5px;">{{ message }}</p>
+                {% if other_count > 0 %}
+                    <p style="margin-bottom:0; color:#fff; font-size:1.1em;">
+                        💡 <strong>Hint:</strong> We found {{ other_count }} matches in the 
+                        <a href="https://{{ 'ibox-tv.com' if site_mode == 'anime' else 'anime.ibox-tv.com' }}/?search={{ search_query }}" style="color:#e50914; text-decoration:underline;">
+                            {{ other_mode|upper }} section
+                        </a>.
+                    </p>
+                {% endif %}
+            </div>
+            <h2 style="font-size:1.2em; color:#aaa; margin-top:30px;">Showing Recent Additions</h2>
+        {% else %}
+            <h2 style="text-align:center; font-size:1.4em; margin-bottom:20px;">
+                Results for "<span style="color:#e50914;">{{ search_query }}</span>"
+            </h2>
+        {% endif %}
+
+        <div class="tv-shows">
+          {% if shows.items %}
+            {% for show in shows.items %}
+              <div class="show-card">
+                <a href="{{ url_for('show_details', slug=show.slug) }}">
+                  {% if show.poster_path %}
+                    <img src="{{ show.poster_path }}" alt="{{ show.show_name }}" loading="lazy">
+                  {% else %}
+                    <div class="placeholder-image">No Poster</div>
+                  {% endif %}
+                  <h3>{{ show.show_name }}</h3>
+                  <p class="episode-title">{{ show.episode_title }}</p>
+                </a>
+              </div>
+            {% endfor %}
+          {% else %}
+            <p>No results found.</p>
+          {% endif %}
+        </div>
+
+      {% else %}
+        
         <h2><span class="eye-icon" aria-hidden="true"></span> Most Watched Today</h2>
+        
         <div class="slideshow-container">
           <div class="desktop-slideshow">
             <div class="slideshow-inner">
@@ -53,15 +111,13 @@
               {% endfor %}
             </div>
             <div class="slideshow-controls">
-              <button class="prev">&#10094;</button>
-              <button class="next">&#10095;</button>
+                <button class="prev">&#10094;</button>
+                <button class="next">&#10095;</button>
             </div>
             <div class="slideshow-dots"></div>
           </div>
         </div>
-      {% endif %}
 
-      {% if not search_query %}
         <h2><span class="new-icon" aria-hidden="true"></span> Newly Added</h2>
         <div class="tv-shows">
           {% for show in shows.items %}
@@ -78,27 +134,7 @@
             </div>
           {% endfor %}
         </div>
-      {% else %}
-        <h2>Search Results for "{{ search_query }}"</h2>
-        <div class="tv-shows">
-          {% if shows.items %}
-            {% for show in shows.items %}
-              <div class="show-card">
-                <a href="{{ url_for('show_details', slug=show.slug) }}">
-                  {% if show.poster_path %}
-                    <img src="{{ show.poster_path }}" alt="{{ show.show_name }}" loading="lazy">
-                  {% else %}
-                    <div class="placeholder-image">No Poster</div>
-                  {% endif %}
-                  <h3>{{ show.show_name }}</h3>
-                  <p class="episode-title">{{ show.episode_title }}</p>
-                </a>
-              </div>
-            {% endfor %}
-          {% else %}
-            <p>No TV shows found matching "{{ search_query }}".</p>
-          {% endif %}
-        </div>
+
       {% endif %}
 
       <div class="pagination">
@@ -126,6 +162,7 @@
           <span class="disabled">Next</span>
         {% endif %}
       </div>
+
     </div>
 
     <div class="col-lg-2 d-none d-lg-block text-center">
