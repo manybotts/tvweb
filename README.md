@@ -471,8 +471,8 @@ server {
         expires 30d;
     }
 }
-```
-## --- 2. Anime Subdomain (anime.ibox-tv.com) ---
+
+# --- 2. Anime Subdomain (anime.ibox-tv.com) ---
 server {
     listen 80;
     server_name anime.ibox-tv.com;
@@ -489,7 +489,8 @@ server {
         expires 30d;
     }
 }
-After saving, run sudo ln -s /etc/nginx/sites-available/ibox-tv /etc/nginx/sites-enabled/ and sudo service nginx restart.
+```
+After saving, run ``` sudo ln -s /etc/nginx/sites-available/ibox-tv /etc/nginx/sites-enabled/ and sudo service nginx restart. ```
 
 5. Supervisor Configuration
 Use Supervisor to keep the app and Celery worker running. File: /etc/supervisor/conf.d/tvweb.conf
