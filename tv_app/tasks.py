@@ -1,4 +1,4 @@
-# tv_app/tasks.py — aggressively clean years to fix search; fixed app context for rollback
+# tv_app/tasks.py — Smarter scoring for short titles (FBI fix)
 import os
 import re
 import asyncio
@@ -58,25 +58,42 @@ def stemlike(a: str, b: str) -> bool:
     return longer.startswith(shorter) and len(longer) - len(shorter) <= 2
 
 def strong_title_score(query: str, candidate: str) -> int:
+    """
+    Calculates similarity, but penalizes results that are significantly longer 
+    than the query (to prevent 'FBI' matching 'Enemies: ... FBI').
+    """
     qn = normalize(query)
     cn = normalize(candidate)
 
-    if strip_leading_article(qn) == strip_leading_article(cn):
+    # 1. Exact Match is King
+    if qn == cn:
         return 100
+    
+    # 2. Article-stripped Exact Match
+    sq = strip_leading_article(qn)
+    sc = strip_leading_article(cn)
+    if sq == sc:
+        return 99
 
-    q_t = tokens(strip_leading_article(qn))
-    c_t = tokens(strip_leading_article(cn))
-    if not q_t or not c_t: return 0
+    # 3. Fuzzy Matching
+    # token_sort_ratio is better here than token_set_ratio for short titles
+    # because it penalizes extra words.
+    base = fuzz.token_sort_ratio(qn, cn)
 
-    if len(q_t) == 1:
-        if c_t == q_t: return 96
-        if len(c_t) == 1 and stemlike(q_t[0], c_t[0]): return 92
+    # 4. Length Penalty (The FBI Fix)
+    # If the candidate is much longer than the query, punish it.
+    len_q = len(qn)
+    len_c = len(cn)
+    
+    if len_q > 0 and len_c > len_q:
+        ratio = len_c / len_q
+        # If candidate is more than 2x longer, subtract points
+        if ratio > 2.0: 
+            base -= 15
+        elif ratio > 1.5:
+            base -= 5
 
-    cover = len(set(q_t) & set(c_t)) / len(set(q_t))
-    base = int(85 * cover)
-    ts = fuzz.token_set_ratio(qn, cn)
-    bonus = 10 if ts >= 92 else 0
-    return min(95, base + bonus)
+    return base
 
 def parse_season_info(line: str) -> Optional[int]:
     nums = re.findall(r"\d+", line)
@@ -130,14 +147,8 @@ def parse_telegram_post(post) -> Optional[Dict]:
         season_line = lines[1]
 
         # --- FIX: AGGRESSIVE YEAR STRIPPING ---
-        # 1. Replace brackets with spaces so (2024) becomes " 2024 "
         clean_line = re.sub(r"[\[\]\(\)]", " ", title_line)
-        
-        # 2. Normalize (removes symbols, lowercases)
         norm_title = normalize(clean_line)
-
-        # 3. Find Year at the END of the string
-        # \s* means "zero or more spaces", capturing attached years like "Show2024"
         year_match = re.search(r"(\d{4})$", norm_title)
         
         search_year = None
@@ -145,17 +156,14 @@ def parse_telegram_post(post) -> Optional[Dict]:
 
         if year_match:
             search_year = int(year_match.group(1))
-            # 4. Remove the year from the search string
-            # This ensures "The Penguin 2024" becomes "the penguin"
             show_name_for_search = re.sub(r"\s*\d{4}$", "", norm_title).strip()
 
-        # Fallback: If title WAS just a year (e.g. "2012"), keep it
         if not show_name_for_search:
             show_name_for_search = norm_title
 
         search_season = parse_season_info(season_line)
 
-        # Link extraction (Unchanged)
+        # Link extraction
         download_link_from_post = None
         if post.caption_entities:
             for ent in post.caption_entities:
@@ -223,31 +231,35 @@ async def fetch_tmdb_data(show_name: str, search_year: Optional[int], search_sea
             return None
 
         best = (None, -1)
+        
+        # Use simple normalization for the loop
         qn = normalize(q_name)
 
         for r in detailed:
             name = r.get("name") or ""
             oname = r.get("original_name") or ""
-            s = max(strong_title_score(qn, name), strong_title_score(qn, oname))
+            
+            # Use new smarter scoring
+            s = max(strong_title_score(q_name, name), strong_title_score(q_name, oname))
 
             fa = r.get("first_air_date") or ""
-            # YEAR MATCH BOOST (Vital for One Piece 2023 vs 1999)
+            # YEAR MATCH BOOST
             if search_year and fa[:4].isdigit() and int(fa[:4]) == search_year:
-                s += 8
+                s += 10 # Increase year confidence
 
             if search_season:
                 sc = int(r.get("number_of_seasons") or 0)
                 if sc >= search_season:
                     s += max(0, 6 - abs(sc - search_season))
 
-            if len(tokens(name)) == 1 and name.isupper() and len(tokens(qn)) == 1 and not qn.isupper():
-                s -= 8
-
             if s > best[1]:
                 best = (r, s)
 
         found = best[0]
-        if not found:
+        
+        # Fallback if score is too low?
+        if not found or best[1] < 50:
+            # If our smart score failed, try fuzz as last resort
             names = [r.get("name") for r in detailed if r.get("name")]
             pick = process.extractOne(qn, names, scorer=fuzz.token_set_ratio)
             if pick:
@@ -283,7 +295,6 @@ def update_tv_shows(self):
     lock = redis_client.lock("update_tv_shows_lock", timeout=120)
     if not lock.acquire(blocking=False): return
     
-    # 1. Start App Context FIRST
     from tv_app.app import app
     with app.app_context():
         try:
@@ -317,7 +328,6 @@ def update_tv_shows(self):
                     tmdb_id = tmdb["tmdb_id"]
                     current_category = source['type']
 
-                    # Isolation Check
                     existing = TVShow.query.filter_by(
                         tmdb_id=tmdb_id, 
                         category=current_category
@@ -325,7 +335,7 @@ def update_tv_shows(self):
 
                     if existing:
                         db.session.delete(existing)
-                        db.session.flush() # Force delete before insert
+                        db.session.flush()
 
                     new_show = TVShow(
                         tmdb_id=tmdb_id,
@@ -347,7 +357,6 @@ def update_tv_shows(self):
             db.session.commit()
             
         except Exception as e:
-            # Now rollback works because we are still inside app_context
             logger.exception(f"Error in update_tv_shows: {e}")
             from tv_app.models import db
             db.session.rollback()
@@ -370,3 +379,4 @@ def reset_clicks():
 @celery.task(name="tv_app.tasks.test_task")
 def test_task():
     return "Test task complete"
+                                             
