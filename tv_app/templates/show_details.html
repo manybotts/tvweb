@@ -119,7 +119,7 @@
 {% endblock %}
 
 {% block scripts_extra %}
-  {# JSON-LD: Episode if episode_title exists, else Series #}
+  {# JSON-LD: Schema fixed to include bestRating: 10 #}
   <script type="application/ld+json">
   {% if show.episode_title %}
   {
@@ -130,7 +130,15 @@
     {% if show.poster_path %}"image": {{ show.poster_path|tojson }},{% endif %}
     "url": {{ canonical_url|tojson }},
     "partOfSeries": { "@type": "TVSeries", "name": {{ show.show_name|tojson }} },
-    {% if show.rating or show.vote_average %}"aggregateRating": { "@type": "AggregateRating", "ratingValue": "{{ show.rating or show.vote_average }}", "ratingCount": "1" },{% endif %}
+    {% if show.rating or show.vote_average %}
+    "aggregateRating": { 
+        "@type": "AggregateRating", 
+        "ratingValue": "{{ show.rating or show.vote_average }}", 
+        "bestRating": "10", 
+        "worstRating": "1",
+        "ratingCount": "1" 
+    },
+    {% endif %}
     {% if show.created_at %}"datePublished": "{{ show.created_at.date().isoformat() }}"{% endif %}
   }
   {% else %}
@@ -141,9 +149,18 @@
     {% if show.overview %}"description": {{ show.overview|tojson }},{% endif %}
     {% if show.poster_path %}"image": {{ show.poster_path|tojson }},{% endif %}
     "url": {{ canonical_url|tojson }},
-    {% if show.rating or show.vote_average %}"aggregateRating": { "@type": "AggregateRating", "ratingValue": "{{ show.rating or show.vote_average }}", "ratingCount": "1" },{% endif %}
+    {% if show.rating or show.vote_average %}
+    "aggregateRating": { 
+        "@type": "AggregateRating", 
+        "ratingValue": "{{ show.rating or show.vote_average }}", 
+        "bestRating": "10", 
+        "worstRating": "1",
+        "ratingCount": "1" 
+    },
+    {% endif %}
     {% if show.created_at %}"datePublished": "{{ show.created_at.date().isoformat() }}"{% endif %}
   }
   {% endif %}
   </script>
 {% endblock %}
+
