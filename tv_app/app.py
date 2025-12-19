@@ -1,8 +1,7 @@
-# --- tv_app/app.py (PART 1: Config & Public Routes) ---
+# --- tv_app/app.py (PART 1: Public Routes & Movies) ---
 import os
 import logging
 import hashlib
-import json
 from datetime import datetime
 from urllib.parse import urlencode, urlparse
 
@@ -15,7 +14,7 @@ from dotenv import load_dotenv
 from redis import Redis
 from werkzeug.exceptions import NotFound
 
-# Added SkippedFile to imports
+# UPDATED: Added SkippedFile
 from .models import db, TVShow, Genre, SkippedFile
 
 load_dotenv()
@@ -83,7 +82,6 @@ def index():
     per_page = 10
     
     # Base query filters by the current site mode
-    # IMPORTANT: This naturally excludes movies (category='movie')
     base_query = TVShow.query.filter(TVShow.category == mode)
 
     # Trending logic (scoped to current category)
@@ -148,7 +146,6 @@ def index():
 
 @app.route('/shows')
 def list_shows():
-    """Legacy browse route for TV/Anime only."""
     try:
         mode = get_site_mode() # 'tv' or 'anime'
         
@@ -159,7 +156,7 @@ def list_shows():
         year_filter = request.args.get('year', type=int)
         sort_by = request.args.get('sort_by', 'name_asc')
 
-        # Strictly filter by current site mode (excludes movies)
+        # ISOLATION FIX: Start query filtering by current category
         query = TVShow.query.filter(TVShow.category == mode)
         
         if genre_filter:
@@ -188,7 +185,6 @@ def list_shows():
 
         shows_paginated = query.paginate(page=page, per_page=per_page, error_out=False)
 
-        # Get genres only for this category if possible, but global is fine for now
         all_genres = Genre.query.order_by(Genre.name).all()
         current_year = datetime.utcnow().year
         min_year_result = db.session.query(func.min(TVShow.year)).filter(TVShow.year.isnot(None)).scalar()
@@ -221,7 +217,7 @@ def list_shows():
 def list_movies():
     try:
         page = request.args.get('page', 1, type=int)
-        per_page = 24  # Grid layout needs multiples of 3/4
+        per_page = 24  # 4x6 Grid
         search_q = (request.args.get('q') or '').strip()
         sort_by = request.args.get('sort_by', 'date_desc')
         year_filter = request.args.get('year', type=int)
@@ -234,7 +230,6 @@ def list_movies():
         if search_q:
             try:
                 query = query.filter(func.similarity(TVShow.show_name, search_q) > 0.1)
-                # Sort by similarity if searching
                 query = query.order_by(func.similarity(TVShow.show_name, search_q).desc())
             except Exception:
                 query = query.filter(TVShow.show_name.ilike(f'%{search_q}%'))
@@ -245,18 +240,17 @@ def list_movies():
         if rating_filter is not None:
              query = query.filter(TVShow.rating >= float(rating_filter))
 
-        # 4. Sorting (Only apply if NOT searching by relevance)
+        # 4. Sorting
         if not search_q:
             if sort_by == 'name_asc':
                 query = query.order_by(TVShow.show_name.asc())
             elif sort_by == 'rating_desc':
                 query = query.order_by(TVShow.rating.desc().nullslast())
-            else: # date_desc default
+            else: # date_desc
                 query = query.order_by(TVShow.created_at.desc())
 
         movies = query.paginate(page=page, per_page=per_page, error_out=False)
 
-        # Metadata for filters
         current_year = datetime.utcnow().year
         years = list(range(current_year, 1970, -1))
         
@@ -267,7 +261,7 @@ def list_movies():
         return render_template('movies.html',
             movies=movies, years=years,
             search_q=search_q, current_sort=sort_by, selected_year=year_filter, selected_rating=rating_filter,
-            title="Browse Movies - Download & Stream",
+            title="Browse Movies",
             canonical_url=canonical_url, prev_url=prev_url, next_url=next_url, meta_robots=meta_robots
         )
     except Exception as e:
@@ -281,21 +275,27 @@ def show_details(slug):
         show.clicks = (show.clicks or 0) + 1
         db.session.commit()
 
-        # Handle different title formats based on category
-        if show.category == 'movie':
-             title_parts = [show.show_name, f"({show.year})" if show.year else "", "Movie Download"]
-        else:
-             title_parts = [show.show_name]
-             if show.episode_title: title_parts.append(show.episode_title)
-             title_parts.append("Details & Download")
+        # UPDATED: Handle Movie vs TV Title Format
+        title_parts = [show.show_name]
         
-        page_title = " ".join([p for p in title_parts if p])
+        if show.category == 'movie':
+            if show.year:
+                title_parts.append(f"({show.year})")
+            title_parts.append("Movie Download")
+        else:
+            if show.episode_title:
+                title_parts.append(show.episode_title)
+            title_parts.append("Details & Download")
+            
+        page_title = " - ".join(title_parts)
 
         if show.overview:
-            meta_desc = (show.overview[:155] + "...") if len(show.overview) > 155 else show.overview
+            meta_desc_content = show.overview[:155] + "..." if len(show.overview) > 155 else show.overview
+            meta_desc = f"{meta_desc_content} Find details and download link on iBOX TV."
         else:
-            meta_desc = f"View details and download {show.show_name} on iBOX TV."
-        
+            meta_desc = f"View details and download {show.show_name}{' - ' + show.episode_title if show.episode_title else ''} on iBOX TV."
+        meta_desc = meta_desc[:160]
+
         return render_template('show_details.html',
             show=show, title=page_title, meta_description=meta_desc,
             canonical_url=request.url, meta_robots="index,follow"
@@ -303,222 +303,267 @@ def show_details(slug):
     except Exception as e:
         db.session.rollback()
         logger.error(f"Error in show_details slug={slug}: {e}")
-        return render_template('500.html'), 500
-
-@app.route('/show/<int:show_id>')
-def show_legacy_id(show_id):
-    show = TVShow.query.get_or_404(show_id)
-    if getattr(show, 'slug', None):
-        return redirect(url_for('show_details', slug=show.slug), code=301)
-    return render_template('show_details.html', show=show, title=show.show_name, meta_robots="noindex,follow")
-
-@app.route('/redirect/<int:show_id>')
-def redirect_to_download(show_id):
-    try:
-        show = TVShow.query.get_or_404(show_id)
-        if show.download_link:
-            return redirect(show.download_link)
-    except NotFound:
-        pass
-    return "Download link not found for this show.", 404
-
-@app.route('/privacy-policy')
-def privacy_policy():
-    return render_template('privacy_policy.html', title="Privacy Policy")
-    # --- tv_app/app.py (PART 2: SEO, Nuke Panel & Backfill) ---
-
-# ----------------------------- SEO & Sitemaps -----------------------------
-
+        return render_template('500.html', title="Server Error",
+                               meta_description="An error occurred viewing show details."), 500
+        # ----------------------------- SEO assets -----------------------------
 @app.route('/ads.txt')
 def ads_txt_redirect():
-    """Redirects to the main ads.txt (if you have one managed elsewhere)"""
-    return redirect("https://srv.adstxtmanager.com/34887/ibox-tv.com", code=301)
+    return redirect("https://srv.adstxtmanager.com/75094/ibox-tv.com", code=301)
 
 @app.route('/robots.txt')
 def robots_txt():
-    return send_from_directory(app.static_folder, 'robots.txt')
+    return send_from_directory(app.static_folder, 'robots.txt', mimetype='text/plain')
 
 @app.route('/sitemap.xml')
 def sitemap_xml():
-    """Generates a dynamic sitemap including standard pages and all show slugs."""
-    host = request.host_url.rstrip('/')
-    # Static pages
-    pages = [
-        {'loc': f"{host}/", 'lastmod': datetime.utcnow().strftime('%Y-%m-%d'), 'changefreq': 'daily', 'priority': '1.0'},
-        {'loc': f"{host}/shows", 'lastmod': datetime.utcnow().strftime('%Y-%m-%d'), 'changefreq': 'daily', 'priority': '0.9'},
-        {'loc': f"{host}/movies", 'lastmod': datetime.utcnow().strftime('%Y-%m-%d'), 'changefreq': 'daily', 'priority': '0.9'},
-    ]
+    try:
+        items = TVShow.query.order_by(
+            (TVShow.updated_at.desc() if hasattr(TVShow, 'updated_at') else TVShow.created_at.desc())
+        ).limit(50000).all()
+        urlset = []
+        base = url_for('index', _external=True)
+        urlset.append(f"<url><loc>{base}</loc><changefreq>hourly</changefreq></url>")
+        for s in items:
+            loc = url_for('show_details', slug=s.slug, _external=True)
+            lm = getattr(s, 'updated_at', None) or s.created_at or datetime.utcnow()
+            lastmod = lm.date().isoformat()
+            urlset.append(f"<url><loc>{loc}</loc><lastmod>{lastmod}</lastmod><changefreq>weekly</changefreq></url>")
+        xml = "<?xml version='1.0' encoding='UTF-8'?>\n" \
+              "<urlset xmlns='http://www.sitemaps.org/schemas/sitemap/0.9'>\n" + \
+              "\n".join(urlset) + "\n</urlset>"
+        return Response(xml, mimetype="application/xml")
+    except Exception as e:
+        logger.error(f"sitemap error: {e}")
+        return Response("<?xml version='1.0' encoding='UTF-8'?><urlset/>", mimetype="application/xml")
 
-    # Dynamic Pages (Recent 5000 to keep it light)
-    shows = TVShow.query.order_by(TVShow.updated_at.desc()).limit(5000).all()
-    for show in shows:
-        pages.append({
-            'loc': f"{host}/show/{show.slug}",
-            'lastmod': show.updated_at.strftime('%Y-%m-%d'),
-            'changefreq': 'weekly',
-            'priority': '0.8'
-        })
+# ----------------------------- Nuke panel (auth + dupes) -----------------------------
+def _redis():
+    return Redis.from_url(os.environ.get('REDIS_URL', 'redis://localhost:6379/0'), decode_responses=True)
 
-    xml = ['<?xml version="1.0" encoding="UTF-8"?>',
-           '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">']
-    for p in pages:
-        xml.append(f"  <url><loc>{p['loc']}</loc><lastmod>{p['lastmod']}</lastmod><changefreq>{p['changefreq']}</changefreq><priority>{p['priority']}</priority></url>")
-    xml.append('</urlset>')
+def _admin_token():
+    return os.environ.get('ADMIN_TOKEN', '')
+
+def _nuke_cookie_ttl_days():
+    try:
+        return int(os.environ.get('NUKE_COOKIE_TTL_DAYS', '30'))
+    except Exception:
+        return 30
+
+def _nuke_enabled():
+    r = _redis()
+    val = r.get('nuke:enabled')
+    if val is None:
+        r.set('nuke:enabled', '1')
+        return True
+    return val == '1'
+
+def _nuke_disable():
+    _redis().set('nuke:enabled', '0')
+
+def _nuke_enable():
+    _redis().set('nuke:enabled', '1')
+
+def _fail_key(ip):
+    return f"nuke:fail:{ip}"
+
+def _cookie_value():
+    secret = app.config['SECRET_KEY']
+    token = _admin_token()
+    return hashlib.sha256(f"{token}:{secret}".encode()).hexdigest()
+
+def _is_authed(req):
+    return req.cookies.get('nuke_auth') == _cookie_value()
+
+@app.route('/nuke', methods=['GET'])
+def nuke_home():
+    if not _nuke_enabled():
+        return render_template('maintenance.html', title="Maintenance"), 503
+
+    if not _is_authed(request):
+        msg = request.args.get('msg', '')
+        return render_template('nuke_login.html', title="Access Nuke", message=msg)
+
+    q = (request.args.get('q') or '').strip()
+    view_dupes = request.args.get('dupes')
+    if not q and view_dupes is None:
+        view_dupes = '1'
     
-    return Response("\n".join(xml), mimetype='application/xml')
+    # NEW: Fetch skipped files for monitoring
+    recent_skipped = []
+    try:
+        recent_skipped = SkippedFile.query.order_by(SkippedFile.created_at.desc()).limit(20).all()
+    except Exception as e:
+        logger.error(f"Error fetching skipped files: {e}")
 
-# ----------------------------- Nuke / Admin Panel -----------------------------
+    if view_dupes:
+        rows = db.session.query(
+            TVShow.download_link, func.count(TVShow.id).label('cnt')
+        ).filter(
+            TVShow.download_link.isnot(None)
+        ).group_by(
+            TVShow.download_link
+        ).having(
+            func.count(TVShow.id) > 1
+        ).order_by(
+            func.count(TVShow.id).desc()
+        ).all()
 
-NUKE_PASS_HASH = hashlib.sha256(os.environ.get('NUKE_PASS', 'admin').encode()).hexdigest()
+        dupe_groups = []
+        for link, _cnt in rows:
+            shows = TVShow.query.filter_by(download_link=link).order_by(TVShow.created_at.desc()).all()
+            dupe_groups.append({
+                'link': link,
+                'domain': urlparse(link).netloc if link else '',
+                'shows': shows
+            })
+        return render_template('nuke.html', title="Nuke", view_dupes=True, dupe_groups=dupe_groups, q=q, skipped_files=recent_skipped)
 
-def check_auth():
-    """Verifies the nuke_token cookie."""
-    token = request.cookies.get('nuke_token')
+    page = request.args.get('page', 1, type=int)
+    per_page = 30
+    query = TVShow.query
+    if q:
+        try:
+            query = query.filter(func.similarity(TVShow.show_name, q) > 0.1).order_by(func.similarity(TVShow.show_name, q).desc())
+        except Exception:
+            query = query.filter(TVShow.show_name.ilike(f"%{q}%")).order_by(TVShow.created_at.desc())
+    else:
+        query = query.order_by(TVShow.created_at.desc())
+
+    shows = query.paginate(page=page, per_page=per_page, error_out=False)
+    return render_template('nuke.html', title="Nuke", shows=shows, q=q, view_dupes=False, skipped_files=recent_skipped)
+
+@app.route('/nuke/login', methods=['POST'])
+def nuke_login():
+    if not _nuke_enabled():
+        return render_template('maintenance.html', title="Maintenance"), 503
+
+    ip = (request.headers.get('X-Forwarded-For') or request.remote_addr or '0.0.0.0').split(',')[0].strip()
+    token = (request.form.get('token') or '').strip()
     if not token:
-        return False
-    # Simple hash check: cookie should match the password hash
-    return token == NUKE_PASS_HASH
+        return redirect(url_for('nuke_home', msg="Token required"))
 
-@app.route('/nuke/login', methods=['GET', 'POST'])
-def login_nuke():
-    if request.method == 'POST':
-        password = request.form.get('password')
-        if hashlib.sha256(password.encode()).hexdigest() == NUKE_PASS_HASH:
-            resp = make_response(redirect(url_for('nuke_dashboard')))
-            # Set cookie for 1 year
-            resp.set_cookie('nuke_token', NUKE_PASS_HASH, max_age=60*60*24*365, httponly=True)
-            return resp
-        else:
-            return render_template('nuke_login.html', error="Invalid Password")
-    return render_template('nuke_login.html')
+    if token != _admin_token():
+        r = _redis()
+        fk = _fail_key(ip)
+        fails = int(r.incr(fk))
+        r.expire(fk, 3600)
+        if fails >= 2:
+            _nuke_disable()
+            return redirect(url_for('nuke_home', msg="Locked after 2 failed attempts"))
+        return redirect(url_for('nuke_home', msg=f"Invalid token. Attempt {fails}/2"))
 
-@app.route('/nuke')
-def nuke_dashboard():
-    if not check_auth():
-        return redirect(url_for('login_nuke'))
-    
-    # Dashboard Stats
-    total_tv = TVShow.query.filter_by(category='tv').count()
-    total_anime = TVShow.query.filter_by(category='anime').count()
-    total_movies = TVShow.query.filter_by(category='movie').count()
-    
-    # Fetch recent skipped files for debugging
-    skipped_files = SkippedFile.query.order_by(SkippedFile.created_at.desc()).limit(50).all()
+    resp = make_response(redirect(url_for('nuke_home')))
+    resp.set_cookie('nuke_auth', _cookie_value(), max_age=_nuke_cookie_ttl_days()*24*3600, httponly=True, samesite='Lax', secure=True)
+    _redis().delete(_fail_key(ip))
+    return resp
 
-    return render_template('nuke.html', 
-                           total_tv=total_tv, 
-                           total_anime=total_anime, 
-                           total_movies=total_movies,
-                           skipped_files=skipped_files)
+@app.route('/nuke/logout', methods=['POST'])
+def nuke_logout():
+    resp = make_response(redirect(url_for('nuke_home', msg="Logged out")))
+    resp.set_cookie('nuke_auth', '', max_age=0)
+    return resp
 
-@app.route('/nuke/api/search')
-def api_nuke_search():
-    if not check_auth():
-        return jsonify({'error': 'Unauthorized'}), 401
-        
-    query = request.args.get('q', '').strip()
-    if len(query) < 2:
-        return jsonify([])
-    
-    # Admin search searches everything
-    results = TVShow.query.filter(TVShow.show_name.ilike(f'%{query}%')).limit(20).all()
-    
-    data = []
-    for s in results:
-        data.append({
-            'id': s.id,
-            'title': s.show_name,
-            'episode': s.episode_title,
-            'category': s.category,
-            'slug': s.slug
-        })
-    return jsonify(data)
+@app.route('/nuke/unlock', methods=['POST'])
+def nuke_unlock():
+    token = (request.form.get('token') or '').strip()
+    if token != _admin_token():
+        return redirect(url_for('nuke_home', msg="Wrong key"))
+    _nuke_enable()
+    return redirect(url_for('nuke_home', msg="Nuke enabled"))
 
 @app.route('/nuke/delete/<int:show_id>', methods=['POST'])
-def api_delete_show(show_id):
-    if not check_auth():
-        return jsonify({'error': 'Unauthorized'}), 401
-    
-    show = TVShow.query.get_or_404(show_id)
+def nuke_delete(show_id):
+    if not _is_authed(request):
+        return redirect(url_for('nuke_home', msg="Login required"))
     try:
+        show = TVShow.query.get_or_404(show_id)
         db.session.delete(show)
         db.session.commit()
-        return jsonify({'success': True, 'message': f'Deleted {show.show_name}'})
+        return redirect(f"{url_for('nuke_home')}?{urlencode({'msg': f'Deleted {show.show_name}'})}")
     except Exception as e:
         db.session.rollback()
-        return jsonify({'success': False, 'message': str(e)})
+        logger.error(f"/nuke delete error {show_id}: {e}")
+        return redirect(url_for('nuke_home', msg="Delete failed, check logs"))
 
-# --- Update Controls ---
-
-@app.route('/nuke/trigger_update', methods=['POST'])
-def trigger_manual_update():
-    if not check_auth():
-        return jsonify({'error': 'Unauthorized'}), 401
+@app.route('/nuke/bulk-delete', methods=['POST'])
+def nuke_bulk_delete():
+    if not _is_authed(request):
+        return redirect(url_for('nuke_home', msg="Login required"))
+    link = (request.form.get('link') or '').strip()
+    mode = (request.form.get('mode') or '').strip()
+    ids = request.form.getlist('ids')
     try:
-        # Lazy import to avoid circular dependency
-        from .tasks import update_tv_shows
-        update_tv_shows.delay()
-        return jsonify({'success': True, 'message': 'Update Task Started'})
+        if not link:
+            return redirect(url_for('nuke_home', msg="No link provided"))
+        if mode == 'selected':
+            if not ids:
+                return redirect(url_for('nuke_home', dupes=1, msg="No items selected"))
+            TVShow.query.filter(TVShow.id.in_(ids), TVShow.download_link == link).delete(synchronize_session=False)
+        elif mode == 'all_but_latest':
+            items = TVShow.query.filter_by(download_link=link).order_by(TVShow.created_at.desc(), TVShow.id.desc()).all()
+            for s in items[1:]:
+                db.session.delete(s)
+        elif mode == 'all':
+            TVShow.query.filter_by(download_link=link).delete(synchronize_session=False)
+        else:
+            return redirect(url_for('nuke_home', dupes=1, msg="Unknown mode"))
+        db.session.commit()
+        return redirect(url_for('nuke_home', dupes=1, msg="Bulk delete done"))
     except Exception as e:
-        return jsonify({'success': False, 'message': str(e)})
+        db.session.rollback()
+        logger.error(f"/nuke bulk-delete error: {e}")
+        return redirect(url_for('nuke_home', dupes=1, msg="Bulk delete failed"))
 
 # --- NEW: Backfill Controls ---
 
-def get_redis():
-    """Helper to get a thread-safe Redis connection."""
-    return Redis.from_url(os.environ.get('REDIS_URL', 'redis://localhost:6379/0'))
-
 @app.route('/nuke/backfill/start', methods=['POST'])
-def trigger_backfill():
-    if not check_auth():
+def nuke_backfill_start():
+    if not _is_authed(request):
         return jsonify({'error': 'Unauthorized'}), 401
     try:
         from .tasks import backfill_movies_task
-        # Clear the pause flag if it exists
-        r = get_redis()
-        r.delete('backfill:pause')
-        
+        _redis().delete('backfill:pause')
         backfill_movies_task.delay()
-        return jsonify({'success': True, 'message': 'Backfill Task Started'})
+        return jsonify({'success': True, 'message': 'Backfill task started'})
     except Exception as e:
+        logger.error(f"Backfill start error: {e}")
         return jsonify({'success': False, 'message': str(e)})
 
 @app.route('/nuke/backfill/pause', methods=['POST'])
-def pause_backfill():
-    if not check_auth():
+def nuke_backfill_pause():
+    if not _is_authed(request):
         return jsonify({'error': 'Unauthorized'}), 401
     try:
-        r = get_redis()
-        # Set pause flag
-        r.set('backfill:pause', '1')
-        return jsonify({'success': True, 'message': 'Pause Signal Sent'})
+        _redis().set('backfill:pause', '1')
+        return jsonify({'success': True, 'message': 'Pause signal sent'})
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)})
 
 @app.route('/nuke/backfill/status')
-def backfill_status():
-    if not check_auth():
+def nuke_backfill_status():
+    if not _is_authed(request):
         return jsonify({'error': 'Unauthorized'}), 401
     try:
-        r = get_redis()
-        # Retrieve status hash
-        status = r.hgetall('backfill:status')
-        # Convert bytes to string
-        status = {k.decode('utf-8'): v.decode('utf-8') for k, v in status.items()}
+        status = _redis().hgetall('backfill:status')
         return jsonify(status)
     except Exception:
-        return jsonify({'state': 'Unknown', 'progress': 0})
+        return jsonify({})
 
-# ----------------------------- Error Handlers -----------------------------
+# ----------------------------- Health & errors -----------------------------
+@app.route('/healthz')
+def healthz():
+    return jsonify(status="ok", time=datetime.utcnow().isoformat()), 200
 
 @app.errorhandler(404)
-def not_found_error(error):
-    return render_template('404.html'), 404
+def page_not_found(e):
+    return render_template('404.html', title="Page Not Found",
+                           meta_description="The page you were looking for could not be found."), 404
 
 @app.errorhandler(500)
-def internal_error(error):
-    db.session.rollback()
-    return render_template('500.html'), 500
-
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+def internal_server_error(e):
+    try:
+        db.session.rollback()
+    except Exception as rollback_error:
+        logger.error(f"Error during rollback in 500 handler: {rollback_error}")
+    return render_template('500.html', title="Internal Server Error",
+                           meta_description="We encountered an internal error. Please try again later."), 500
