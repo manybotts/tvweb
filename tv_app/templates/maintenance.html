@@ -1,0 +1,18 @@
+{% extends 'base.html' %}
+{% block title %}Maintenance{% endblock %}
+{% block content %}
+<div style="text-align: center; padding: 80px 20px;">
+    <h1 style="font-size: 3em; color: #ffc107; margin-bottom: 20px;"><i class="fas fa-lock"></i></h1>
+    <h2 style="color: #fff;">Panel Locked</h2>
+    <p style="color: #aaa; margin-bottom: 30px;">The Nuke Panel is currently disabled for security.</p>
+    
+    <div style="display: inline-block; background: #1a1a1a; padding: 20px; border-radius: 8px; border: 1px solid #333;">
+        <p style="margin-top: 0; font-size: 0.9em; color: #666;">Admin Unlock</p>
+        <form method="post" action="{{ url_for('nuke_unlock') }}" style="display: flex; gap: 10px;">
+            <input type="password" name="token" placeholder="Admin Token" required 
+                   style="padding: 8px; border-radius: 4px; border: 1px solid #444; background: #111; color: white;">
+            <button type="submit" class="btn" style="padding: 8px 15px;">Unlock</button>
+        </form>
+    </div>
+</div>
+{% endblock %}
