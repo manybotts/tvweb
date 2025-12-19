@@ -1,129 +1,219 @@
 {% extends "base.html" %}
 
-{% block title %}Browse All Movies{% endblock %}
-{% block meta_description %}Explore our modern library of available movies. Filter by genre, rating, and year to find your next download.{% endblock %}
+{% block title %}{{ title }}{% endblock %}
+{% block meta_description %}Stream and download the latest movies. Filter by year, rating, and popularity on iBOX TV.{% endblock %}
 
 {% block content %}
-<div class="container" style="margin-top: 20px;">
-    <h2><i class="fas fa-film"></i> Available Movies</h2>
+<div class="movie-page-container">
+    <div class="page-header" style="margin-bottom: 20px; border-bottom: 1px solid #333; padding-bottom: 10px;">
+        <h2><i class="fas fa-film" style="color: #e50914;"></i> Movies</h2>
+    </div>
 
-    <form method="GET" action="{{ url_for('list_movies') }}" class="filter-form" style="background: #1a1a1a; padding: 20px; border-radius: 8px; border: 1px solid #333; margin-bottom: 30px; display: flex; flex-wrap: wrap; gap: 15px; align-items: flex-end;">
+    {# --- Filter Form --- #}
+    <form method="GET" action="{{ url_for('list_movies') }}" class="filter-form" style="margin-bottom: 30px; display: flex; flex-wrap: wrap; gap: 15px; align-items: flex-end;">
+        {% if search_q %}
+        <input type="hidden" name="q" value="{{ search_q }}">
+        {% endif %}
         
         <div class="filter-group">
-            <label style="display:block; font-size: 0.85em; color: #888; margin-bottom: 5px;">Genre:</label>
-            <select name="genre" style="padding: 10px; background: #222; color: white; border: 1px solid #444; border-radius: 4px; min-width: 140px;">
-                <option value="">All Genres</option>
-                {% for genre in genres %}
-                    <option value="{{ genre.name }}" {% if genre.name == selected_genre %}selected{% endif %}>{{ genre.name }}</option>
-                {% endfor %}
-            </select>
-        </div>
-
-        <div class="filter-group">
-            <label style="display:block; font-size: 0.85em; color: #888; margin-bottom: 5px;">Rating:</label>
-            <select name="rating" style="padding: 10px; background: #222; color: white; border: 1px solid #444; border-radius: 4px; min-width: 120px;">
+            <label for="rating" style="display: block; font-size: 0.85rem; color: #aaa; margin-bottom: 5px;">Rating</label>
+            <select id="rating" name="rating" style="padding: 8px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px;">
                 <option value="">All Ratings</option>
-                {% for r in ratings %}
-                    <option value="{{ r }}" {% if r == selected_rating %}selected{% endif %}>{{ r }}+ Stars</option>
-                {% endfor %}
+                <option value="9" {% if selected_rating == 9 %}selected{% endif %}>9+ Stars</option>
+                <option value="8" {% if selected_rating == 8 %}selected{% endif %}>8+ Stars</option>
+                <option value="7" {% if selected_rating == 7 %}selected{% endif %}>7+ Stars</option>
+                <option value="6" {% if selected_rating == 6 %}selected{% endif %}>6+ Stars</option>
             </select>
         </div>
 
         <div class="filter-group">
-            <label style="display:block; font-size: 0.85em; color: #888; margin-bottom: 5px;">Year:</label>
-            <select name="year" style="padding: 10px; background: #222; color: white; border: 1px solid #444; border-radius: 4px; min-width: 100px;">
+            <label for="year" style="display: block; font-size: 0.85rem; color: #aaa; margin-bottom: 5px;">Year</label>
+            <select id="year" name="year" style="padding: 8px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px;">
                 <option value="">All Years</option>
                 {% for y in years %}
-                    <option value="{{ y }}" {% if y == selected_year %}selected{% endif %}>{{ y }}</option>
+                    <option value="{{ y }}" {% if selected_year == y %}selected{% endif %}>{{ y }}</option>
                 {% endfor %}
             </select>
         </div>
 
         <div class="filter-group">
-            <label style="display:block; font-size: 0.85em; color: #888; margin-bottom: 5px;">Sort By:</label>
-            <select name="sort_by" style="padding: 10px; background: #222; color: white; border: 1px solid #444; border-radius: 4px; min-width: 140px;">
-                <option value="name_asc" {% if current_sort_by == 'name_asc' %}selected{% endif %}>Name (A-Z)</option>
-                <option value="date_desc" {% if current_sort_by == 'date_desc' %}selected{% endif %}>Newest Added</option>
-                <option value="rating_desc" {% if current_sort_by == 'rating_desc' %}selected{% endif %}>Highest Rated</option>
+            <label for="sort_by" style="display: block; font-size: 0.85rem; color: #aaa; margin-bottom: 5px;">Sort</label>
+            <select id="sort_by" name="sort_by" style="padding: 8px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px;">
+                <option value="date_desc" {% if current_sort == 'date_desc' %}selected{% endif %}>Newest</option>
+                <option value="date_asc" {% if current_sort == 'date_asc' %}selected{% endif %}>Oldest</option>
+                <option value="rating_desc" {% if current_sort == 'rating_desc' %}selected{% endif %}>Top Rated</option>
+                <option value="name_asc" {% if current_sort == 'name_asc' %}selected{% endif %}>A-Z</option>
             </select>
         </div>
 
-        <div style="display: flex; gap: 10px;">
-            <button type="submit" class="btn btn-primary" style="padding: 10px 25px; font-weight: bold;">Filter</button>
-            <a href="{{ url_for('list_movies') }}" class="btn" style="background: #444; color: white; text-decoration: none; padding: 10px 25px; border-radius: 4px; display: flex; align-items: center;">Reset</a>
-        </div>
+        <button type="submit" style="padding: 8px 16px; background: #e50914; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">Filter</button>
+        
+        {% if selected_year or selected_rating or current_sort != 'date_desc' or search_q %}
+            <a href="{{ url_for('list_movies') }}" style="color: #aaa; text-decoration: underline; align-self: center; font-size: 0.9rem;">Reset</a>
+        {% endif %}
     </form>
 
-    {% if shows.items %}
-    <div class="movie-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 25px; margin-bottom: 40px;">
-        {% for show in shows.items %}
-            <a href="{{ url_for('show_details', slug=show.slug) }}" style="text-decoration: none; color: inherit;">
-                <div class="movie-card" style="background: #1a1a1a; border: 1px solid #333; border-radius: 12px; overflow: hidden; position: relative; transition: transform 0.3s, border-color 0.3s; height: 100%;">
-                    
-                    <div style="aspect-ratio: 2/3; background: #000; overflow: hidden;">
-                        {% if show.poster_path %}
-                        <img src="{{ show.poster_path }}" alt="{{ show.show_name }}" style="width: 100%; height: 100%; object-fit: cover; transition: transform 0.5s;">
-                        {% else %}
-                        <div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; color: #444;">
-                            <i class="fas fa-film fa-3x"></i>
+    {# --- Movie Grid --- #}
+    <div class="movie-grid">
+        {% for movie in movies.items %}
+            <a href="{{ url_for('show_details', slug=movie.slug) }}" class="movie-card">
+                <div class="poster-wrapper">
+                    {% if movie.poster_path %}
+                        <img src="{{ movie.poster_path }}" alt="{{ movie.show_name }}" loading="lazy">
+                    {% else %}
+                        <div class="no-poster" style="display: flex; align-items: center; justify-content: center; height: 100%; background: #333; color: #555;">
+                            <i class="fas fa-film fa-2x"></i>
                         </div>
-                        {% endif %}
-                    </div>
-
-                    {% if show.rating %}
-                    <div style="position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.85); color: #ffc107; padding: 4px 8px; border-radius: 6px; font-size: 0.85em; font-weight: 800; border: 1px solid rgba(255,193,7,0.3);">
-                        <i class="fas fa-star"></i> {{ "%.1f"|format(show.rating) }}
-                    </div>
                     {% endif %}
-
-                    <div style="padding: 12px;">
-                        <h3 style="margin: 0 0 5px 0; font-size: 0.95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #fff;" title="{{ show.show_name }}">
-                            {{ show.show_name }}
-                        </h3>
-                        <div style="display: flex; justify-content: space-between; align-items: center;">
-                            <span style="font-size: 0.8em; color: #888;">{{ show.year or 'Movie' }}</span>
-                            <span style="font-size: 0.75em; color: #555; background: #222; padding: 2px 5px; border-radius: 3px;">HD</span>
+                    
+                    {% if movie.rating %}
+                        <div class="rating-badge">
+                            <i class="fas fa-star" style="font-size: 0.7em;"></i> {{ "%.1f"|format(movie.rating) }}
                         </div>
+                    {% endif %}
+                </div>
+                <div class="movie-info">
+                    <h3 class="movie-title">{{ movie.show_name }}</h3>
+                    <div class="movie-meta">
+                        <span class="movie-year">{{ movie.year or '' }}</span>
                     </div>
                 </div>
             </a>
         {% endfor %}
     </div>
-    {% else %}
-    <div style="text-align: center; padding: 60px; background: #111; border-radius: 12px; border: 1px dashed #333;">
-        <i class="fas fa-search fa-3x" style="color: #444; margin-bottom: 15px;"></i>
-        <h3 style="color: #888;">No movies found matching those filters.</h3>
-        <p style="color: #555;">Try a different genre or year combination!</p>
-    </div>
+    
+    {% if movies.items|length == 0 %}
+        <div class="no-results" style="padding: 40px; text-align: center; color: #888;">
+            <i class="fas fa-search fa-3x" style="margin-bottom: 20px; opacity: 0.5;"></i>
+            <p>No movies found matching your criteria.</p>
+        </div>
     {% endif %}
 
-    <div class="pagination" style="display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; padding-bottom: 50px;">
-        {% if shows.has_prev %}
-            <a href="{{ url_for('list_movies', page=shows.prev_num, genre=selected_genre, rating=selected_rating, year=selected_year, sort_by=current_sort_by) }}" class="btn" style="background: #222; color: #fff;">« Previous</a>
+    {# --- Pagination --- #}
+    <div class="pagination" style="margin-top: 40px; display: flex; justify-content: center; gap: 5px; flex-wrap: wrap;">
+        {% if movies.has_prev %}
+            <a href="{{ url_for('list_movies', page=movies.prev_num, q=search_q, sort_by=current_sort, year=selected_year, rating=selected_rating) }}" class="page-link">&laquo; Prev</a>
+        {% else %}
+            <span class="page-link disabled" style="opacity: 0.5; cursor: default;">&laquo; Prev</span>
         {% endif %}
 
-        {% for page_num in shows.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+        {% for page_num in movies.iter_pages(left_edge=1, right_edge=1, left_current=1, right_current=2) %}
             {% if page_num %}
-                {% if shows.page == page_num %}
-                    <span class="btn" style="background: #007bff; color: white; cursor: default; font-weight: bold; border-color: #007bff;">{{ page_num }}</span>
+                {% if movies.page == page_num %}
+                    <span class="page-link current" style="background: #e50914; color: white; border-color: #e50914;">{{ page_num }}</span>
                 {% else %}
-                    <a href="{{ url_for('list_movies', page=page_num, genre=selected_genre, rating=selected_rating, year=selected_year, sort_by=current_sort_by) }}" class="btn" style="background: #222; color: #888;">{{ page_num }}</a>
+                    <a href="{{ url_for('list_movies', page=page_num, q=search_q, sort_by=current_sort, year=selected_year, rating=selected_rating) }}" class="page-link">{{ page_num }}</a>
                 {% endif %}
             {% else %}
-                <span style="color: #444; align-self: center;">...</span>
+                <span class="page-link dots" style="border: none;">...</span>
             {% endif %}
         {% endfor %}
 
-        {% if shows.has_next %}
-            <a href="{{ url_for('list_movies', page=shows.next_num, genre=selected_genre, rating=selected_rating, year=selected_year, sort_by=current_sort_by) }}" class="btn" style="background: #222; color: #fff;">Next »</a>
+        {% if movies.has_next %}
+            <a href="{{ url_for('list_movies', page=movies.next_num, q=search_q, sort_by=current_sort, year=selected_year, rating=selected_rating) }}" class="page-link">Next &raquo;</a>
+        {% else %}
+            <span class="page-link disabled" style="opacity: 0.5; cursor: default;">Next &raquo;</span>
         {% endif %}
     </div>
 </div>
 
+{# --- Specific Styles for Movie Grid --- #}
 <style>
-.movie-card:hover { transform: translateY(-8px); border-color: #007bff !important; box-shadow: 0 10px 20px rgba(0,0,0,0.5); }
-.movie-card:hover img { transform: scale(1.1); }
-.btn-primary { background: #007bff; border: none; }
-.btn-primary:hover { background: #0056b3; }
+    .movie-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+        gap: 15px;
+        width: 100%;
+    }
+    .movie-card {
+        display: block;
+        text-decoration: none;
+        color: inherit;
+        background: #181818;
+        border-radius: 6px;
+        overflow: hidden;
+        transition: transform 0.2s, box-shadow 0.2s;
+        border: 1px solid #2a2a2a;
+    }
+    .movie-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+        border-color: #444;
+    }
+    .poster-wrapper {
+        position: relative;
+        aspect-ratio: 2/3;
+        background: #000;
+        width: 100%;
+    }
+    .poster-wrapper img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+    .rating-badge {
+        position: absolute;
+        top: 6px;
+        right: 6px;
+        background: #f1c40f;
+        color: #000;
+        padding: 2px 5px;
+        border-radius: 3px;
+        font-weight: 800;
+        font-size: 0.75rem;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    }
+    .movie-info {
+        padding: 10px;
+    }
+    .movie-title {
+        font-size: 0.9rem;
+        margin: 0 0 4px 0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        color: #e5e5e5;
+        font-weight: 500;
+    }
+    .movie-meta {
+        font-size: 0.8rem;
+        color: #777;
+    }
+    
+    /* Pagination Styles Reused */
+    .page-link {
+        display: inline-block;
+        padding: 6px 12px;
+        background: #222;
+        color: #fff;
+        border: 1px solid #444;
+        border-radius: 4px;
+        text-decoration: none;
+    }
+    .page-link:hover:not(.disabled):not(.current) {
+        background: #333;
+    }
+
+    @media (max-width: 500px) {
+        .movie-grid {
+            grid-template-columns: repeat(3, 1fr); /* Force 3 columns on mobile */
+            gap: 8px;
+        }
+        .rating-badge {
+            font-size: 0.65rem;
+            padding: 1px 3px;
+            top: 4px; 
+            right: 4px;
+        }
+        .movie-info {
+            padding: 6px;
+        }
+        .movie-title {
+            font-size: 0.75rem;
+        }
+        .movie-meta {
+            font-size: 0.7rem;
+        }
+    }
 </style>
 {% endblock %}
