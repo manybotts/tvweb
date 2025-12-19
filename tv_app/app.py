@@ -1,3 +1,6 @@
+# =================================================================
+# tv_app/app.py - PART 1: IMPORTS, HELPERS & PUBLIC INTERFACE
+# =================================================================
 import os
 import logging
 import hashlib
@@ -14,7 +17,7 @@ from dotenv import load_dotenv
 from redis import Redis
 from werkzeug.exceptions import NotFound
 
-# --- UPDATED IMPORTS (Harmonized) ---
+# --- UPDATED IMPORTS (Harmonized with Movie Features) ---
 from .models import db, TVShow, Genre, SkippedFile
 from .tasks import celery, update_tv_shows, test_task
 
@@ -32,7 +35,7 @@ logger = logging.getLogger(__name__)
 # --- HELPERS ---
 
 def get_site_mode():
-    """Determines site mode based on host/subdomain."""
+    """Determines if we are on 'tv', 'anime', or 'movie' based on subdomain/host."""
     host = request.host.lower()
     if 'anime' in host:
         return 'anime'
@@ -40,16 +43,18 @@ def get_site_mode():
 
 @app.context_processor
 def inject_globals():
+    """Injects 'now' and 'site_mode' into every template."""
     return {
         'now': datetime.utcnow,
         'site_mode': get_site_mode()
     }
 
 def get_trending_shows(limit: int = 6, category: str = 'tv'):
+    """Fetches top clicked shows FOR THE CURRENT CATEGORY only."""
     with app.app_context():
         return TVShow.query.filter_by(category=category)\
-                           .order_by(TVShow.clicks.desc())\
-                           .limit(limit).all()
+                     .order_by(TVShow.clicks.desc())\
+                     .limit(limit).all()
 
 def _page_urls(base_endpoint: str, page_obj, extra_params=None):
     extra_params = extra_params or {}
@@ -71,6 +76,7 @@ def hostonly(url):
 
 @app.template_filter('format_number')
 def format_number(value):
+    """Format large numbers for view counts (e.g., 1.5K, 2M)."""
     try:
         value = float(value)
         if value >= 1_000_000: return f"{value / 1_000_000:.1f}M"
@@ -94,11 +100,13 @@ def index():
 
     if search_query:
         try:
+            # Postgres fuzzy search
             shows = base_query.filter(func.similarity(TVShow.show_name, search_query) > 0.1)\
                               .order_by(func.similarity(TVShow.show_name, search_query).desc())\
                               .paginate(page=page, per_page=per_page, error_out=False)
             
             if not shows.items:
+                # Fallback to ILIKE
                 shows = base_query.filter(TVShow.show_name.ilike(f'%{search_query}%'))\
                                   .order_by(TVShow.created_at.desc())\
                                   .paginate(page=page, per_page=per_page, error_out=False)
@@ -125,6 +133,7 @@ def index():
 
 @app.route('/shows')
 def list_shows():
+    """Stable Route for TV/Anime filtering."""
     try:
         mode = get_site_mode()
         page, per_page = request.args.get('page', 1, type=int), 30
@@ -135,7 +144,7 @@ def list_shows():
 
         query = TVShow.query.filter(TVShow.category == mode)
         
-        # --- FIXED GENRE FILTER (Using .any() for M2M) ---
+        # M2M Genre Filter Fix
         if genre_filter:
             query = query.filter(TVShow.genres.any(Genre.name == genre_filter))
         if year_filter:
@@ -143,15 +152,12 @@ def list_shows():
         if rating_filter is not None:
             query = query.filter(TVShow.rating >= float(rating_filter))
 
-        # Sort Logic
         if sort_by == 'name_asc': query = query.order_by(TVShow.show_name.asc())
         elif sort_by == 'name_desc': query = query.order_by(TVShow.show_name.desc())
         elif sort_by == 'date_desc': query = query.order_by(TVShow.created_at.desc())
         elif sort_by == 'rating_desc': query = query.order_by(TVShow.rating.desc().nullslast())
 
         shows_paginated = query.paginate(page=page, per_page=per_page, error_out=False)
-        
-        # Data for Filter Dropdowns
         all_genres = Genre.query.order_by(Genre.name).all()
         current_year = datetime.utcnow().year
         min_year_result = db.session.query(func.min(TVShow.year)).filter(TVShow.year.isnot(None)).scalar()
@@ -164,7 +170,7 @@ def list_shows():
         
         return render_template('shows.html', shows=shows_paginated, genres=all_genres, ratings=ratings_list, 
                                years=years_list, selected_genre=genre_filter, selected_rating=rating_filter, 
-                               selected_year=year_filter, current_sort_by=sort_by, title="TV Library", 
+                               selected_year=year_filter, current_sort_by=sort_by, title="Library", 
                                canonical_url=canonical_url, prev_url=prev_url, next_url=next_url, meta_robots=meta_robots)
     except Exception as e:
         logger.error(f"Error in list_shows: {e}")
@@ -173,6 +179,7 @@ def list_shows():
 
 @app.route('/movies')
 def list_movies():
+    """NEW: Movie Library Interface."""
     try:
         page, per_page = request.args.get('page', 1, type=int), 30
         genre_filter = request.args.get('genre')
@@ -182,7 +189,6 @@ def list_movies():
 
         query = TVShow.query.filter(TVShow.category == 'movie')
         
-        # --- FIXED GENRE FILTER (Using .any() for M2M) ---
         if genre_filter:
             query = query.filter(TVShow.genres.any(Genre.name == genre_filter))
         if year_filter:
@@ -209,10 +215,17 @@ def list_movies():
     except Exception as e:
         logger.error(f"Movies list error: {e}")
         return render_template('500.html'), 500
-        # --- tv_app/app.py (PART 2 of 2) ---
+
+# =================================================================
+# END OF PART 1 - PUBLIC INTERFACE
+# =================================================================
+# =================================================================
+# tv_app/app.py - PART 2: DETAILS, REDIRECTS, SEO & NUKE PANEL
+# =================================================================
 
 @app.route('/show/<slug>')
 def show_details(slug):
+    """Detailed view for TV, Anime, or Movies."""
     try:
         show = TVShow.query.filter_by(slug=slug).first_or_404()
         # Increment clicks for trending logic
@@ -231,12 +244,15 @@ def show_details(slug):
         else:
             meta_desc = f"View details and download {show.show_name} on iBOX TV."
 
-        # Fetch related content (random from same genres)
+        # Fetch related content (random from same genres/category)
         related = []
         if show.genres:
             genre_ids = [g.id for g in show.genres]
-            related = TVShow.query.filter(TVShow.genres.any(Genre.id.in_(genre_ids)), TVShow.id != show.id)\
-                                  .order_by(func.random()).limit(6).all()
+            related = TVShow.query.filter(
+                TVShow.genres.any(Genre.id.in_(genre_ids)), 
+                TVShow.id != show.id,
+                TVShow.category == show.category
+            ).order_by(func.random()).limit(6).all()
 
         return render_template('show_details.html',
             show=show, related=related, title=page_title, 
@@ -249,7 +265,7 @@ def show_details(slug):
 
 @app.route('/show/<int:show_id>')
 def show_legacy_id(show_id):
-    """Redirects old ID-based URLs to new Slug-based URLs."""
+    """Redirects old ID-based URLs to new Slug-based URLs for SEO."""
     show = TVShow.query.get_or_404(show_id)
     if getattr(show, 'slug', None):
         return redirect(url_for('show_details', slug=show.slug), code=301)
@@ -257,9 +273,11 @@ def show_legacy_id(show_id):
 
 @app.route('/redirect/<int:show_id>')
 def redirect_to_download(show_id):
+    """Controlled redirect handler for Telegram Bot Handshake."""
     try:
         show = TVShow.query.get_or_404(show_id)
         if show.download_link:
+            # If it's a direct link or a bot search link, we send them there
             return redirect(show.download_link)
         return "Download link not found", 404
     except NotFound:
@@ -271,6 +289,7 @@ def privacy_policy():
 
 @app.route('/update', methods=['POST'])
 def update():
+    """Trigger manual Telegram update via Celery."""
     try:
         update_tv_shows.delay()
         return jsonify({'message': 'Update initiated'}), 202
@@ -278,7 +297,7 @@ def update():
         logger.error(f"Failed to initiate update: {e}")
         return jsonify({'message': 'Error'}), 500
 
-# ----------------------------- Nuke panel (auth + dupes + backfill) -----------------------------
+# ----------------------------- Nuke panel (auth + backfill) -----------------------------
 
 def _redis():
     return Redis.from_url(os.environ.get('REDIS_URL', 'redis://localhost:6379/0'), decode_responses=True)
@@ -367,25 +386,12 @@ def nuke_login():
     token = (request.form.get('token') or '').strip()
     if token != _admin_token():
         r = _redis(); fk = _fail_key(ip); fails = int(r.incr(fk)); r.expire(fk, 3600)
-        if fails >= 3: _nuke_disable()
-        return redirect(url_for('nuke_home', msg=f"Invalid token. Attempt {fails}/3"))
+        if fails >= 2: _nuke_disable() # Strict lockout from Base version
+        return redirect(url_for('nuke_home', msg=f"Invalid token. Attempt {fails}/2"))
     resp = make_response(redirect(url_for('nuke_home')))
     resp.set_cookie('nuke_auth', _cookie_value(), max_age=_nuke_cookie_ttl_days()*86400, httponly=True, samesite='Lax', secure=True)
     _redis().delete(_fail_key(ip))
     return resp
-
-@app.route('/nuke/logout', methods=['POST'])
-def nuke_logout():
-    resp = make_response(redirect(url_for('nuke_home', msg="Logged out")))
-    resp.set_cookie('nuke_auth', '', max_age=0)
-    return resp
-
-@app.route('/nuke/unlock', methods=['POST'])
-def nuke_unlock():
-    if (request.form.get('token') or '').strip() == _admin_token():
-        _nuke_enable()
-        return redirect(url_for('nuke_home', msg="Nuke enabled"))
-    return redirect(url_for('nuke_home', msg="Wrong key"))
 
 @app.route('/nuke/delete/<int:show_id>', methods=['POST'])
 def nuke_delete(show_id):
@@ -394,22 +400,9 @@ def nuke_delete(show_id):
     db.session.delete(show); db.session.commit()
     return redirect(url_for('nuke_home', msg=f"Deleted {show.show_name}"))
 
-@app.route('/nuke/bulk-delete', methods=['POST'])
-def nuke_bulk_delete():
-    if not _is_authed(request): return abort(403)
-    link, mode, ids = request.form.get('link'), request.form.get('mode'), request.form.getlist('ids')
-    if mode == 'selected' and ids:
-        TVShow.query.filter(TVShow.id.in_(ids)).delete(synchronize_session=False)
-    elif mode == 'all' and link:
-        TVShow.query.filter_by(download_link=link).delete(synchronize_session=False)
-    elif mode == 'all_but_latest' and link:
-        items = TVShow.query.filter_by(download_link=link).order_by(TVShow.created_at.desc()).all()
-        for s in items[1:]: db.session.delete(s)
-    db.session.commit()
-    return redirect(url_for('nuke_home', dupes=1, msg="Bulk action complete"))
-
 @app.route('/nuke/clear_skipped', methods=['POST'])
 def nuke_clear_skipped():
+    """Clear the SkippedFile log."""
     if not _is_authed(request): return abort(403)
     try:
         db.session.query(SkippedFile).delete(); db.session.commit()
@@ -417,7 +410,7 @@ def nuke_clear_skipped():
         db.session.rollback(); return redirect(url_for('nuke_home', msg=f"Error: {e}"))
     return redirect(url_for('nuke_home', msg="Skipped log cleared"))
 
-# --- BACKFILL API ---
+# --- MOVIE BACKFILL API ---
 @app.route('/nuke/backfill/<action>', methods=['POST'])
 def control_backfill(action):
     if not _is_authed(request): return jsonify({'error': 'Unauthorized'}), 401
@@ -445,9 +438,11 @@ def backfill_status():
         'skipped': r.get("backfill:skipped") or 0
     })
 
-# ----------------------------- SEO & Errors -----------------------------
+# ----------------------------- SEO Assets -----------------------------
 @app.route('/ads.txt')
-def ads_txt_redirect(): return redirect("https://srv.adstxtmanager.com/75094/ibox-tv.com", code=301)
+def ads_txt_redirect():
+    """Working Redirect from Base version."""
+    return redirect("https://srv.adstxtmanager.com/75094/ibox-tv.com", code=301)
 
 @app.route('/robots.txt')
 def robots_txt(): return send_from_directory(app.static_folder, 'robots.txt', mimetype='text/plain')
@@ -474,3 +469,7 @@ def p500(e):
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
+
+# =================================================================
+# END OF PART 2 - FULLY HARMONIZED
+# =================================================================
