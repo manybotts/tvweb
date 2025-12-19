@@ -208,7 +208,53 @@ def list_shows():
         db.session.rollback()
         return render_template('500.html', title="Server Error",
                                meta_description="An error occurred viewing shows list."), 500
+# --- ADD THIS NEW ROUTE FOR MOVIES ---
+@app.route('/movies')
+def list_movies():
+    try:
+        page = request.args.get('page', 1, type=int)
+        per_page = 30
+        genre_filter = request.args.get('genre')
+        year_filter = request.args.get('year', type=int)
+        sort_by = request.args.get('sort_by', 'date_desc')
 
+        # FORCE CATEGORY = 'movie'
+        query = TVShow.query.filter(TVShow.category == 'movie')
+        
+        if genre_filter:
+            query = query.join(TVShow.genres).filter(Genre.name == genre_filter)
+        if year_filter:
+            query = query.filter(TVShow.year == year_filter)
+
+        # Sort Logic
+        if sort_by == 'name_asc': query = query.order_by(TVShow.show_name.asc())
+        elif sort_by == 'name_desc': query = query.order_by(TVShow.show_name.desc())
+        elif sort_by == 'date_asc': query = query.order_by(TVShow.created_at.asc())
+        elif sort_by == 'date_desc': query = query.order_by(TVShow.created_at.desc())
+        elif sort_by == 'rating_asc': query = query.order_by(TVShow.rating.asc().nullslast())
+        elif sort_by == 'rating_desc': query = query.order_by(TVShow.rating.desc().nullslast())
+
+        shows = query.paginate(page=page, per_page=per_page, error_out=False)
+        
+        # Filters data
+        all_genres = Genre.query.order_by(Genre.name).all()
+        current_year = datetime.utcnow().year
+        years = list(range(current_year, 1970, -1))
+        
+        # Pagination URLs
+        canonical_url, prev_url, next_url, meta_robots = _page_urls('list_movies', shows, extra_params={
+            'genre': genre_filter, 'year': year_filter, 'sort_by': sort_by
+        })
+
+        return render_template('movies.html',
+            shows=shows, genres=all_genres, years=years,
+            selected_genre=genre_filter, selected_year=year_filter,
+            current_sort_by=sort_by, title="All Movies",
+            canonical_url=canonical_url, prev_url=prev_url, next_url=next_url, meta_robots=meta_robots
+        )
+    except Exception as e:
+        logger.error(f"Movies list error: {e}")
+        return render_template('500.html'), 500
 @app.route('/show/<slug>')
 def show_details(slug):
     try:
