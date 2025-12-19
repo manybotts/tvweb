@@ -1,4 +1,4 @@
-# tv_app/models.py - Harmonized Version
+# tv_app/models.py
 from datetime import datetime
 import re
 from flask_sqlalchemy import SQLAlchemy
@@ -26,10 +26,10 @@ class TVShow(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
 
-    # Scoped uniqueness via composite key below
+    # tmdb_id + category must be unique
     tmdb_id = db.Column(db.Integer, unique=False, nullable=True, index=True)
 
-    # message_id 0 for movies, unique for TG posts
+    # For Movies, we will generate a synthetic ID from Mongo ID
     message_id = db.Column(db.BigInteger, unique=False, nullable=False, index=True)
 
     show_name = db.Column(db.String(255), nullable=False, index=True)
@@ -40,7 +40,6 @@ class TVShow(db.Model):
     vote_average = db.Column(db.Float)
     poster_path = db.Column(db.Text, default=None)
 
-    # Required for trending logic
     clicks = db.Column(db.Integer, nullable=False, default=0, server_default="0")
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
@@ -51,13 +50,11 @@ class TVShow(db.Model):
     year = db.Column(db.Integer)
     rating = db.Column(db.Float)
 
-    # Category scoped to 'tv', 'anime', or 'movie'
+    # 'tv', 'anime', or 'movie'
     category = db.Column(db.String(20), nullable=False, default='tv', index=True)
 
-    # SEO-friendly slug, unique
     slug = db.Column(db.String(255), nullable=False, unique=True, index=True)
 
-    # Many-to-many to Genre
     genres = db.relationship(
         "Genre",
         secondary=show_genres,
@@ -66,11 +63,7 @@ class TVShow(db.Model):
 
     __table_args__ = (
         Index("ix_show_name_episode_title", "show_name", "episode_title"),
-        
-        # Composite Unique Key: Allows same TMDB ID across categories
         db.UniqueConstraint('tmdb_id', 'category', name='ix_tmdb_category'),
-
-        # Trigram index for Postgres fuzzy search
         Index(
             "ix_show_name_trgm",
             "show_name",
@@ -80,15 +73,19 @@ class TVShow(db.Model):
     )
 
     def __repr__(self) -> str:
-        return f"<TVShow {self.show_name!r} - {self.episode_title!r}>"
+        return f"<{self.category.upper()} {self.show_name!r}>"
 
-# --- NEW: Skipped Files Log (For Backfill Transparency) ---
+# --- NEW: Skipped File Model (Negative Cache) ---
 class SkippedFile(db.Model):
     __tablename__ = "skipped_files"
+    
     id = db.Column(db.Integer, primary_key=True)
-    filename = db.Column(db.String(500), nullable=False)
-    reason = db.Column(db.String(100)) # e.g. "Cleaner Failed" or "TMDB No Result"
+    filename = db.Column(db.String(512), unique=True, nullable=False, index=True)
+    reason = db.Column(db.String(255))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def __repr__(self):
+        return f"<Skipped {self.filename!r} - {self.reason}>"
 
 # --- Slug helpers ---
 _slug_cleaner = re.compile(r"[^a-z0-9]+")
