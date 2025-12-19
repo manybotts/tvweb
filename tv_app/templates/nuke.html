@@ -2,83 +2,6 @@
 {% block title %}Nuke · Search & Purge{% endblock %}
 {% block content %}
 <div class="container" style="max-width:1100px;">
-  
-  <div style="background:#222; padding:20px; border-radius:8px; margin-bottom:20px; border:1px solid #444;">
-      <h3 style="margin-top:0; color:white;">🚀 Movie Backfill Control</h3>
-      <div style="display:flex; gap:10px; margin-bottom:15px;">
-          <button onclick="controlBackfill('start')" style="background:#28a745; color:white; padding:10px 20px; border:none; border-radius:5px; cursor:pointer;"><i class="fas fa-play"></i> Start</button>
-          <button onclick="controlBackfill('pause')" style="background:#ffc107; color:black; padding:10px 20px; border:none; border-radius:5px; cursor:pointer;"><i class="fas fa-pause"></i> Pause</button>
-          <button onclick="controlBackfill('stop')" style="background:#dc3545; color:white; padding:10px 20px; border:none; border-radius:5px; cursor:pointer;"><i class="fas fa-stop"></i> Stop</button>
-          <button onclick="controlBackfill('reset')" style="background:#17a2b8; color:white; padding:10px 20px; border:none; border-radius:5px; cursor:pointer;"><i class="fas fa-undo"></i> Reset</button>
-      </div>
-      
-      <div style="background:#111; padding:15px; border-radius:5px; font-family:monospace;">
-          <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
-              <span id="bf-state" style="font-weight:bold; color:#007bff;">IDLE</span>
-              <span id="bf-counts" style="color:#aaa;">0 / 0</span>
-          </div>
-          <div style="width:100%; height:20px; background:#333; border-radius:10px; overflow:hidden; margin-bottom:10px;">
-              <div id="bf-bar" style="width:0%; height:100%; background:#007bff; transition:width 0.5s ease;"></div>
-          </div>
-          <div style="color:#888; font-size:0.9em;">
-              Processing: <span id="bf-current" style="color:#fff;">...</span><br>
-              <span style="color:#28a745;">Added: <span id="bf-added">0</span></span> | 
-              <span style="color:#ffc107;">Skipped: <span id="bf-skipped">0</span></span>
-          </div>
-      </div>
-  </div>
-
-  <div style="background:#1a1a1a; padding:20px; border-radius:8px; margin-bottom:30px; border:1px solid #444;">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-          <h3 style="margin:0; color:#ffc107; font-size:1.2em;"><i class="fas fa-exclamation-triangle"></i> Skipped / Failed Files ({{ skipped_files|length }})</h3>
-          <form method="post" action="{{ url_for('nuke_clear_skipped') }}" onsubmit="return confirm('Clear this log?');" style="margin:0;">
-              <button type="submit" style="background:#dc3545; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer;">Clear Log</button>
-          </form>
-      </div>
-      <div style="max-height:300px; overflow-y:auto; background:#000; border:1px solid #333; padding:10px;">
-          {% if skipped_files %}
-              <table style="width:100%; border-collapse:collapse; color:#ccc; font-family:monospace; font-size:0.9em;">
-                  <thead>
-                      <tr style="border-bottom:1px solid #444; color:#fff;">
-                          <th style="text-align:left; padding:5px;">Reason</th>
-                          <th style="text-align:left; padding:5px;">Filename</th>
-                      </tr>
-                  </thead>
-                  <tbody>
-                      {% for f in skipped_files %}
-                      <tr style="border-bottom:1px solid #222;">
-                          <td style="padding:5px; color:#ff6b6b; white-space:nowrap;">{{ f.reason }}</td>
-                          <td style="padding:5px; user-select:all; cursor:text; word-break:break-all;">{{ f.filename }}</td>
-                      </tr>
-                      {% endfor %}
-                  </tbody>
-              </table>
-          {% else %}
-              <p style="color:#666; text-align:center; margin:10px 0;">No failed files logged yet.</p>
-          {% endif %}
-      </div>
-  </div>
-
-  <script>
-  function controlBackfill(a){fetch(`/nuke/backfill/${a}`,{method:'POST'}).then(r=>r.json()).then(updateStatus);}
-  
-  function updateStatus(){
-      fetch('/nuke/backfill/status').then(r=>r.json()).then(d=>{
-          const t=parseInt(d.total)||1,p=parseInt(d.progress)||0;
-          document.getElementById('bf-state').innerText=(d.state||'IDLE').toUpperCase();
-          document.getElementById('bf-counts').innerText=`${p} / ${t}`;
-          document.getElementById('bf-bar').style.width=`${Math.round((p/t)*100)}%`;
-          document.getElementById('bf-current').innerText=d.current||'...';
-          document.getElementById('bf-added').innerText=d.added||0;
-          document.getElementById('bf-skipped').innerText=d.skipped||0;
-      });
-  }
-  
-  // Auto-refresh status every 2 seconds
-  setInterval(updateStatus, 2000);
-  updateStatus();
-  </script>
-
   <h1>Nuke · Search & Purge</h1>
 
   {% if request.args.get('msg') %}
@@ -86,6 +9,20 @@
       {{ request.args.get('msg') }}
     </div>
   {% endif %}
+
+  {# --- 1. NEW: Backfill Control Panel --- #}
+  <div class="card" style="margin: 20px 0; padding: 15px; border: 1px solid #444; background: #1a1a1a;">
+      <h3 style="margin-top:0;">Movie Backfill Engine</h3>
+      <div style="display: flex; gap: 15px; margin-bottom: 10px; align-items: center;">
+          <button id="btn-start" class="btn" style="background: #27ae60;">Start Backfill</button>
+          <button id="btn-pause" class="btn" style="background: #f39c12;">Pause</button>
+          <span id="backfill-status" style="font-family: monospace; font-size: 1.1em;">State: Unknown</span>
+      </div>
+      <div style="display: flex; gap: 20px; font-size: 0.9em; color: #aaa;">
+          <span>Added: <strong id="stat-added" style="color: #fff;">0</strong></span>
+          <span>Processed: <strong id="stat-progress" style="color: #fff;">0</strong></span>
+      </div>
+  </div>
 
   <form method="get" action="{{ url_for('nuke_home') }}">
     <div style="display:flex;gap:.5rem;align-items:center;margin:.75rem 0;">
@@ -103,6 +40,7 @@
     <button type="submit" class="btn">Logout</button>
   </form>
 
+  {# --- 2. Existing Duplicates/Search Logic --- #}
   {% if view_dupes %}
     {% if dupe_groups|length == 0 %}
       <p>No duplicate download links found{{ ' for "' ~ q ~ '"' if q }}.</p>
@@ -168,11 +106,72 @@
     </table>
     {% endif %}
   {% endif %}
+
+  {# --- 3. NEW: Skipped Files Log --- #}
+  {% if skipped_files %}
+  <div style="margin-top: 50px; border-top: 1px solid #333; padding-top: 20px;">
+      <h3>Recent Skipped Files (Debug)</h3>
+      <table class="table" style="font-size: 0.85em; width: 100%; border-collapse: collapse;">
+          <thead>
+              <tr style="text-align:left; border-bottom: 1px solid #444;">
+                  <th style="padding: 8px;">Filename</th>
+                  <th style="padding: 8px;">Reason</th>
+                  <th style="padding: 8px;">Time</th>
+              </tr>
+          </thead>
+          <tbody>
+              {% for skip in skipped_files %}
+              <tr style="border-bottom: 1px solid #222;">
+                  <td style="padding: 8px; word-break: break-all;">{{ skip.filename }}</td>
+                  <td style="padding: 8px; color: #e74c3c;">{{ skip.reason }}</td>
+                  <td style="padding: 8px;">{{ skip.created_at.strftime('%H:%M:%S') }}</td>
+              </tr>
+              {% endfor %}
+          </tbody>
+      </table>
+  </div>
+  {% endif %}
+
 </div>
+
 <script>
 function toggleWithinForm(cb){
   const form = cb.closest('form'); if(!form) return;
   form.querySelectorAll('input[name="ids"]').forEach(x => x.checked = cb.checked);
 }
+
+// --- NEW: Backfill JS Logic ---
+document.addEventListener('DOMContentLoaded', () => {
+    const btnStart = document.getElementById('btn-start');
+    const btnPause = document.getElementById('btn-pause');
+    const statusEl = document.getElementById('backfill-status');
+    const statAdded = document.getElementById('stat-added');
+    const statProgress = document.getElementById('stat-progress');
+
+    if(btnStart && btnPause) {
+        btnStart.onclick = () => {
+            fetch('/nuke/backfill/start', {method: 'POST'})
+                .then(r => r.json())
+                .then(d => alert(d.message));
+        };
+        
+        btnPause.onclick = () => {
+            fetch('/nuke/backfill/pause', {method: 'POST'})
+                .then(r => r.json())
+                .then(d => alert(d.message));
+        };
+
+        // Poll status every 3 seconds
+        setInterval(() => {
+            fetch('/nuke/backfill/status')
+                .then(r => r.json())
+                .then(data => {
+                    if (data.state) statusEl.innerText = "State: " + data.state;
+                    if (data.added) statAdded.innerText = data.added;
+                    if (data.progress) statProgress.innerText = data.progress;
+                });
+        }, 3000);
+    }
+});
 </script>
 {% endblock %}
