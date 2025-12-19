@@ -4,28 +4,23 @@ from celery.schedules import crontab
 
 load_dotenv()
 
-# Broker settings
 broker_url = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
-result_backend = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
+result_backend = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')  # Use the same Redis
 
-# Schedule
+# Configure Celery Beat's schedule
 beat_schedule = {
-    # 1. TV Shows (Telegram -> DB) - Every 15 mins
-    'update-tv-shows-every-15-minutes': {
+    'update-tv-shows-every-5-minutes': {
         'task': 'tv_app.tasks.update_tv_shows',
-        'schedule': crontab(minute='*/15'),
+        'schedule': crontab(minute='*/5'),
     },
-    # 2. Movies (Mongo -> DB) - Every 30 mins (NEW)
-    'sync-movies-every-30-minutes': {
+    # --- NEW: Movie Sync Schedule (Debug Mode: Every 3 mins) ---
+    'sync-movies-every-3-mins': {
         'task': 'tv_app.tasks.sync_movies',
-        'schedule': crontab(minute='*/30'),
+        'schedule': crontab(minute='*/3'),
     },
-    # 3. Reset Clicks - Every 12 hours
     'reset-clicks-every-12-hours': {
         'task': 'tv_app.tasks.reset_clicks',
-        'schedule': crontab(minute=0, hour='*/12'),
+        'schedule': crontab(minute=0, hour='*/12'),  # ← every 12 hours at 00:00 and 12:00
     },
 }
-
 broker_connection_retry_on_startup = True
-timezone = 'UTC'
