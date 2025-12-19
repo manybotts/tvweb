@@ -42,18 +42,35 @@
             </div>
             
             <div class="nav-links">
-                <a href="https://ibox-tv.com" class="nav-link {% if site_mode == 'tv' %}active{% endif %}">
+                {# --- LOGIC: Define 'is_movies' helper --- #}
+                {% set is_movies = request.path.startswith('/movies') %}
+                
+                {# --- 1. TV SHOWS LINK --- #}
+                {# Active if: Not Anime AND Not Movies #}
+                <a href="https://ibox-tv.com" class="nav-link {% if site_mode == 'tv' and not is_movies %}active{% endif %}">
                   <i class="fas fa-home"></i>
-                  <span class="link-text {% if site_mode == 'anime' %}smart-reveal{% endif %}">TV Shows</span>
+                  {# Collapse text if: We are on Anime OR We are on Movies #}
+                  <span class="link-text {% if site_mode == 'anime' or is_movies %}smart-reveal{% endif %}">TV Shows</span>
                 </a>
 
+                {# --- 2. ANIME LINK --- #}
+                {# Active if: Anime mode #}
                 <a href="https://anime.ibox-tv.com" class="nav-link {% if site_mode == 'anime' %}active{% endif %}" style="color: #ff7675;">
                   <i class="fas fa-torii-gate"></i>
+                  {# Collapse text if: We are on TV (which includes Movies technically) #}
                   <span class="link-text {% if site_mode == 'tv' %}smart-reveal{% endif %}">Anime</span>
+                </a>
+
+                {# --- 3. MOVIES LINK --- #}
+                {# Active if: We are on Movies path #}
+                <a href="{{ url_for('list_movies') }}" class="nav-link {% if is_movies %}active{% endif %}" style="color: #e50914;">
+                  <i class="fas fa-film"></i>
+                  {# Collapse text if: Not on Movies #}
+                  <span class="link-text {% if not is_movies %}smart-reveal{% endif %}">Movies</span>
                 </a>
                 
                 <a href="{{ url_for('list_shows') }}" class="nav-link">
-                  <i class="fas fa-tv"></i><span class="link-text">Browse</span>
+                  <i class="fas fa-tv"></i><span class="link-text smart-reveal">Browse</span>
                 </a>
                 
                 <span class="brand-text"><span class="ibox-text">iBOX</span><span class="tv-text">TV</span></span>
@@ -133,29 +150,14 @@
                         slideIndex++;
                         if (slideIndex > slides.length) { slideIndex = 1; }
                         
-                        // Handle circular index for array access
                         slides[slideIndex - 1].classList.add('active-slide');
-                        
-                        // Center the active slide
-                        const active = slides[slideIndex - 1];
-                        const inner = container.querySelector('.slideshow-inner');
-                        
-                        // Calculate offset to center the active item
-                        // Using simplistic calculation, typically requires precise widths
-                        // but CSS flex centering handles most of it visually.
                         
                         setTimeout(showSlides, 3500);
                      };
                      showSlides();
                  }
-                 
-                 // Mobile logic is usually CSS scroll-snap, but if you added JS controls:
-                 if (selector === '.mobile-slideshow') {
-                     // Keep it simple for now, rely on CSS Scroll Snap
-                 }
              };
 
-             // Initialize
              initSlideshow('.desktop-slideshow');
         });
     </script>
