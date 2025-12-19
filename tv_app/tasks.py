@@ -1,37 +1,39 @@
-# =================================================================
-# tv_app/tasks.py - PART 1: TEXT CLEANING, REGEX & TMDB FETCHERS
-# =================================================================
+# --- tv_app/tasks.py (PART 1: Infrastructure & TV/Anime Logic) ---
 import os
 import re
-import time
 import asyncio
 import logging
 import itertools
-from typing import Dict, Optional, List
+from typing import Dict, Optional, List, Any
 from urllib.parse import quote_plus
+from datetime import datetime
 
 import aiohttp
-import pymongo
 from celery import Celery
 from dotenv import load_dotenv
 from redis import Redis
 from thefuzz import fuzz, process
+# New imports for Movie Logic (Part 2)
+from pymongo import MongoClient, DESCENDING
+from bson import ObjectId
 
 load_dotenv()
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
+# STRICT ADHERENCE: Loading config from celeryconfig.py
 celery = Celery(__name__)
 celery.config_from_object("celeryconfig")
 
 TMDB_BASE_URL = "https://api.themoviedb.org/3"
 TMDB_IMAGE_BASE_URL = "https://image.tmdb.org/t/p/w500"
 
-# ---------------- TEXT HELPERS (Harmonized "FBI Fix") ----------------
-_ACRONYM_DOTS = re.compile(r"\b([A-Z]\.){2,}\b")
+# ---------------- Text Helpers ----------------
+_ACRONYM_DOTS = re.compile(r"\b([A-Z]\.){2,}\b")       # A.T.O.M.
 _NON_BASIC = re.compile(r"[^\w\s,&'\-.:]")
 _TOK = re.compile(r"[a-z0-9]+")
+
 ARTICLES = {"the", "a", "an"}
 
 def collapse_dotted_acronyms(s: str) -> str:
@@ -56,155 +58,47 @@ def strip_leading_article(s: str) -> str:
     return " ".join(toks)
 
 def strong_title_score(query: str, candidate: str) -> int:
-    """Calculates similarity with length penalty (The 'FBI' Fix)."""
+    """
+    Calculates similarity, but penalizes results that are significantly longer 
+    than the query (to prevent 'FBI' matching 'Enemies: ... FBI').
+    """
     qn = normalize(query)
     cn = normalize(candidate)
+
     if qn == cn: return 100
+    
     sq = strip_leading_article(qn)
     sc = strip_leading_article(cn)
     if sq == sc: return 99
+
     base = fuzz.token_sort_ratio(qn, cn)
-    len_q, len_c = len(qn), len(cn)
+
+    len_q = len(qn)
+    len_c = len(cn)
+    
     if len_q > 0 and len_c > len_q:
         ratio = len_c / len_q
-        if ratio > 2.0: base -= 15
-        elif ratio > 1.5: base -= 5
+        if ratio > 2.0: 
+            base -= 15
+        elif ratio > 1.5:
+            base -= 5
+
     return base
 
 def parse_season_info(line: str) -> Optional[int]:
     nums = re.findall(r"\d+", line)
     return max(int(n) for n in nums) if nums else None
 
-# ---------------- AGGRESSIVE MOVIE CLEANER (V11 Polisher) ----------------
-def clean_movie_filename(filename: str):
-    if not filename: return None, None
-    name = os.path.splitext(filename)[0]
-    
-    # 1. Handle @ Mentions
-    name = re.sub(r"^@\S+\s*", "", name)
-    if "@" in name: name = name.split("@")[0]
+# ---------------- TV/Anime: Telegram Ingest ----------------
 
-    # 2. Separators & Brackets
-    name = re.sub(r"[._\-]", " ", name)
-    name = re.sub(r"[\[\{\(].*?[\]\}\)]", "", name)
-    
-    # 3. Spam Prefix Nuker
-    spam_prefixes = r"^(MLM|SMM|CG|HW|MM|E4E|V|K|Linkz|Video|Infotainment|Sherlibrary|TrollMovies|Mallu Movies|Cinema Villa|Company|All|New|Full Movie)\s+"
-    name = re.sub(spam_prefixes, "", name, flags=re.IGNORECASE)
-    
-    # 4. Domain & Size Removal
-    name = re.sub(r"\bwww\s+\S+\s+(ws|com|net|org|in|co|me|win|biz)\b", "", name, flags=re.IGNORECASE)
-    name = re.sub(r"www\.\S+", "", name)
-    name = re.sub(r"\b\d+(\s|\.)?\d*\s?(mb|gb)\b", "", name, flags=re.IGNORECASE)
-
-    # 5. Year Extractor
-    year_iter = re.finditer(r"\b(19|20)\d{2}\b", name)
-    years = [int(m.group(0)) for m in year_iter]
-    year = years[0] if years else None
-    
-    raw_title = name
-    if year:
-        match = re.search(r"\b" + str(year) + r"\b", name)
-        if match:
-            pre_year, post_year = name[:match.start()].strip(), name[match.end():].strip()
-            raw_title = pre_year if len(pre_year) > 2 else (post_year if len(post_year) > 2 else name)
-
-    # 6. Quality/Codec Safe Kill List
-    stop_words = {"1080p", "720p", "480p", "2160p", "4k", "bluray", "webrip", "dvdrip", "x264", "x265", "hevc", "aac", "hindi", "english"}
-    clean_tokens = []
-    for t in raw_title.split():
-        t_clean = re.sub(r"^[^a-zA-Z0-9]+|[^a-zA-Z0-9]+$", "", t)
-        if not t_clean or t_clean.lower() in stop_words: break
-        clean_tokens.append(t_clean)
-            
-    final_title = " ".join(clean_tokens)
-    return (final_title, year) if len(final_title) >= 2 else (None, None)
-
-# ---------------- TMDB FETCHERS ----------------
-async def fetch_tmdb_data(show_name: str, search_year: Optional[int], search_season: Optional[int]) -> Optional[Dict]:
-    """Source of Truth: TV Show Lookup."""
-    tmdb_bearer_token = os.environ.get("TMDB_BEARER_TOKEN")
-    headers = {"Authorization": f"Bearer {tmdb_bearer_token}"}
-    q_name = show_name.strip()
-    async with aiohttp.ClientSession(headers=headers) as session:
-        url = f"{TMDB_BASE_URL}/search/tv?query={quote_plus(q_name)}&language=en-US"
-        try:
-            async with session.get(url, timeout=10) as resp:
-                data = await resp.json()
-        except: return None
-        if not data.get("results"): return None
-        detailed = []
-        for r in data["results"]:
-            try:
-                async with session.get(f"{TMDB_BASE_URL}/tv/{r['id']}?language=en-US", timeout=5) as d:
-                    if d.status == 200: detailed.append(await d.json())
-            except: continue
-        if not detailed: return None
-        best = (None, -1)
-        for r in detailed:
-            s = max(strong_title_score(q_name, r.get("name", "")), strong_title_score(q_name, r.get("original_name", "")))
-            fa = r.get("first_air_date", "")
-            if search_year and fa[:4] == str(search_year): s += 10
-            if search_season and int(r.get("number_of_seasons", 0)) >= search_season: s += 2
-            if s > best[1]: best = (r, s)
-        found = best[0]
-        if not found or best[1] < 50: return None
-        return {
-            "tmdb_id": found.get("id"), "show_name_from_tmdb": found.get("name"),
-            "poster_path": f"{TMDB_IMAGE_BASE_URL}{found.get('poster_path')}" if found.get("poster_path") else None,
-            "overview": found.get("overview"), "vote_average": found.get("vote_average"),
-            "year": int(found.get("first_air_date")[:4]) if found.get("first_air_date") else None,
-            "rating": found.get("vote_average")
-        }
-
-async def fetch_movie_data(title: str, year: Optional[int]) -> Optional[Dict]:
-    """Movie Logic with Tiered Retry."""
-    tmdb_bearer_token = os.environ.get("TMDB_BEARER_TOKEN")
-    headers = {"Authorization": f"Bearer {tmdb_bearer_token}"}
-    queries = [title]
-    words = title.split()
-    if len(words) > 1: queries.append(" ".join(words[:-1]))
-    
-    async with aiohttp.ClientSession(headers=headers) as session:
-        for q in queries:
-            try:
-                url = f"{TMDB_BASE_URL}/search/movie?query={quote_plus(q)}&language=en-US"
-                async with session.get(url, timeout=10) as resp:
-                    data = await resp.json()
-                if not data.get("results"): continue
-                best = None
-                for r in data["results"]:
-                    r_yr = int(r.get("release_date")[:4]) if r.get("release_date") else None
-                    if year and r_yr == year: best = r; break
-                if not best and strong_title_score(q, data["results"][0]['title']) > 70:
-                    best = data["results"][0]
-                if best:
-                    return {
-                        "tmdb_id": best.get("id"), "show_name_from_tmdb": best.get("title"),
-                        "poster_path": best.get('poster_path'), "overview": best.get("overview"),
-                        "vote_average": best.get("vote_average"), "rating": best.get("vote_average"),
-                        "year": int(best.get("release_date")[:4]) if best.get("release_date") else None
-                    }
-            except: pass
-    return None
-
-# =================================================================
-# END OF PART 1 - CLEANERS & FETCHERS
-# =================================================================
-# =================================================================
-# tv_app/tasks.py - PART 2: INGESTION, BACKFILL & MAINTENANCE
-# =================================================================
-
-def generate_search_link(title: str) -> str:
-    """Generates a deep-link for the Telegram Bot Handshake."""
-    bot = os.environ.get("BOT_USERNAME", "YourBot")
-    return f"https://t.me/{bot}?start=search_{quote_plus(title)}"
-
-# --------------- TELEGRAM INGEST (Source of Truth) ----------------
 async def fetch_new_telegram_posts(channel_env_var: str, redis_key_suffix: str) -> list:
     token = os.environ.get("TELEGRAM_BOT_TOKEN")
     channel_id = os.environ.get(channel_env_var)
-    if not channel_id: return []
+    
+    if not channel_id:
+        if channel_env_var == 'TELEGRAM_CHANNEL_ID':
+            logger.error(f"Missing env var: {channel_env_var}")
+        return []
 
     redis_client = Redis.from_url(os.environ.get("REDIS_URL"), decode_responses=True)
     last_offset_key = f"last_telegram_update_id:{redis_key_suffix}"
@@ -213,165 +107,568 @@ async def fetch_new_telegram_posts(channel_env_var: str, redis_key_suffix: str) 
     from telegram.ext import Application
     try:
         app = Application.builder().token(token).build()
-        updates = await app.bot.get_updates(offset=last_offset + 1, allowed_updates=["channel_post", "edited_channel_post"], timeout=60)
-        await app.shutdown()
-        posts = [u.channel_post or u.edited_channel_post for u in updates if (u.channel_post or u.edited_channel_post) and str((u.channel_post or u.edited_channel_post).sender_chat.id) == channel_id]
-        if updates: redis_client.set(last_offset_key, updates[-1].update_id)
+        updates = await app.bot.get_updates(
+            offset=last_offset + 1,
+            allowed_updates=["channel_post", "edited_channel_post"],
+            timeout=60,
+        )
+        if hasattr(app, 'shutdown'):
+            await app.shutdown()
+
+        posts = []
+        for u in updates:
+            p = u.channel_post or u.edited_channel_post
+            if p and p.sender_chat and str(p.sender_chat.id) == channel_id and p.caption:
+                posts.append(p)
+
+        if updates:
+            redis_client.set(last_offset_key, updates[-1].update_id)
         return posts
     except Exception as e:
-        logger.error(f"Telegram fetch error: {e}")
+        logger.exception(f"Error fetching Telegram posts for {channel_env_var}: {e}")
         return []
 
 def parse_telegram_post(post) -> Optional[Dict]:
-    """Source of Truth: Aggressive Year Stripping logic."""
+    """Parses standard TV/Anime posts."""
     try:
-        text = post.caption or ""
+        text = post.caption
         lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
         if len(lines) < 2: return None
-        
+
         title_line = lines[0]
         season_line = lines[1]
-        
+
+        # --- FIX: AGGRESSIVE YEAR STRIPPING ---
         clean_line = re.sub(r"[\[\]\(\)]", " ", title_line)
         norm_title = normalize(clean_line)
         year_match = re.search(r"(\d{4})$", norm_title)
         
-        search_year = int(year_match.group(1)) if year_match else None
-        show_name = re.sub(r"\s*\d{4}$", "", norm_title).strip() if year_match else norm_title
-        
-        download_link = None
+        search_year = None
+        show_name_for_search = norm_title
+
+        if year_match:
+            search_year = int(year_match.group(1))
+            show_name_for_search = re.sub(r"\s*\d{4}$", "", norm_title).strip()
+
+        if not show_name_for_search:
+            show_name_for_search = norm_title
+
+        search_season = parse_season_info(season_line)
+
+        # Link extraction
+        download_link_from_post = None
         if post.caption_entities:
             for ent in post.caption_entities:
-                if ent.type == "text_link" and "click here" in text[ent.offset: ent.offset + ent.length].lower():
-                    download_link = ent.url; break
-        if not download_link:
+                if ent.type == "text_link":
+                    et = text[ent.offset: ent.offset + ent.length]
+                    if "click here" in et.lower():
+                        download_link_from_post = ent.url
+                        break
+        if not download_link_from_post and post.caption_entities:
+            for ent in reversed(post.caption_entities):
+                if ent.type == "text_link":
+                    et = text[ent.offset: ent.offset + ent.length]
+                    if "#_" not in et:
+                        download_link_from_post = ent.url
+                        break
+        if not download_link_from_post:
             for ln in reversed(lines):
                 if "#_" in ln: continue
                 m = re.search(r"(https?://\S+)", ln)
-                if m: download_link = m.group(1); break
-        
+                if m:
+                    download_link_from_post = m.group(1)
+                    break
+
         return {
-            "show_name_for_search": show_name or norm_title,
+            "show_name_for_search": show_name_for_search,
             "search_year": search_year,
-            "search_season": parse_season_info(season_line),
+            "search_season": search_season,
             "season_episode_from_post": season_line,
-            "download_link_from_post": download_link,
-            "message_id": int(post.message_id)
+            "download_link_from_post": download_link_from_post,
+            "message_id": int(post.message_id),
         }
-    except: return None
+    except Exception as e:
+        logger.exception(f"Error parsing post {post.message_id}: {e}")
+        return None
+
+# --------------- tmdb lookup (TV/Anime) ----------------
+
+async def fetch_tmdb_tv_data(show_name: str, search_year: Optional[int], search_season: Optional[int]) -> Optional[Dict]:
+    """
+    Exclusively for TV Shows/Anime (uses /search/tv).
+    Renamed from 'fetch_tmdb_data' to distinguish from movies.
+    """
+    tmdb_bearer_token = os.environ.get("TMDB_BEARER_TOKEN")
+    headers = {"Authorization": f"Bearer {tmdb_bearer_token}"}
+
+    q_name = show_name.strip()
+    async with aiohttp.ClientSession(headers=headers) as session:
+        search_url = f"{TMDB_BASE_URL}/search/tv?query={quote_plus(q_name)}&language=en-US"
+        try:
+            async with session.get(search_url, timeout=10) as resp:
+                resp.raise_for_status()
+                search_data = await resp.json()
+        except Exception as e:
+            logger.error(f"TMDb TV search failed for '{q_name}': {e}")
+            return None
+
+        if not search_data.get("results"):
+            return None
+
+        detailed = []
+        for r in search_data["results"]:
+            detail_url = f"{TMDB_BASE_URL}/tv/{r['id']}?language=en-US"
+            try:
+                async with session.get(detail_url, timeout=5) as d:
+                    if d.status == 200:
+                        detailed.append(await d.json())
+            except Exception:
+                continue
+        if not detailed:
+            return None
+
+        best = (None, -1)
+        qn = normalize(q_name)
+
+        for r in detailed:
+            name = r.get("name") or ""
+            oname = r.get("original_name") or ""
+            
+            s = max(strong_title_score(q_name, name), strong_title_score(q_name, oname))
+
+            fa = r.get("first_air_date") or ""
+            if search_year and fa[:4].isdigit() and int(fa[:4]) == search_year:
+                s += 10 
+
+            if search_season:
+                sc = int(r.get("number_of_seasons") or 0)
+                if sc >= search_season:
+                    s += max(0, 6 - abs(sc - search_season))
+
+            if s > best[1]:
+                best = (r, s)
+
+        found = best[0]
+        
+        if not found or best[1] < 50:
+            names = [r.get("name") for r in detailed if r.get("name")]
+            pick = process.extractOne(qn, names, scorer=fuzz.token_set_ratio)
+            if pick:
+                for r in detailed:
+                    if r.get("name") == pick[0]:
+                        found = r
+                        break
+
+        if not found:
+            return None
+
+        year = None
+        fa = found.get("first_air_date") or ""
+        if fa[:4].isdigit():
+            year = int(fa[:4])
+
+        return {
+            "tmdb_id": found.get("id"),
+            "show_name_from_tmdb": found.get("name"),
+            "poster_path": f"{TMDB_IMAGE_BASE_URL}{found.get('poster_path')}" if found.get("poster_path") else None,
+            "overview": found.get("overview"),
+            "vote_average": found.get("vote_average"),
+            "year": year,
+            "rating": found.get("vote_average"),
+        }
+
+# --------------- tasks (TV/Anime + Utility) ----------------
 
 @celery.task(bind=True, retry_backoff=True, max_retries=3)
 def update_tv_shows(self):
-    """Main task for TV and Anime ingestion from Telegram."""
     redis_client = Redis.from_url(os.environ.get("REDIS_URL"), decode_responses=True)
     lock = redis_client.lock("update_tv_shows_lock", timeout=120)
     if not lock.acquire(blocking=False): return
+    
     from tv_app.app import app
     with app.app_context():
         try:
             from tv_app.models import db, TVShow
-            sources = [{'type': 'tv', 'env': 'TELEGRAM_CHANNEL_ID', 'offset': 'tv_main'}, {'type': 'anime', 'env': 'TELEGRAM_ANIME_CHANNEL_ID', 'offset': 'anime_main'}]
-            for src in sources:
-                posts = asyncio.run(fetch_new_telegram_posts(src['env'], src['offset']))
+
+            sources = [
+                {'type': 'tv', 'env_var': 'TELEGRAM_CHANNEL_ID', 'offset_key': 'tv_main'},
+                {'type': 'anime', 'env_var': 'TELEGRAM_ANIME_CHANNEL_ID', 'offset_key': 'anime_main'}
+            ]
+
+            for source in sources:
+                posts = asyncio.run(fetch_new_telegram_posts(source['env_var'], source['offset_key']))
+                if not posts: continue
+
                 for post in posts:
-                    if redis_client.exists(f"processed_messages:{post.message_id}"): continue
-                    p = parse_telegram_post(post)
-                    if not p: continue
-                    tmdb = asyncio.run(fetch_tmdb_data(p["show_name_for_search"], p["search_year"], p["search_season"]))
+                    processed_key = f"processed_messages:{post.message_id}"
+                    if redis_client.exists(processed_key): continue
+
+                    parsed = parse_telegram_post(post)
+                    if not parsed: continue
+
+                    # Uses the specific TV fetcher now
+                    tmdb = asyncio.run(
+                        fetch_tmdb_tv_data(
+                            parsed["show_name_for_search"],
+                            parsed["search_year"],
+                            parsed["search_season"],
+                        )
+                    )
                     if not tmdb: continue
-                    
-                    existing = TVShow.query.filter_by(tmdb_id=tmdb["tmdb_id"], category=src['type']).first()
-                    if existing: db.session.delete(existing); db.session.flush()
-                    
-                    db.session.add(TVShow(
-                        tmdb_id=tmdb["tmdb_id"], message_id=p["message_id"], show_name=tmdb["show_name_from_tmdb"],
-                        episode_title=p["season_episode_from_post"], download_link=p["download_link_from_post"],
-                        poster_path=tmdb["poster_path"], overview=tmdb["overview"], vote_average=tmdb["vote_average"],
-                        year=tmdb["year"], rating=tmdb["rating"], category=src['type'],
-                        content_hash=f"{tmdb['tmdb_id']}-{p['season_episode_from_post']}"
-                    ))
-                    redis_client.set(f"processed_messages:{post.message_id}", 1, ex=86400)
+
+                    tmdb_id = tmdb["tmdb_id"]
+                    current_category = source['type']
+
+                    existing = TVShow.query.filter_by(
+                        tmdb_id=tmdb_id, 
+                        category=current_category
+                    ).first()
+
+                    if existing:
+                        db.session.delete(existing)
+                        db.session.flush()
+
+                    new_show = TVShow(
+                        tmdb_id=tmdb_id,
+                        message_id=parsed["message_id"],
+                        show_name=tmdb["show_name_from_tmdb"],
+                        episode_title=parsed["season_episode_from_post"],
+                        download_link=parsed["download_link_from_post"],
+                        poster_path=tmdb["poster_path"],
+                        overview=tmdb["overview"],
+                        vote_average=tmdb["vote_average"],
+                        year=tmdb["year"],
+                        rating=tmdb["rating"],
+                        content_hash=f"{tmdb_id}-{parsed['season_episode_from_post']}",
+                        category=current_category 
+                    )
+                    db.session.add(new_show)
+                    redis_client.set(processed_key, 1, ex=86400)
+
             db.session.commit()
-        except Exception as e:
-            logger.error(f"Task error: {e}"); db.session.rollback()
-        finally: lock.release()
-
-# --------------- MOVIE BACKFILL ENGINE (Harmonized) ----------------
-@celery.task(bind=True)
-def backfill_movies_task(self):
-    """Heavy-duty MongoDB backfill with Redis checkpoints."""
-    r = Redis.from_url(os.environ.get("REDIS_URL"), decode_responses=True)
-    last_id = r.get("backfill:checkpoint_id")
-    r.hmset("backfill:status", {"state": "running", "current": "Initializing..."})
-    
-    try:
-        uris = [u for u in [os.environ.get("MONGO_URI_1"), os.environ.get("MONGO_URI_2")] if u]
-        from tv_app.app import app
-        with app.app_context():
-            from tv_app.models import db, TVShow, SkippedFile
             
-            def is_obvious_tv(name):
-                return re.search(r"\b(S\d+E\d+|Episode|Season)\b", name, re.I)
-
-            for uri in uris:
-                client = pymongo.MongoClient(uri)
-                col = client[os.environ.get("MONGO_DB_NAME", "db")][os.environ.get("MONGO_COL_NAME", "col")]
-                query = {"file_size": {"$gt": 314572800}} # 300MB min
-                if last_id: query["_id"] = {"$lt": last_id}
-                
-                cursor = col.find(query).sort("_id", -1)
-                for doc in cursor:
-                    # Check for Pause/Stop signals
-                    state = r.hget("backfill:status", "state")
-                    if state == "stopped": return
-                    while state == "paused": time.sleep(2); state = r.hget("backfill:status", "state")
-
-                    cur_id, raw = doc.get('_id'), doc.get('file_name', '')
-                    r.hset("backfill:status", "current", raw[:30])
-                    
-                    if is_obvious_tv(raw):
-                        r.set("backfill:checkpoint_id", str(cur_id)); continue
-
-                    clean, year = clean_movie_filename(raw)
-                    if not clean:
-                        if not SkippedFile.query.filter_by(filename=raw).first():
-                            db.session.add(SkippedFile(filename=raw, reason="Cleaner Failed"))
-                            db.session.commit()
-                        r.set("backfill:checkpoint_id", str(cur_id)); continue
-
-                    # Skip if exists
-                    if TVShow.query.filter_by(show_name=clean, category='movie').first():
-                        r.set("backfill:checkpoint_id", str(cur_id)); continue
-
-                    time.sleep(0.3) # Rate limit
-                    meta = asyncio.run(fetch_movie_data(clean, year))
-                    
-                    if meta:
-                        db.session.add(TVShow(
-                            tmdb_id=meta["tmdb_id"], message_id=0, show_name=meta["show_name_from_tmdb"],
-                            episode_title="Full Movie", download_link=generate_search_link(meta["show_name_from_tmdb"]),
-                            poster_path=meta["poster_path"], overview=meta["overview"], 
-                            vote_average=meta["vote_average"], year=meta["year"], rating=meta["rating"],
-                            category='movie', content_hash=f"movie_{meta['tmdb_id']}"
-                        ))
-                        db.session.commit(); r.incr("backfill:added")
-                    else:
-                        if not SkippedFile.query.filter_by(filename=raw).first():
-                            db.session.add(SkippedFile(filename=raw, reason=f"TMDB No Result: {clean}"))
-                            db.session.commit()
-                        r.incr("backfill:skipped")
-                    
-                    r.set("backfill:checkpoint_id", str(cur_id))
-    except Exception as e:
-        r.hset("backfill:status", "state", f"Error: {e}")
-    r.hset("backfill:status", "state", "complete")
+        except Exception as e:
+            logger.exception(f"Error in update_tv_shows: {e}")
+            from tv_app.models import db
+            db.session.rollback()
+        finally:
+            if lock.locked(): lock.release()
 
 @celery.task(name="tv_app.tasks.reset_clicks")
 def reset_clicks():
-    from tv_app.app import app
-    with app.app_context():
-        from tv_app.models import db, TVShow
-        TVShow.query.update({TVShow.clicks: 0}); db.session.commit()
+    try:
+        from tv_app.app import app
+        with app.app_context():
+            from tv_app.models import db, TVShow
+            TVShow.query.update({TVShow.clicks: 0})
+            db.session.commit()
+    except Exception as e:
+        logger.exception(f"Error in reset_clicks: {e}")
+        from tv_app.models import db
+        db.session.rollback()
 
 @celery.task(name="tv_app.tasks.test_task")
-def test_task(): return "OK"
+def test_task():
+    return "Test task complete"
+    # ---------------- Movie Logic: Helpers ----------------
+
+# Initialize Token Cycle for Backfill
+_tokens_env = os.environ.get("TMDB_BACKFILL_TOKENS", "")
+_token_list = [t.strip() for t in _tokens_env.split(",") if t.strip()]
+if not _token_list:
+    _token_list = [os.environ.get("TMDB_BEARER_TOKEN")]
+_tmdb_token_cycle = itertools.cycle(_token_list)
+
+def get_next_tmdb_token():
+    """Rotates through tokens to avoid rate limits during backfill."""
+    return next(_tmdb_token_cycle)
+
+def sanitize_movie_filename(filename: str) -> Dict[str, Any]:
+    """
+    Phase 2 Sanitization:
+    1. Removes spam prefixes (@Channel, www).
+    2. Strips technical jargon (1080p, x264, etc).
+    3. Extracts the year.
+    """
+    # 1. Prefix Removal
+    clean = re.sub(r"^(@\w+|www\.\S+)\s+", "", filename).strip()
+    
+    # 2. Year Extraction
+    year = None
+    year_match = re.search(r"\b(19|20)\d{2}\b", clean)
+    if year_match:
+        year = int(year_match.group(0))
+    
+    # 3. Technical Stripping (Aggressive)
+    tech_pattern = re.compile(r"(?i)\b(1080p|720p|480p|x264|x265|hevc|aac|bluray|web-dl|hdr|dvdrip|camrip|brrip)\b.*")
+    clean = tech_pattern.sub("", clean)
+    
+    # 4. Cleanup
+    clean = re.sub(r"[._-]", " ", clean)
+    clean = re.sub(r"\s+", " ", clean).strip()
+    
+    return {"raw_title": clean, "year": year}
+
+def generate_movie_deep_link(title: str) -> str:
+    """Generates deep link: https://t.me/{BOT}?start=search_{CLEAN_TITLE}"""
+    bot_username = os.environ.get("TELEGRAM_BOT_USERNAME", "iBoxTVBot")
+    # Replace non-alphanumeric with underscore
+    clean = re.sub(r"[^a-zA-Z0-9]", "_", title)
+    # Truncate to 50 chars to stay within Telegram's 64-char limit for start params
+    clean = clean[:50]
+    return f"https://t.me/{bot_username}?start=search_{clean}"
+
+def mongo_id_to_int(oid: str) -> int:
+    """Synthesizes a deterministic 64-bit integer from MongoDB ObjectId."""
+    # 1. Convert hex to int
+    full_int = int(str(oid), 16)
+    # 2. Modulo to fit into BigInteger (signed 64-bit)
+    # Max value is 2^63 - 1
+    return full_int % (2**63 - 1)
+
+# ---------------- Movie Logic: Core Processor ----------------
+
+async def process_single_movie(file_data: Dict, tmdb_token: str) -> Optional[Dict]:
+    """
+    Orchestrates the check for a single movie file:
+    Sanitize -> Search TMDb -> Match -> Return Data
+    """
+    fname = file_data.get('file_name', '')
+    sanitized = sanitize_movie_filename(fname)
+    query = sanitized['raw_title']
+    year = sanitized['year']
+
+    if not query or len(query) < 2:
+        return None
+
+    headers = {"Authorization": f"Bearer {tmdb_token}"}
+    
+    async with aiohttp.ClientSession(headers=headers) as session:
+        # 1. Search
+        search_url = f"{TMDB_BASE_URL}/search/movie?query={quote_plus(query)}&language=en-US"
+        if year:
+            search_url += f"&primary_release_year={year}"
+            
+        try:
+            async with session.get(search_url, timeout=5) as resp:
+                if resp.status == 429:
+                    logger.warning("TMDb Rate Limit hit (429).")
+                    return "RATE_LIMIT"
+                if resp.status != 200:
+                    return None
+                data = await resp.json()
+        except Exception:
+            return None
+
+        if not data.get('results'):
+            return None
+
+        # 2. Match Validation
+        best_match = None
+        best_score = 0
+        
+        for res in data['results']:
+            title = res.get('title', '')
+            # Similarity Gate: > 80
+            score = fuzz.token_sort_ratio(query.lower(), title.lower())
+            
+            # Boost if year matches exactly
+            res_date = res.get('release_date', '')
+            if year and res_date.startswith(str(year)):
+                score += 10
+            
+            if score > best_score:
+                best_score = score
+                best_match = res
+
+        if not best_match or best_score < 80:
+            return None
+
+        # 3. Format Data
+        return {
+            'tmdb_id': best_match['id'],
+            'show_name': best_match['title'],
+            'overview': best_match.get('overview'),
+            'poster_path': f"{TMDB_IMAGE_BASE_URL}{best_match.get('poster_path')}" if best_match.get('poster_path') else None,
+            'vote_average': best_match.get('vote_average'),
+            'release_date': best_match.get('release_date'),
+            'year': int(best_match['release_date'][:4]) if best_match.get('release_date') else None
+        }
+
+# ---------------- Movie Tasks: Backfill & Sync ----------------
+
+@celery.task(bind=True, name="tv_app.tasks.backfill_movies_task")
+def backfill_movies_task(self):
+    """
+    Phase 5: The Backfill Engine.
+    Iterates strictly through historical MongoDB data using checkpoints.
+    """
+    redis_client = Redis.from_url(os.environ.get("REDIS_URL"), decode_responses=True)
+    
+    # Check Pause
+    if redis_client.get("backfill:pause"):
+        logger.info("Backfill paused by user.")
+        return "Paused"
+
+    from tv_app.app import app
+    with app.app_context():
+        from tv_app.models import db, TVShow, SkippedFile
+
+        # URIs
+        uris = [os.environ.get("MONGO_URI_1"), os.environ.get("MONGO_URI_2")]
+        uris = [u for u in uris if u]
+
+        total_processed = 0
+        
+        for uri in uris:
+            try:
+                client = MongoClient(uri)
+                # Assuming generic db/coll names, usually 'Telegram' or derived from URI
+                db_name = client.get_default_database().name
+                coll = client[db_name]['fs.files'] # Or specific collection name
+
+                # Retrieve Checkpoint
+                checkpoint_key = f"backfill:checkpoint:{db_name}"
+                last_id = redis_client.get(checkpoint_key)
+                
+                query = {"file_size": {"$gt": 314572800}} # > 300MB
+                if last_id:
+                    query["_id"] = {"$lt": ObjectId(last_id)} # Descending walk
+
+                cursor = coll.find(query).sort("_id", DESCENDING).limit(100) # Batch of 100
+
+                batch = list(cursor)
+                if not batch:
+                    continue
+
+                for doc in batch:
+                    # Check Pause (Granular)
+                    if redis_client.get("backfill:pause"):
+                        break
+
+                    file_name = doc.get('filename')
+                    
+                    # 1. Skipped Check
+                    if SkippedFile.query.filter_by(filename=file_name).first():
+                        continue
+                    
+                    # 2. Process
+                    token = get_next_tmdb_token()
+                    result = asyncio.run(process_single_movie({'file_name': file_name}, token))
+
+                    if result == "RATE_LIMIT":
+                        break # Stop this batch, retry later
+                    
+                    if not result:
+                        # Log to Skipped
+                        db.session.add(SkippedFile(filename=file_name, reason="No Match or Low Score"))
+                        db.session.commit()
+                        continue
+
+                    # 3. Save
+                    # Synthesize ID
+                    syn_id = mongo_id_to_int(doc['_id'])
+                    
+                    if not TVShow.query.filter_by(tmdb_id=result['tmdb_id'], category='movie').first():
+                        show = TVShow(
+                            tmdb_id=result['tmdb_id'],
+                            message_id=syn_id,
+                            show_name=result['show_name'],
+                            overview=result['overview'],
+                            poster_path=result['poster_path'],
+                            vote_average=result['vote_average'],
+                            year=result['year'],
+                            rating=result['vote_average'],
+                            category='movie',
+                            download_link=generate_movie_deep_link(result['show_name']),
+                            content_hash=str(doc['_id']),
+                            slug=None
+                        )
+                        db.session.add(show)
+                        db.session.commit()
+                        
+                        # Update Redis Stats
+                        redis_client.hincrby("backfill:status", "added", 1)
+
+                    # Update Checkpoint
+                    redis_client.set(checkpoint_key, str(doc['_id']))
+                    total_processed += 1
+
+                client.close()
+                
+            except Exception as e:
+                logger.error(f"Backfill Error on {uri}: {e}")
+                continue
+
+    return f"Processed {total_processed} movies."
+
+@celery.task(name="tv_app.tasks.sync_movies")
+def sync_movies():
+    """
+    Phase 6: The Sync Engine.
+    Runs frequently (3 mins) to catch NEW arrivals in MongoDB.
+    Does NOT use checkpoints; just looks at the top 50.
+    """
+    redis_client = Redis.from_url(os.environ.get("REDIS_URL"), decode_responses=True)
+    
+    from tv_app.app import app
+    with app.app_context():
+        from tv_app.models import db, TVShow, SkippedFile
+
+        uris = [os.environ.get("MONGO_URI_1"), os.environ.get("MONGO_URI_2")]
+        uris = [u for u in uris if u]
+
+        for uri in uris:
+            try:
+                client = MongoClient(uri)
+                db_name = client.get_default_database().name
+                coll = client[db_name]['fs.files']
+
+                # Just latest 50 > 300MB
+                cursor = coll.find({"file_size": {"$gt": 314572800}}).sort("_id", DESCENDING).limit(50)
+
+                for doc in cursor:
+                    file_name = doc.get('filename')
+                    
+                    # Optimization: If exists in DB or Skipped, ignore
+                    syn_id = mongo_id_to_int(doc['_id'])
+                    
+                    # Fast check by Message ID (Mongo ID)
+                    if TVShow.query.filter_by(message_id=syn_id, category='movie').first():
+                        continue
+                    if SkippedFile.query.filter_by(filename=file_name).first():
+                        continue
+
+                    # Process
+                    token = os.environ.get("TMDB_BEARER_TOKEN") # Use main token for sync
+                    result = asyncio.run(process_single_movie({'file_name': file_name}, token))
+
+                    if not result:
+                        db.session.add(SkippedFile(filename=file_name, reason="Sync: No Match"))
+                        db.session.commit()
+                        continue
+
+                    # Insert
+                    # Check duplication by TMDB ID as well
+                    if not TVShow.query.filter_by(tmdb_id=result['tmdb_id'], category='movie').first():
+                        show = TVShow(
+                            tmdb_id=result['tmdb_id'],
+                            message_id=syn_id,
+                            show_name=result['show_name'],
+                            overview=result['overview'],
+                            poster_path=result['poster_path'],
+                            vote_average=result['vote_average'],
+                            year=result['year'],
+                            rating=result['vote_average'],
+                            category='movie',
+                            download_link=generate_movie_deep_link(result['show_name']),
+                            content_hash=str(doc['_id']),
+                            slug=None
+                        )
+                        db.session.add(show)
+                        db.session.commit()
+                        logger.info(f"Sync: Added movie {result['show_name']}")
+
+                client.close()
+            except Exception as e:
+                logger.error(f"Sync Error: {e}")
