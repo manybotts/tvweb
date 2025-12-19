@@ -1,4 +1,3 @@
-# tv_app/models.py
 from datetime import datetime
 import re
 from flask_sqlalchemy import SQLAlchemy
@@ -26,10 +25,10 @@ class TVShow(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
 
-    # tmdb_id + category must be unique
+    # Removed unique=True so we can have duplicates across categories
     tmdb_id = db.Column(db.Integer, unique=False, nullable=True, index=True)
 
-    # For Movies, we will generate a synthetic ID from Mongo ID
+    # Removed unique=True (Message 100 in TV != Message 100 in Anime)
     message_id = db.Column(db.BigInteger, unique=False, nullable=False, index=True)
 
     show_name = db.Column(db.String(255), nullable=False, index=True)
@@ -40,6 +39,7 @@ class TVShow(db.Model):
     vote_average = db.Column(db.Float)
     poster_path = db.Column(db.Text, default=None)
 
+    # Required by homepage/trending
     clicks = db.Column(db.Integer, nullable=False, default=0, server_default="0")
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
@@ -50,11 +50,13 @@ class TVShow(db.Model):
     year = db.Column(db.Integer)
     rating = db.Column(db.Float)
 
-    # 'tv', 'anime', or 'movie'
+    # Category column (defaults to 'tv')
     category = db.Column(db.String(20), nullable=False, default='tv', index=True)
 
+    # SEO-friendly slug, unique
     slug = db.Column(db.String(255), nullable=False, unique=True, index=True)
 
+    # Many-to-many to Genre
     genres = db.relationship(
         "Genre",
         secondary=show_genres,
@@ -63,7 +65,12 @@ class TVShow(db.Model):
 
     __table_args__ = (
         Index("ix_show_name_episode_title", "show_name", "episode_title"),
+        
+        # --- NEW: Composite Unique Key ---
+        # This mirrors the SQL: CREATE UNIQUE INDEX ix_tmdb_category ON tv_shows (tmdb_id, category);
         db.UniqueConstraint('tmdb_id', 'category', name='ix_tmdb_category'),
+
+        # trigram index for Postgres; harmless on SQLite (ignored)
         Index(
             "ix_show_name_trgm",
             "show_name",
@@ -73,7 +80,7 @@ class TVShow(db.Model):
     )
 
     def __repr__(self) -> str:
-        return f"<{self.category.upper()} {self.show_name!r}>"
+        return f"<TVShow {self.show_name!r} - {self.episode_title!r}>"
 
 # --- NEW: Skipped File Model (Negative Cache) ---
 class SkippedFile(db.Model):
@@ -96,7 +103,7 @@ def _slugify(title: str) -> str:
 
 @event.listens_for(TVShow, "before_insert")
 def _ensure_slug(mapper, connection, target: TVShow):
-    """Generate a unique slug if missing."""
+    """Generate a unique slug if missing. Keeps DB from bricking if the task forgets."""
     if target.slug and target.slug.strip():
         base = _slugify(target.slug)
     else:
@@ -104,6 +111,7 @@ def _ensure_slug(mapper, connection, target: TVShow):
         base = _slugify(" ".join(parts)) or "item"
 
     slug = base
+    # ensure uniqueness at DB level using the same connection
     i = 1
     while True:
         exists = connection.execute(
