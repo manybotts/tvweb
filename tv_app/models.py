@@ -1,4 +1,3 @@
-# tv_app/models.py
 from datetime import datetime
 import re
 from flask_sqlalchemy import SQLAlchemy
@@ -67,8 +66,9 @@ class TVShow(db.Model):
     __table_args__ = (
         Index("ix_show_name_episode_title", "show_name", "episode_title"),
         
-        # --- NEW: Composite Unique Key ---
-        # This mirrors the SQL: CREATE UNIQUE INDEX ix_tmdb_category ON tv_shows (tmdb_id, category);
+        # --- Composite Unique Key ---
+        # This prevents duplicate TMDB IDs within the SAME category, 
+        # but allows the same TMDB ID to exist in 'tv' and 'anime' separately.
         db.UniqueConstraint('tmdb_id', 'category', name='ix_tmdb_category'),
 
         # trigram index for Postgres; harmless on SQLite (ignored)
@@ -82,6 +82,14 @@ class TVShow(db.Model):
 
     def __repr__(self) -> str:
         return f"<TVShow {self.show_name!r} - {self.episode_title!r}>"
+
+# --- NEW: Skipped Files Log (For Learning) ---
+class SkippedFile(db.Model):
+    __tablename__ = "skipped_files"
+    id = db.Column(db.Integer, primary_key=True)
+    filename = db.Column(db.String(500), nullable=False)
+    reason = db.Column(db.String(100)) # e.g. "TMDb No Result" or "Cleaner Failed"
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 # --- Slug helpers ---
 _slug_cleaner = re.compile(r"[^a-z0-9]+")
