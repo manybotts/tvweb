@@ -2,19 +2,22 @@
 import os
 import logging
 import hashlib
+import json  # Added
 from datetime import datetime
 from urllib.parse import urlencode, urlparse
 
 from flask import (
     Flask, render_template, redirect, url_for, request,
-    jsonify, send_from_directory, Response, make_response
+    jsonify, send_from_directory, Response, make_response, session, abort
 )
 from sqlalchemy import func
 from dotenv import load_dotenv
 from redis import Redis
 from werkzeug.exceptions import NotFound
 
-from .models import db, TVShow, Genre
+# UPDATED IMPORTS
+from .models import db, TVShow, Genre, SkippedFile
+from .tasks import celery, update_tv_shows, test_task
 
 load_dotenv()
 
@@ -30,7 +33,6 @@ logger = logging.getLogger(__name__)
 # --- HELPERS ---
 
 def get_site_mode():
-    """Determines if we are on 'tv' or 'anime' based on subdomain."""
     host = request.host.lower()
     if 'anime' in host:
         return 'anime'
@@ -38,18 +40,16 @@ def get_site_mode():
 
 @app.context_processor
 def inject_globals():
-    """Injects 'now' and 'site_mode' into every template."""
     return {
         'now': datetime.utcnow,
         'site_mode': get_site_mode()
     }
 
 def get_trending_shows(limit: int = 6, category: str = 'tv'):
-    """Fetches top clicked shows FOR THE CURRENT CATEGORY only."""
     with app.app_context():
         return TVShow.query.filter_by(category=category)\
-                     .order_by(TVShow.clicks.desc())\
-                     .limit(limit).all()
+                           .order_by(TVShow.clicks.desc())\
+                           .limit(limit).all()
 
 def _page_urls(base_endpoint: str, page_obj, extra_params=None):
     extra_params = extra_params or {}
@@ -69,21 +69,31 @@ def hostonly(url):
     except Exception:
         return '—'
 
+@app.template_filter('format_number')
+def format_number(value):
+    try:
+        value = float(value)
+        if value >= 1_000_000:
+            return f"{value / 1_000_000:.1f}M"
+        elif value >= 1_000:
+            return f"{value / 1_000:.1f}K"
+        else:
+            return str(int(value))
+    except (ValueError, TypeError):
+        return value
+
 # ----------------------------- Public pages -----------------------------
 
 @app.route('/')
 def index():
-    mode = get_site_mode() # 'tv' or 'anime'
+    mode = get_site_mode()
     other_mode = 'anime' if mode == 'tv' else 'tv'
     
     search_query = (request.args.get('search') or '').strip()
     page = request.args.get('page', 1, type=int)
     per_page = 10
     
-    # Base query filters by the current site mode
     base_query = TVShow.query.filter(TVShow.category == mode)
-
-    # Trending logic (scoped to current category)
     trending_shows = get_trending_shows(limit=6, category=mode)
     
     message = None
@@ -91,9 +101,8 @@ def index():
     other_count = 0
 
     if search_query:
-        # 1. SEARCH CURRENT CATEGORY
         try:
-            # Try Postgres fuzzy search first
+            # Fuzzy Search
             shows = base_query.filter(
                 func.similarity(TVShow.show_name, search_query) > 0.1
             ).order_by(
@@ -101,13 +110,12 @@ def index():
             ).paginate(page=page, per_page=per_page, error_out=False)
 
             if not shows.items:
-                # Fallback to ILIKE
+                # ILIKE Fallback
                 shows = base_query.filter(
                     TVShow.show_name.ilike(f'%{search_query}%')
                 ).order_by(TVShow.created_at.desc()).paginate(page=page, per_page=per_page, error_out=False)
 
                 if not shows.items:
-                    # If still nothing, show latest but warn user
                     shows = base_query.order_by(TVShow.created_at.desc()).paginate(page=page, per_page=per_page, error_out=False)
                     message = f"No matches found in {mode.upper()}. Showing recent additions."
                     page_title = f"No Results for '{search_query}'"
@@ -120,8 +128,6 @@ def index():
         if not message:
             page_title = f"Search Results: {search_query}"
 
-        # 2. PEEK AT OTHER CATEGORY (Lightweight Count)
-        # This tells the user: "Hey, check the other site!"
         try:
             other_count = TVShow.query.filter(
                 TVShow.category == other_mode,
@@ -131,7 +137,6 @@ def index():
             other_count = 0
 
     else:
-        # Default Homepage View (No Search)
         shows = base_query.order_by(TVShow.created_at.desc()).paginate(page=page, per_page=per_page, error_out=False)
         page_title = "Search & Download Latest Anime" if mode == 'anime' else "Search & Download Latest TV Shows"
 
@@ -143,12 +148,11 @@ def index():
         other_mode=other_mode, other_count=other_count,
         canonical_url=canonical_url, prev_url=prev_url, next_url=next_url, meta_robots=meta_robots
     )
-    # --- PART 2 START ---
 
 @app.route('/shows')
 def list_shows():
     try:
-        mode = get_site_mode() # 'tv' or 'anime'
+        mode = get_site_mode()
         
         page = request.args.get('page', 1, type=int)
         per_page = 30
@@ -157,7 +161,6 @@ def list_shows():
         year_filter = request.args.get('year', type=int)
         sort_by = request.args.get('sort_by', 'name_asc')
 
-        # ISOLATION FIX: Start query filtering by current category
         query = TVShow.query.filter(TVShow.category == mode)
         
         if genre_filter:
@@ -171,21 +174,14 @@ def list_shows():
             else:
                 query = query.filter(TVShow.rating >= lower, TVShow.rating < lower + 1.0)
 
-        if sort_by == 'name_asc':
-            query = query.order_by(TVShow.show_name.asc())
-        elif sort_by == 'name_desc':
-            query = query.order_by(TVShow.show_name.desc())
-        elif sort_by == 'date_asc':
-            query = query.order_by(TVShow.created_at.asc())
-        elif sort_by == 'date_desc':
-            query = query.order_by(TVShow.created_at.desc())
-        elif sort_by == 'rating_asc':
-            query = query.order_by(TVShow.rating.asc().nullslast())
-        elif sort_by == 'rating_desc':
-            query = query.order_by(TVShow.rating.desc().nullslast())
+        if sort_by == 'name_asc': query = query.order_by(TVShow.show_name.asc())
+        elif sort_by == 'name_desc': query = query.order_by(TVShow.show_name.desc())
+        elif sort_by == 'date_asc': query = query.order_by(TVShow.created_at.asc())
+        elif sort_by == 'date_desc': query = query.order_by(TVShow.created_at.desc())
+        elif sort_by == 'rating_asc': query = query.order_by(TVShow.rating.asc().nullslast())
+        elif sort_by == 'rating_desc': query = query.order_by(TVShow.rating.desc().nullslast())
 
         shows_paginated = query.paginate(page=page, per_page=per_page, error_out=False)
-
         all_genres = Genre.query.order_by(Genre.name).all()
         current_year = datetime.utcnow().year
         min_year_result = db.session.query(func.min(TVShow.year)).filter(TVShow.year.isnot(None)).scalar()
@@ -311,9 +307,6 @@ def robots_txt():
 @app.route('/sitemap.xml')
 def sitemap_xml():
     try:
-        # Filter sitemap items based on category if strictly needed, 
-        # but for SEO having all links is usually fine. 
-        # If you want isolation here too, add the filter logic.
         items = TVShow.query.order_by(
             (TVShow.updated_at.desc() if hasattr(TVShow, 'updated_at') else TVShow.created_at.desc())
         ).limit(50000).all()
@@ -333,7 +326,10 @@ def sitemap_xml():
         logger.error(f"sitemap error: {e}")
         return Response("<?xml version='1.0' encoding='UTF-8'?><urlset/>", mimetype="application/xml")
 
-# ----------------------------- Nuke panel (auth + dupes) -----------------------------
+# --- END PART 1 ---
+# --- tv_app/app.py (PART 2) ---
+
+# ----------------------------- Nuke panel (auth + dupes + backfill) -----------------------------
 def _redis():
     return Redis.from_url(os.environ.get('REDIS_URL', 'redis://localhost:6379/0'), decode_responses=True)
 
@@ -380,6 +376,13 @@ def nuke_home():
         msg = request.args.get('msg', '')
         return render_template('nuke_login.html', title="Access Nuke", message=msg)
 
+    # --- NEW: Fetch Skipped Files for Dashboard ---
+    skipped_files = []
+    try:
+        skipped_files = SkippedFile.query.order_by(SkippedFile.created_at.desc()).limit(100).all()
+    except Exception:
+        pass
+
     q = (request.args.get('q') or '').strip()
     view_dupes = request.args.get('dupes')
     if not q and view_dupes is None:
@@ -406,7 +409,7 @@ def nuke_home():
                 'domain': urlparse(link).netloc if link else '',
                 'shows': shows
             })
-        return render_template('nuke.html', title="Nuke", view_dupes=True, dupe_groups=dupe_groups, q=q)
+        return render_template('nuke.html', title="Nuke", view_dupes=True, dupe_groups=dupe_groups, q=q, skipped_files=skipped_files)
 
     page = request.args.get('page', 1, type=int)
     per_page = 30
@@ -420,7 +423,8 @@ def nuke_home():
         query = query.order_by(TVShow.created_at.desc())
 
     shows = query.paginate(page=page, per_page=per_page, error_out=False)
-    return render_template('nuke.html', title="Nuke", shows=shows, q=q, view_dupes=False)
+    # Pass skipped_files to the template
+    return render_template('nuke.html', title="Nuke", shows=shows, q=q, view_dupes=False, skipped_files=skipped_files)
 
 @app.route('/nuke/login', methods=['POST'])
 def nuke_login():
@@ -504,6 +508,57 @@ def nuke_bulk_delete():
         logger.error(f"/nuke bulk-delete error: {e}")
         return redirect(url_for('nuke_home', dupes=1, msg="Bulk delete failed"))
 
+# --- NEW: Clear Skipped Logs ---
+@app.route('/nuke/clear_skipped', methods=['POST'])
+def nuke_clear_skipped():
+    if not _is_authed(request): return abort(403)
+    try:
+        db.session.query(SkippedFile).delete()
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        return redirect(url_for('nuke_home', msg=f"Error: {e}"))
+    return redirect(url_for('nuke_home', msg="Skipped log cleared"))
+
+# --- NEW: Backfill API Control ---
+@app.route('/nuke/backfill/<action>', methods=['POST'])
+def control_backfill(action):
+    if not _is_authed(request): return jsonify({'error': 'Unauthorized'}), 401
+    r = _redis()
+    
+    if action == 'start':
+        r.hset("backfill:status", "state", "running")
+        # Trigger async task
+        celery.send_task('tv_app.tasks.backfill_movies_task')
+    elif action == 'pause':
+        r.hset("backfill:status", "state", "paused")
+    elif action == 'stop':
+        r.hset("backfill:status", "state", "stopped")
+    elif action == 'reset':
+        for k in ["backfill:checkpoint_id", "backfill:added", "backfill:skipped"]:
+            r.delete(k)
+        r.hmset("backfill:status", {"state": "reset", "progress": 0, "total": 0, "current": "Ready"})
+    
+    return jsonify({'status': 'ok', 'action': action})
+
+@app.route('/nuke/backfill/status')
+def backfill_status():
+    if not _is_authed(request): return jsonify({'error': 'Unauthorized'}), 401
+    r = _redis()
+    status = r.hgetall("backfill:status")
+    
+    added = r.get("backfill:added") or 0
+    skipped = r.get("backfill:skipped") or 0
+    
+    return jsonify({
+        'state': status.get('state', 'idle'),
+        'current': status.get('current', '...'),
+        'progress': status.get('progress', 0),
+        'total': status.get('total', 1),
+        'added': str(added),
+        'skipped': str(skipped)
+    })
+
 # ----------------------------- Health & errors -----------------------------
 @app.route('/healthz')
 def healthz():
@@ -522,3 +577,6 @@ def internal_server_error(e):
         logger.error(f"Error during rollback in 500 handler: {rollback_error}")
     return render_template('500.html', title="Internal Server Error",
                            meta_description="We encountered an internal error. Please try again later."), 500
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000)
