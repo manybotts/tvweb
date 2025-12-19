@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}iBOX TV{% endblock %}</title>
-    <meta name="description" content="{% block meta_description %}{% endblock %}">
+    
+    <title>{% block title %}{% endblock %} | iBOX TV</title>
+    <meta name="description" content="{% block meta_description %}Find, search, and download your favorite TV shows and series quickly and easily on iBOX TV.{% endblock %}">
     
     {% if canonical_url %}
     <link rel="canonical" href="{{ canonical_url }}">
@@ -14,16 +15,39 @@
     <meta name="robots" content="{{ meta_robots }}">
     {% endif %}
 
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-YOUR_TAG_HERE"></script>
+    {# --- COOKIE CONSENT --- #}
+    <script type="text/javascript" src="https://www.termsfeed.com/public/cookie-consent/4.2.0/cookie-consent.js" charset="UTF-8"></script>
+    <script type="text/javascript" charset="UTF-8">
+    document.addEventListener('DOMContentLoaded', function () {
+    cookieconsent.run({"notice_banner_type":"simple","consent_type":"express","palette":"dark","language":"en","page_load_consent_levels":["strictly-necessary"],"notice_banner_reject_button_hide":false,"preferences_center_close_button_hide":false,"page_refresh_confirmation_buttons":false,"website_name":"iBOX TV","website_privacy_policy_url":"https://ibox-tv.com/privacy-policy"});
+    });
+    </script>
+
+    <script src="https://cmp.gatekeeperconsent.com/min.js" data-cfasync="false"></script>
+    <script src="https://the.gatekeeperconsent.com/cmp.min.js" data-cfasync="false"></script>
+
+    {# --- EZOIC & ADSENSE --- #}
+    <script async src="//www.ezojs.com/ezoic/sa.min.js"></script>
     <script>
+    window.ezstandalone = window.ezstandalone || {};
+    ezstandalone.cmd = ezstandalone.cmd || [];
+    </script>
+    
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3351229899410110"
+     crossorigin="anonymous"></script>
+
+    {# --- GOOGLE TAG MANAGER --- #}
+    <script type="text/plain" data-cookie-consent="tracking" async src="https://www.googletagmanager.com/gtag/js?id=G-XJQ6LC2PP9"></script>
+    <script type="text/plain" data-cookie-consent="tracking">
       window.dataLayer = window.dataLayer || [];
       function gtag(){dataLayer.push(arguments);}
       gtag('js', new Date());
-      gtag('config', 'G-YOUR_TAG_HERE');
+      gtag('config', 'G-XJQ6LC2PP9');
     </script>
+    <noscript>Free cookie consent management tool by <a href="https://www.termsfeed.com/">TermsFeed Generator</a></noscript>
     
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    {# --- CSS & ICONS --- #}
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" integrity="sha512-9usAa10IRO0HhonpyAIVpjrylPvoDwiPUiKdWk5t3PyolY1cOd4DSE0Ga+ri4AuTroPR5aQvXU9xC6qOPnzFeg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
     
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='favicon-96x96.png') }}" sizes="96x96" />
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}" />
@@ -31,28 +55,72 @@
     <link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename='apple-touch-icon.png') }}" />
     <meta name="apple-mobile-web-app-title" content="iBOX TV" />
     <link rel="manifest" href="{{ url_for('static', filename='site.webmanifest') }}" />
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v={{ range(1, 10000) | random }}">
+
+    {# --- HOTFIX: Force Desktop Slideshow Layout --- #}
+    {# This ensures the slides do not stack vertically ('long size') even if JS is slow or CSS is missing #}
+    <style>
+        @media (min-width: 769px) {
+            .desktop-slideshow {
+                display: flex !important;
+                flex-wrap: nowrap !important;
+                overflow: hidden !important;
+                justify-content: flex-start;
+                align-items: stretch;
+            }
+            .desktop-slideshow .mySlides {
+                flex: 0 0 19.6% !important; /* 5 items per row with margin */
+                width: 19.6% !important;
+                margin: 0 0.2% !important;
+                display: block !important; /* Ensure visibility */
+                box-sizing: border-box;
+            }
+        }
+        /* Mobile specific adjustments if needed */
+        @media (max-width: 768px) {
+            .desktop-slideshow { display: none !important; }
+        }
+    </style>
+    
+    {% block head_extra %}{% endblock %}
 </head>
 <body>
-    <nav class="navbar">
+    <nav class="navbar google-auto-ads-ignore">
         <div class="navbar-container">
             <div class="logo-container">
                 <a href="{{ url_for('index') }}">
-                    <img src="{{ url_for('static', filename='logo.jpg') }}" alt="iBOX TV Logo" class="logo">
+                    {# RESTORED: logo.png #}
+                    <img src="{{ url_for('static', filename='logo.png') }}" alt="iBOX TV Logo" class="logo">
                 </a>
             </div>
             
             <div class="nav-links">
-                <a href="https://ibox-tv.com" class="nav-link {% if site_mode == 'tv' %}active{% endif %}">
+                {# --- 1. TV SHOWS (Home) --- #}
+                {# Logic: Active if 'tv' mode AND NOT on Movies page #}
+                <a href="https://ibox-tv.com" class="nav-link {% if site_mode == 'tv' and request.endpoint != 'list_movies' %}active{% endif %}">
                   <i class="fas fa-home"></i>
+                  {# Text collapsed if we are in Anime mode #}
                   <span class="link-text {% if site_mode == 'anime' %}smart-reveal{% endif %}">TV Shows</span>
                 </a>
 
-                <a href="https://anime.ibox-tv.com" class="nav-link {% if site_mode == 'anime' %}active{% endif %}" style="color: #ff7675;">
+                {# --- 2. ANIME (Home) --- #}
+                {# Logic: Active if 'anime' mode AND NOT on Movies page #}
+                <a href="https://anime.ibox-tv.com" class="nav-link {% if site_mode == 'anime' and request.endpoint != 'list_movies' %}active{% endif %}" style="color: #ff7675;">
                   <i class="fas fa-torii-gate"></i>
+                  {# Text collapsed if we are in TV mode #}
                   <span class="link-text {% if site_mode == 'tv' %}smart-reveal{% endif %}">Anime</span>
                 </a>
                 
-                <a href="{{ url_for('list_shows') }}" class="nav-link">
+                {# --- 3. MOVIES (New) --- #}
+                {# Logic: Always Active if on Movies page #}
+                <a href="{{ url_for('list_movies') }}" class="nav-link {% if request.endpoint == 'list_movies' %}active{% endif %}">
+                    <i class="fas fa-film"></i>
+                    <span class="link-text">Movies</span>
+                </a>
+
+                {# --- 4. BROWSE --- #}
+                <a href="{{ url_for('list_shows') }}" class="nav-link {% if request.endpoint == 'list_shows' %}active{% endif %}">
                   <i class="fas fa-tv"></i><span class="link-text">Browse</span>
                 </a>
                 
@@ -74,12 +142,23 @@
 
     <div class="container">
         {% block content %}{% endblock %}
-        
+    </div>
+
+    <footer>
+        <div class="container" style="text-align: center; padding: 15px; font-size: 0.9em; color: #ccc;">
+            <p>
+                &copy; {{ now().year }} iBOX TV |
+                <a href="{{ url_for('privacy_policy') if 'privacy_policy' in config else '#' }}" style="color: #ccc;">Privacy Policy</a> |
+                <a href="#" id="open_preferences_center" style="color: #ccc;">Update Cookies Preferences</a>
+            </p>
         </div>
+    </footer>
     
+    {# --- SCRIPTS --- #}
+    
+    {# 1. Search Bar Interaction #}
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-             // 1. Mobile Search Toggle
              const searchBtn = document.getElementById('search-icon-btn');
              const searchBar = document.getElementById('floating-search-bar');
              
@@ -99,36 +178,22 @@
                      }
                  });
              }
+        });
+    </script>
+    
+    {# 2. Main App Script (Handles Slideshow) #}
+    <script src="{{ url_for('static', filename='script.js') }}?v={{ range(1, 10000) | random }}"></script>
 
-             // 2. Slideshow Logic (Restored & Cleaned)
-             const initSlideshow = (selector) => {
-                 const container = document.querySelector(selector);
-                 if (!container) return; // Exit if slideshow not present on page
+    {% block scripts_extra %}{% endblock %}
 
-                 const slides = container.querySelectorAll('.mySlides');
-                 if (slides.length === 0) return;
-
-                 if (selector === '.desktop-slideshow') {
-                     let slideIndex = 0;
-                     const showSlides = () => {
-                         // Remove active class from all
-                         slides.forEach(slide => slide.classList.remove('active-slide'));
-                         
-                         slideIndex++;
-                         if (slideIndex > slides.length) { slideIndex = 1; }
-                         
-                         // Add active class to current
-                         slides[slideIndex - 1].classList.add('active-slide');
-                         
-                         // Timer
-                         setTimeout(showSlides, 3500);
-                     };
-                     showSlides();
-                 }
-             };
-
-             // Initialize Desktop Slideshow
-             initSlideshow('.desktop-slideshow');
+    {# 3. Ezoic Trigger #}
+    <script type="text/javascript">
+        window.ezstandalone = window.ezstandalone || {};
+        ezstandalone.cmd = ezstandalone.cmd || [];
+        ezstandalone.cmd.push(function() {
+            if (typeof ezstandalone === 'object' && typeof ezstandalone.showAds === 'function') {
+                 ezstandalone.showAds();
+            }
         });
     </script>
 </body>
