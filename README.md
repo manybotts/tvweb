@@ -28,11 +28,10 @@ A compact, real‑world guide for deploying **iBOX TV**, a high-performance stre
 **System Packages:**
 You need headers for building Python wheels (especially for Postgres & C-extensions).
 
-```bash
 sudo apt update && sudo apt upgrade -y
 sudo apt install -y python3.8 python3.8-venv python3.8-dev \
     build-essential git libpq-dev nginx redis-server supervisor certbot python3-certbot-nginx
-'''
+
 ## 2) Installation
 '''bash
 cd /root
