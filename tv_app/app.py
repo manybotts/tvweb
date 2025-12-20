@@ -13,7 +13,7 @@ from dotenv import load_dotenv
 from redis import Redis
 from werkzeug.exceptions import NotFound
 
-# UPDATED: Added SkippedFile
+# UPDATED: Added SkippedFile import
 from .models import db, TVShow, Genre, SkippedFile
 
 load_dotenv()
@@ -54,8 +54,8 @@ def get_trending_shows(limit: int = 6, category: str = 'tv'):
         # Map 'movies' mode to 'movie' db category
         target_cat = 'movie' if category == 'movies' else category
         return TVShow.query.filter_by(category=target_cat)\
-                       .order_by(TVShow.clicks.desc())\
-                       .limit(limit).all()
+                        .order_by(TVShow.clicks.desc())\
+                        .limit(limit).all()
 
 def count_search_results(category: str, query_str: str) -> int:
     """
@@ -174,7 +174,8 @@ def index():
         result_counts=result_counts, # <-- NEW Variable passed to template
         canonical_url=canonical_url, prev_url=prev_url, next_url=next_url, meta_robots=meta_robots
     )
-    @app.route('/shows')
+
+@app.route('/shows')
 def list_shows():
     try:
         mode = get_site_mode() # 'tv', 'anime', or 'movies'
@@ -386,8 +387,7 @@ def sitemap_xml():
     except Exception as e:
         logger.error(f"sitemap error: {e}")
         return Response("<?xml version='1.0' encoding='UTF-8'?><urlset/>", mimetype="application/xml")
-
-# ----------------------------- Nuke panel (auth + dupes) -----------------------------
+        # ----------------------------- Nuke panel (auth + dupes) -----------------------------
 def _redis():
     return Redis.from_url(os.environ.get('REDIS_URL', 'redis://localhost:6379/0'), decode_responses=True)
 
@@ -598,7 +598,7 @@ def nuke_backfill_reset():
     try:
         r = _redis()
         # 1. Clear status and live logs
-        r.delete('backfill:status', 'backfill:current_file')
+        r.delete('backfill:status', 'backfill:current_file', 'backfill:logs') # <--- ADDED 'backfill:logs'
         
         # 2. Clear checkpoint (Need correct DB name key)
         db_name = os.environ.get('MONGO_DB_NAME', 'Huswy')
@@ -634,6 +634,8 @@ def nuke_backfill_status():
         status = r.hgetall('backfill:status')
         # Add the live file processing log
         status['current_file'] = r.get('backfill:current_file') or 'Idle'
+        # Add the log list for the matrix view
+        status['logs'] = r.lrange('backfill:logs', 0, 49) # <--- ADDED
         return jsonify(status)
     except Exception:
         return jsonify({})
