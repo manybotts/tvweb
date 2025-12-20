@@ -1,4 +1,3 @@
-# --- tv_app/app.py (PART 1: Public Routes & Movies) ---
 import os
 import logging
 import hashlib
@@ -31,10 +30,14 @@ logger = logging.getLogger(__name__)
 # --- HELPERS ---
 
 def get_site_mode():
-    """Determines if we are on 'tv' or 'anime' based on subdomain."""
+    """
+    Determines if we are on 'tv', 'anime', or 'movies' based on subdomain.
+    """
     host = request.host.lower()
-    if 'anime' in host:
+    if 'anime.' in host:
         return 'anime'
+    if 'movies.' in host:
+        return 'movies'
     return 'tv'
 
 @app.context_processor
@@ -48,9 +51,12 @@ def inject_globals():
 def get_trending_shows(limit: int = 6, category: str = 'tv'):
     """Fetches top clicked shows FOR THE CURRENT CATEGORY only."""
     with app.app_context():
-        return TVShow.query.filter_by(category=category)\
-                     .order_by(TVShow.clicks.desc())\
-                     .limit(limit).all()
+        # Fallback for 'movies' category if it uses a different tracking metric, 
+        # but for now assuming 'clicks' works for all.
+        target_cat = 'movie' if category == 'movies' else category
+        return TVShow.query.filter_by(category=target_cat)\
+                       .order_by(TVShow.clicks.desc())\
+                       .limit(limit).all()
 
 def _page_urls(base_endpoint: str, page_obj, extra_params=None):
     extra_params = extra_params or {}
@@ -74,15 +80,23 @@ def hostonly(url):
 
 @app.route('/')
 def index():
-    mode = get_site_mode() # 'tv' or 'anime'
-    other_mode = 'anime' if mode == 'tv' else 'tv'
+    mode = get_site_mode() # 'tv', 'anime', or 'movies'
+    
+    # Map mode to DB category ('movies' mode -> 'movie' db category)
+    db_category = 'movie' if mode == 'movies' else mode
+    
+    # For "Other modes" count, we just pick one different mode for simplicity or 
+    # we can leave it 0 as the new UI handles switching better.
+    # Let's keep the logic simple for now.
     
     search_query = (request.args.get('search') or '').strip()
     page = request.args.get('page', 1, type=int)
-    per_page = 10
+    
+    # Adjust per_page based on content type
+    per_page = 24 if mode == 'movies' else 10
     
     # Base query filters by the current site mode
-    base_query = TVShow.query.filter(TVShow.category == mode)
+    base_query = TVShow.query.filter(TVShow.category == db_category)
 
     # Trending logic (scoped to current category)
     trending_shows = get_trending_shows(limit=6, category=mode)
@@ -121,34 +135,39 @@ def index():
         if not message:
             page_title = f"Search Results: {search_query}"
 
-        # 2. PEEK AT OTHER CATEGORY (Lightweight Count)
-        try:
-            other_count = TVShow.query.filter(
-                TVShow.category == other_mode,
-                TVShow.show_name.ilike(f'%{search_query}%')
-            ).count()
-        except Exception:
-            other_count = 0
-
     else:
         # Default Homepage View (No Search)
         shows = base_query.order_by(TVShow.created_at.desc()).paginate(page=page, per_page=per_page, error_out=False)
-        page_title = "Search & Download Latest Anime" if mode == 'anime' else "Search & Download Latest TV Shows"
+        
+        if mode == 'anime':
+             page_title = "Search & Download Latest Anime"
+        elif mode == 'movies':
+             page_title = "Search & Download Latest Movies"
+        else:
+             page_title = "Search & Download Latest TV Shows"
 
     canonical_url, prev_url, next_url, meta_robots = _page_urls('index', shows, extra_params={'search': search_query})
+    
+    # If we are in Movies mode, we might want to use the grid layout (movies.html template logic)
+    # But since we are reusing index.html, we will need to update index.html to handle movie grids later.
+    # For now, we pass the data.
     
     return render_template('index.html',
         shows=shows, search_query=search_query, trending_shows=trending_shows,
         message=message, title=page_title, site_mode=mode,
-        other_mode=other_mode, other_count=other_count,
+        other_count=other_count, # Can be deprecated if we switch to tabs
         canonical_url=canonical_url, prev_url=prev_url, next_url=next_url, meta_robots=meta_robots
     )
-
-@app.route('/shows')
+    @app.route('/shows')
 def list_shows():
     try:
-        mode = get_site_mode() # 'tv' or 'anime'
+        mode = get_site_mode() # 'tv', 'anime', or 'movies'
         
+        # If we are on the movies subdomain, redirect '/shows' to the root or movies list
+        # to avoid confusion, or handle it as "Browse Movies".
+        if mode == 'movies':
+            return redirect(url_for('list_movies'))
+
         page = request.args.get('page', 1, type=int)
         per_page = 30
         genre_filter = request.args.get('genre')
@@ -156,7 +175,7 @@ def list_shows():
         year_filter = request.args.get('year', type=int)
         sort_by = request.args.get('sort_by', 'name_asc')
 
-        # ISOLATION FIX: Start query filtering by current category
+        # ISOLATION FIX: Query filtering by current category (TV or Anime)
         query = TVShow.query.filter(TVShow.category == mode)
         
         if genre_filter:
@@ -212,10 +231,12 @@ def list_shows():
         return render_template('500.html', title="Server Error",
                                meta_description="An error occurred viewing shows list."), 500
 
-# --- NEW: Movies Route ---
 @app.route('/movies')
 def list_movies():
     try:
+        # Note: If we are on movies.ibox-tv.com, this route acts as a specific filterable list
+        # separate from the homepage grid.
+        
         page = request.args.get('page', 1, type=int)
         per_page = 24  # 4x6 Grid
         search_q = (request.args.get('q') or '').strip()
@@ -275,7 +296,7 @@ def show_details(slug):
         show.clicks = (show.clicks or 0) + 1
         db.session.commit()
 
-        # UPDATED: Handle Movie vs TV Title Format
+        # Handle Movie vs TV Title Format
         title_parts = [show.show_name]
         
         if show.category == 'movie':
@@ -306,7 +327,7 @@ def show_details(slug):
         return render_template('500.html', title="Server Error",
                                meta_description="An error occurred viewing show details."), 500
     
-# --- NEW: Download Redirect (The Missing Fix) ---
+# --- Download Redirect ---
 @app.route('/download/<int:show_id>')
 def redirect_to_download(show_id):
     try:
@@ -530,7 +551,7 @@ def nuke_bulk_delete():
         logger.error(f"/nuke bulk-delete error: {e}")
         return redirect(url_for('nuke_home', dupes=1, msg="Bulk delete failed"))
 
-# --- NEW: BACKFILL CONTROLS (Updated with Reset/Purge/Status) ---
+# --- BACKFILL CONTROLS ---
 
 @app.route('/nuke/backfill/start', methods=['POST'])
 def nuke_backfill_start():
@@ -621,4 +642,3 @@ def internal_server_error(e):
         logger.error(f"Error during rollback in 500 handler: {rollback_error}")
     return render_template('500.html', title="Internal Server Error",
                            meta_description="We encountered an internal error. Please try again later."), 500
-        
