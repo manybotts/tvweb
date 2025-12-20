@@ -51,12 +51,28 @@ def inject_globals():
 def get_trending_shows(limit: int = 6, category: str = 'tv'):
     """Fetches top clicked shows FOR THE CURRENT CATEGORY only."""
     with app.app_context():
-        # Fallback for 'movies' category if it uses a different tracking metric, 
-        # but for now assuming 'clicks' works for all.
+        # Map 'movies' mode to 'movie' db category
         target_cat = 'movie' if category == 'movies' else category
         return TVShow.query.filter_by(category=target_cat)\
                        .order_by(TVShow.clicks.desc())\
                        .limit(limit).all()
+
+def count_search_results(category: str, query_str: str) -> int:
+    """
+    NEW: consistently counts results for a category to populate the search tabs.
+    Uses ILIKE for speed/consistency across tabs.
+    """
+    if not query_str:
+        return 0
+    try:
+        # Note: We map 'movies' (site mode) to 'movie' (DB category) if needed,
+        # but the caller should pass the correct DB category ('tv', 'anime', 'movie').
+        return TVShow.query.filter(
+            TVShow.category == category,
+            TVShow.show_name.ilike(f'%{query_str}%')
+        ).count()
+    except Exception:
+        return 0
 
 def _page_urls(base_endpoint: str, page_obj, extra_params=None):
     extra_params = extra_params or {}
@@ -85,10 +101,6 @@ def index():
     # Map mode to DB category ('movies' mode -> 'movie' db category)
     db_category = 'movie' if mode == 'movies' else mode
     
-    # For "Other modes" count, we just pick one different mode for simplicity or 
-    # we can leave it 0 as the new UI handles switching better.
-    # Let's keep the logic simple for now.
-    
     search_query = (request.args.get('search') or '').strip()
     page = request.args.get('page', 1, type=int)
     
@@ -103,7 +115,9 @@ def index():
     
     message = None
     shows = None
-    other_count = 0
+    
+    # NEW: Dictionary to hold counts for ALL tabs
+    result_counts = {'tv': 0, 'anime': 0, 'movies': 0}
 
     if search_query:
         # 1. SEARCH CURRENT CATEGORY
@@ -135,6 +149,12 @@ def index():
         if not message:
             page_title = f"Search Results: {search_query}"
 
+        # 2. POPULATE COUNTS FOR ALL TABS (Active & Inactive)
+        # We use the DB categories: 'tv', 'anime', 'movie'
+        result_counts['tv'] = count_search_results('tv', search_query)
+        result_counts['anime'] = count_search_results('anime', search_query)
+        result_counts['movies'] = count_search_results('movie', search_query)
+
     else:
         # Default Homepage View (No Search)
         shows = base_query.order_by(TVShow.created_at.desc()).paginate(page=page, per_page=per_page, error_out=False)
@@ -148,14 +168,10 @@ def index():
 
     canonical_url, prev_url, next_url, meta_robots = _page_urls('index', shows, extra_params={'search': search_query})
     
-    # If we are in Movies mode, we might want to use the grid layout (movies.html template logic)
-    # But since we are reusing index.html, we will need to update index.html to handle movie grids later.
-    # For now, we pass the data.
-    
     return render_template('index.html',
         shows=shows, search_query=search_query, trending_shows=trending_shows,
         message=message, title=page_title, site_mode=mode,
-        other_count=other_count, # Can be deprecated if we switch to tabs
+        result_counts=result_counts, # <-- NEW Variable passed to template
         canonical_url=canonical_url, prev_url=prev_url, next_url=next_url, meta_robots=meta_robots
     )
     @app.route('/shows')
@@ -164,7 +180,6 @@ def list_shows():
         mode = get_site_mode() # 'tv', 'anime', or 'movies'
         
         # If we are on the movies subdomain, redirect '/shows' to the root or movies list
-        # to avoid confusion, or handle it as "Browse Movies".
         if mode == 'movies':
             return redirect(url_for('list_movies'))
 
@@ -235,7 +250,6 @@ def list_shows():
 def list_movies():
     try:
         # Note: If we are on movies.ibox-tv.com, this route acts as a specific filterable list
-        # separate from the homepage grid.
         
         page = request.args.get('page', 1, type=int)
         per_page = 24  # 4x6 Grid
