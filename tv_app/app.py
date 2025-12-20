@@ -305,7 +305,22 @@ def show_details(slug):
         logger.error(f"Error in show_details slug={slug}: {e}")
         return render_template('500.html', title="Server Error",
                                meta_description="An error occurred viewing show details."), 500
-        # ----------------------------- SEO assets -----------------------------
+        # --- NEW: Download Redirect (The Missing Fix) ---
+@app.route('/download/<int:show_id>')
+def redirect_to_download(show_id):
+    try:
+        show = TVShow.query.get_or_404(show_id)
+        # If we have a direct link, go there
+        if show.download_link:
+            return redirect(show.download_link)
+        
+        # Fallback: If no link, go back to details
+        return redirect(url_for('show_details', slug=show.slug))
+    except Exception as e:
+        logger.error(f"Error redirecting to download {show_id}: {e}")
+        return redirect(url_for('index'))
+
+# ----------------------------- SEO assets -----------------------------
 @app.route('/ads.txt')
 def ads_txt_redirect():
     return redirect("https://srv.adstxtmanager.com/75094/ibox-tv.com", code=301)
