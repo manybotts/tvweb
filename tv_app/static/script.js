@@ -8,6 +8,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (searchIconButton) {
         searchIconButton.addEventListener('click', function(event) {
             event.preventDefault(); // Prevent default button behavior
+            event.stopPropagation(); // <--- FIX: Stop event from bubbling to document (prevents immediate close)
             floatingSearch.classList.toggle('active');
             if (floatingSearch.classList.contains('active')) {
                 searchInput.focus();
@@ -17,16 +18,22 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Hide search box when clicking outside
     document.addEventListener('click', function(event) {
-        if (!searchIconButton.contains(event.target) && !floatingSearch.contains(event.target) && floatingSearch.classList.contains('active')) {
+        // We check if the click target is NOT the button and NOT the search box
+        if (searchIconButton && !searchIconButton.contains(event.target) && 
+            floatingSearch && !floatingSearch.contains(event.target) && 
+            floatingSearch.classList.contains('active')) {
             floatingSearch.classList.remove('active');
         }
     });
-     // Hide search box when pressing outside
-    searchInput.addEventListener('blur', function() {
+
+    // Hide search box when pressing outside (blur)
+    if (searchInput) {
+        searchInput.addEventListener('blur', function() {
             if (!searchInput.value.trim()) { // Check if input is empty
                 floatingSearch.classList.remove('active');
             }
         });
+    }
 
     // --- Slideshow Logic ---
     // --- Mobile Slideshow ---
@@ -84,7 +91,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
    // --- Desktop Slideshow ---
     let desktopSlideIndex = 0;
-    // --- THIS LINE IS NOW CORRECTED ---
     const desktopSlides = document.querySelectorAll(".desktop-slideshow .mySlides");
 
     function showDesktopSlides() {
@@ -212,7 +218,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (nextButton) {
         nextButton.addEventListener('click', function(event) {
             event.preventDefault();
-           desktopPlusSlides(1);   // Use desktopPlusSlides
+           desktopPlusSlides(1);    // Use desktopPlusSlides
         });
     }
 
