@@ -59,7 +59,6 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v={{ range(1, 10000) | random }}">
 
     {# --- HOTFIX: Force Desktop Slideshow Layout --- #}
-    {# This ensures the slides do not stack vertically ('long size') even if JS is slow or CSS is missing #}
     <style>
         @media (min-width: 769px) {
             .desktop-slideshow {
@@ -90,36 +89,34 @@
         <div class="navbar-container">
             <div class="logo-container">
                 <a href="{{ url_for('index') }}">
-                    {# RESTORED: logo.png #}
                     <img src="{{ url_for('static', filename='logo.png') }}" alt="iBOX TV Logo" class="logo">
                 </a>
             </div>
             
             <div class="nav-links">
-                {# --- 1. TV SHOWS (Home) --- #}
-                {# Logic: Active if 'tv' mode AND NOT on Movies page #}
-                <a href="https://ibox-tv.com" class="nav-link {% if site_mode == 'tv' and request.endpoint != 'list_movies' %}active{% endif %}">
+                {# --- 1. TV SHOWS (Base Domain) --- #}
+                {# Expanded ONLY if site_mode is 'tv' #}
+                <a href="https://ibox-tv.com" class="nav-link {% if site_mode == 'tv' %}active{% endif %}">
                   <i class="fas fa-home"></i>
-                  {# Text collapsed if we are in Anime mode #}
-                  <span class="link-text {% if site_mode == 'anime' %}smart-reveal{% endif %}">TV Shows</span>
+                  <span class="link-text {% if site_mode != 'tv' %}smart-reveal{% endif %}">TV Shows</span>
                 </a>
 
-                {# --- 2. ANIME (Home) --- #}
-                {# Logic: Active if 'anime' mode AND NOT on Movies page #}
-                <a href="https://anime.ibox-tv.com" class="nav-link {% if site_mode == 'anime' and request.endpoint != 'list_movies' %}active{% endif %}" style="color: #ff7675;">
+                {# --- 2. ANIME (Subdomain) --- #}
+                {# Expanded ONLY if site_mode is 'anime' #}
+                <a href="https://anime.ibox-tv.com" class="nav-link {% if site_mode == 'anime' %}active{% endif %}" style="color: #ff7675;">
                   <i class="fas fa-torii-gate"></i>
-                  {# Text collapsed if we are in TV mode #}
-                  <span class="link-text {% if site_mode == 'tv' %}smart-reveal{% endif %}">Anime</span>
+                  <span class="link-text {% if site_mode != 'anime' %}smart-reveal{% endif %}">Anime</span>
                 </a>
                 
-                {# --- 3. MOVIES (New) --- #}
-                {# Logic: Always Active if on Movies page #}
-                <a href="{{ url_for('list_movies') }}" class="nav-link {% if request.endpoint == 'list_movies' %}active{% endif %}">
+                {# --- 3. MOVIES (Subdomain) --- #}
+                {# Expanded ONLY if site_mode is 'movies' #}
+                <a href="https://movies.ibox-tv.com" class="nav-link {% if site_mode == 'movies' %}active{% endif %}">
                     <i class="fas fa-film"></i>
-                    <span class="link-text">Movies</span>
+                    <span class="link-text {% if site_mode != 'movies' %}smart-reveal{% endif %}">Movies</span>
                 </a>
 
                 {# --- 4. BROWSE --- #}
+                {# Keeps context of current mode via flask routes #}
                 <a href="{{ url_for('list_shows') }}" class="nav-link {% if request.endpoint == 'list_shows' %}active{% endif %}">
                   <i class="fas fa-tv"></i><span class="link-text">Browse</span>
                 </a>
@@ -156,14 +153,12 @@
     
     {# --- SCRIPTS --- #}
     
-    {# 1. Search Bar Interaction - LOGIC MOVED TO script.js #}
-    
-    {# 2. Main App Script (Handles Slideshow) #}
+    {# 1. Main App Script (Handles Slideshow & Search) #}
     <script src="{{ url_for('static', filename='script.js') }}?v={{ range(1, 10000) | random }}"></script>
 
     {% block scripts_extra %}{% endblock %}
 
-    {# 3. Ezoic Trigger #}
+    {# 2. Ezoic Trigger #}
     <script type="text/javascript">
         window.ezstandalone = window.ezstandalone || {};
         ezstandalone.cmd = ezstandalone.cmd || [];
