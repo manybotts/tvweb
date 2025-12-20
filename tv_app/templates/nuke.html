@@ -11,16 +11,30 @@
   {% endif %}
 
   {# --- 1. NEW: Backfill Control Panel --- #}
-  <div class="card" style="margin: 20px 0; padding: 15px; border: 1px solid #444; background: #1a1a1a;">
-      <h3 style="margin-top:0;">Movie Backfill Engine</h3>
-      <div style="display: flex; gap: 15px; margin-bottom: 10px; align-items: center;">
-          <button id="btn-start" class="btn" style="background: #27ae60;">Start Backfill</button>
-          <button id="btn-pause" class="btn" style="background: #f39c12;">Pause</button>
-          <span id="backfill-status" style="font-family: monospace; font-size: 1.1em;">State: Unknown</span>
+  <div class="card" style="margin: 20px 0; padding: 20px; border: 1px solid #444; background: #1a1a1a; color: #ddd;">
+      <h3 style="margin-top:0; color: #fff;">🎬 Movie Backfill Engine</h3>
+      
+      {# Controls #}
+      <div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;">
+          <button id="btn-start" class="btn" style="background: #27ae60; color: white; border: none; padding: 10px 20px; cursor: pointer;">▶ Start Backfill</button>
+          <button id="btn-pause" class="btn" style="background: #f39c12; color: white; border: none; padding: 10px 20px; cursor: pointer;">⏸ Pause</button>
+          
+          <div style="border-left: 1px solid #555; padding-left: 10px; display: flex; gap: 10px;">
+              <button id="btn-reset" class="btn" style="background: #8e44ad; color: white; border: none; padding: 10px 15px; cursor: pointer;" onclick="return confirm('Reset Redis stats and checkpoints? This will make the backfill start over from the beginning.')">🔄 Reset Memory</button>
+              <button id="btn-purge" class="btn" style="background: #c0392b; color: white; border: none; padding: 10px 15px; cursor: pointer;" onclick="return confirm('⚠️ DANGER: This will delete ALL Movies and Skipped Files from the database. Are you sure?')">☢️ Purge All Movies</button>
+          </div>
       </div>
-      <div style="display: flex; gap: 20px; font-size: 0.9em; color: #aaa;">
-          <span>Added: <strong id="stat-added" style="color: #fff;">0</strong></span>
-          <span>Processed: <strong id="stat-progress" style="color: #fff;">0</strong></span>
+
+      {# Live Status #}
+      <div style="background: #000; padding: 10px; border-radius: 4px; font-family: monospace; margin-bottom: 15px; border: 1px solid #333;">
+          <div style="color: #2ecc71; font-weight: bold; margin-bottom: 5px;" id="backfill-state">State: Idle</div>
+          <div style="color: #aaa;" id="backfill-current">Waiting for update...</div>
+      </div>
+
+      {# Stats #}
+      <div style="display: flex; gap: 30px; font-size: 0.9em; color: #aaa;">
+          <span>Movies Added: <strong id="stat-added" style="color: #fff; font-size: 1.2em;">0</strong></span>
+          <span>Files Scanned: <strong id="stat-progress" style="color: #fff; font-size: 1.2em;">0</strong></span>
       </div>
   </div>
 
@@ -107,7 +121,7 @@
     {% endif %}
   {% endif %}
 
-  {# --- 3. NEW: Skipped Files Log --- #}
+  {# --- 3. Skipped Files Log --- #}
   {% if skipped_files %}
   <div style="margin-top: 50px; border-top: 1px solid #333; padding-top: 20px;">
       <h3>Recent Skipped Files (Debug)</h3>
@@ -140,38 +154,47 @@ function toggleWithinForm(cb){
   form.querySelectorAll('input[name="ids"]').forEach(x => x.checked = cb.checked);
 }
 
-// --- NEW: Backfill JS Logic ---
+// --- NEW: Backfill JS Logic with Reset/Purge ---
 document.addEventListener('DOMContentLoaded', () => {
     const btnStart = document.getElementById('btn-start');
     const btnPause = document.getElementById('btn-pause');
-    const statusEl = document.getElementById('backfill-status');
+    const btnReset = document.getElementById('btn-reset');
+    const btnPurge = document.getElementById('btn-purge');
+    
+    const statusEl = document.getElementById('backfill-state');
+    const currentEl = document.getElementById('backfill-current');
     const statAdded = document.getElementById('stat-added');
     const statProgress = document.getElementById('stat-progress');
 
-    if(btnStart && btnPause) {
-        btnStart.onclick = () => {
-            fetch('/nuke/backfill/start', {method: 'POST'})
-                .then(r => r.json())
-                .then(d => alert(d.message));
-        };
-        
-        btnPause.onclick = () => {
-            fetch('/nuke/backfill/pause', {method: 'POST'})
-                .then(r => r.json())
-                .then(d => alert(d.message));
-        };
+    const apiCall = (url) => {
+        fetch(url, {method: 'POST'})
+            .then(r => r.json())
+            .then(d => {
+                if(d.message) alert(d.message);
+                if(d.success) window.location.reload(); // Refresh to show changes
+            })
+            .catch(e => alert("Error: " + e));
+    };
 
-        // Poll status every 3 seconds
+    if(btnStart) {
+        btnStart.onclick = () => apiCall('/nuke/backfill/start');
+        btnPause.onclick = () => apiCall('/nuke/backfill/pause');
+        btnReset.onclick = () => apiCall('/nuke/backfill/reset');
+        btnPurge.onclick = () => apiCall('/nuke/movies/purge');
+
+        // Poll status every 2 seconds for live updates
         setInterval(() => {
             fetch('/nuke/backfill/status')
                 .then(r => r.json())
                 .then(data => {
                     if (data.state) statusEl.innerText = "State: " + data.state;
+                    if (data.current_file) currentEl.innerText = data.current_file; // Live file name
                     if (data.added) statAdded.innerText = data.added;
                     if (data.progress) statProgress.innerText = data.progress;
                 });
-        }, 3000);
+        }, 2000);
     }
 });
 </script>
 {% endblock %}
+
