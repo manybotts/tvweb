@@ -10,9 +10,9 @@
     </div>
   {% endif %}
 
-  {# --- 1. NEW: Backfill Control Panel --- #}
+  {# --- 1. BACKFILL MATRIX PANEL --- #}
   <div class="card" style="margin: 20px 0; padding: 20px; border: 1px solid #444; background: #1a1a1a; color: #ddd;">
-      <h3 style="margin-top:0; color: #fff;">🎬 Movie Backfill Engine</h3>
+      <h3 style="margin-top:0; color: #fff;">🎬 Movie Backfill Engine (Matrix Mode)</h3>
       
       {# Controls #}
       <div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;">
@@ -20,21 +20,27 @@
           <button id="btn-pause" class="btn" style="background: #f39c12; color: white; border: none; padding: 10px 20px; cursor: pointer;">⏸ Pause</button>
           
           <div style="border-left: 1px solid #555; padding-left: 10px; display: flex; gap: 10px;">
-              <button id="btn-reset" class="btn" style="background: #8e44ad; color: white; border: none; padding: 10px 15px; cursor: pointer;" onclick="return confirm('Reset Redis stats and checkpoints? This will make the backfill start over from the beginning.')">🔄 Reset Memory</button>
+              <button id="btn-reset" class="btn" style="background: #8e44ad; color: white; border: none; padding: 10px 15px; cursor: pointer;" onclick="return confirm('Reset Redis stats, LOGS, and checkpoints? This will make the backfill start over from the beginning.')">🔄 Reset Memory</button>
               <button id="btn-purge" class="btn" style="background: #c0392b; color: white; border: none; padding: 10px 15px; cursor: pointer;" onclick="return confirm('⚠️ DANGER: This will delete ALL Movies and Skipped Files from the database. Are you sure?')">☢️ Purge All Movies</button>
           </div>
       </div>
 
       {# Live Status #}
-      <div style="background: #000; padding: 10px; border-radius: 4px; font-family: monospace; margin-bottom: 15px; border: 1px solid #333;">
-          <div style="color: #2ecc71; font-weight: bold; margin-bottom: 5px;" id="backfill-state">State: Idle</div>
-          <div style="color: #aaa;" id="backfill-current">Waiting for update...</div>
+      <div style="display: flex; gap: 20px; margin-bottom: 15px;">
+        <div style="flex: 1; background: #000; padding: 10px; border-radius: 4px; font-family: monospace; border: 1px solid #333;">
+            <div style="color: #2ecc71; font-weight: bold; margin-bottom: 5px;" id="backfill-state">State: Idle</div>
+            <div style="color: #aaa;" id="backfill-current">Waiting for update...</div>
+        </div>
+        
+        <div style="flex: 0 0 auto; display: flex; flex-direction: column; justify-content: center; gap: 5px; color: #aaa; font-size: 0.9em;">
+             <span>Movies Added: <strong id="stat-added" style="color: #fff; font-size: 1.2em;">0</strong></span>
+             <span>Files Scanned: <strong id="stat-progress" style="color: #fff; font-size: 1.2em;">0</strong></span>
+        </div>
       </div>
 
-      {# Stats #}
-      <div style="display: flex; gap: 30px; font-size: 0.9em; color: #aaa;">
-          <span>Movies Added: <strong id="stat-added" style="color: #fff; font-size: 1.2em;">0</strong></span>
-          <span>Files Scanned: <strong id="stat-progress" style="color: #fff; font-size: 1.2em;">0</strong></span>
+      {# MATRIX TERMINAL WINDOW #}
+      <div id="terminal-window" style="background: #000; border: 1px solid #333; height: 350px; overflow-y: auto; padding: 10px; font-family: monospace; font-size: 0.85em; margin-bottom: 15px; border-radius: 4px; display: flex; flex-direction: column-reverse;">
+          <div style="color: #666; padding: 10px;">Waiting for logs...</div>
       </div>
   </div>
 
@@ -121,10 +127,10 @@
     {% endif %}
   {% endif %}
 
-  {# --- 3. Skipped Files Log --- #}
+  {# --- 3. Skipped Files Log (Legacy/Database) --- #}
   {% if skipped_files %}
   <div style="margin-top: 50px; border-top: 1px solid #333; padding-top: 20px;">
-      <h3>Recent Skipped Files (Debug)</h3>
+      <h3>Skipped Files (Database Records)</h3>
       <table class="table" style="font-size: 0.85em; width: 100%; border-collapse: collapse;">
           <thead>
               <tr style="text-align:left; border-bottom: 1px solid #444;">
@@ -165,6 +171,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const currentEl = document.getElementById('backfill-current');
     const statAdded = document.getElementById('stat-added');
     const statProgress = document.getElementById('stat-progress');
+    const terminal = document.getElementById('terminal-window');
 
     const apiCall = (url) => {
         fetch(url, {method: 'POST'})
@@ -182,19 +189,33 @@ document.addEventListener('DOMContentLoaded', () => {
         btnReset.onclick = () => apiCall('/nuke/backfill/reset');
         btnPurge.onclick = () => apiCall('/nuke/movies/purge');
 
-        // Poll status every 2 seconds for live updates
+        // Poll status every 1.5 seconds for matrix updates
         setInterval(() => {
             fetch('/nuke/backfill/status')
                 .then(r => r.json())
                 .then(data => {
                     if (data.state) statusEl.innerText = "State: " + data.state;
-                    if (data.current_file) currentEl.innerText = data.current_file; // Live file name
+                    if (data.current_file) currentEl.innerText = data.current_file;
                     if (data.added) statAdded.innerText = data.added;
                     if (data.progress) statProgress.innerText = data.progress;
+
+                    // Matrix Log Update (Color Coded)
+                    if (data.logs && Array.isArray(data.logs) && data.logs.length > 0) {
+                        terminal.innerHTML = data.logs.map(line => {
+                            let color = '#ccc'; // Default
+                            if (line.includes('✅')) color = '#2ecc71'; // Green
+                            if (line.includes('⚠️')) color = '#f1c40f'; // Yellow
+                            if (line.includes('♻️')) color = '#3498db'; // Blue
+                            if (line.includes('📺')) color = '#9b59b6'; // Purple (TV)
+                            if (line.includes('Error') || line.includes('Fail')) color = '#e74c3c'; // Red
+                            if (line.includes('Starting') || line.includes('Resuming')) color = '#fff'; // White
+                            
+                            return `<div style="color:${color}; margin-bottom:2px; line-height:1.2;">${line}</div>`;
+                        }).join('');
+                    }
                 });
-        }, 2000);
+        }, 1500);
     }
 });
 </script>
 {% endblock %}
-
