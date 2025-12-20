@@ -305,7 +305,8 @@ def show_details(slug):
         logger.error(f"Error in show_details slug={slug}: {e}")
         return render_template('500.html', title="Server Error",
                                meta_description="An error occurred viewing show details."), 500
-        # --- NEW: Download Redirect (The Missing Fix) ---
+    
+# --- NEW: Download Redirect (The Missing Fix) ---
 @app.route('/download/<int:show_id>')
 def redirect_to_download(show_id):
     try:
@@ -529,7 +530,7 @@ def nuke_bulk_delete():
         logger.error(f"/nuke bulk-delete error: {e}")
         return redirect(url_for('nuke_home', dupes=1, msg="Bulk delete failed"))
 
-# --- NEW: Backfill Controls ---
+# --- NEW: BACKFILL CONTROLS (Updated with Reset/Purge/Status) ---
 
 @app.route('/nuke/backfill/start', methods=['POST'])
 def nuke_backfill_start():
@@ -554,12 +555,50 @@ def nuke_backfill_pause():
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)})
 
+@app.route('/nuke/backfill/reset', methods=['POST'])
+def nuke_backfill_reset():
+    """Clears Redis stats and checkpoints to force a fresh start."""
+    if not _is_authed(request):
+        return jsonify({'error': 'Unauthorized'}), 401
+    try:
+        r = _redis()
+        # 1. Clear status and live logs
+        r.delete('backfill:status', 'backfill:current_file')
+        
+        # 2. Clear checkpoint (Need correct DB name key)
+        db_name = os.environ.get('MONGO_DB_NAME', 'Huswy')
+        r.delete(f"backfill:checkpoint:{db_name}")
+        
+        return jsonify({'success': True, 'message': 'Backfill memory cleared. Engine is ready to restart.'})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
+
+@app.route('/nuke/movies/purge', methods=['POST'])
+def nuke_movies_purge():
+    """Deletes ALL movies and ALL skipped files from the database."""
+    if not _is_authed(request):
+        return jsonify({'error': 'Unauthorized'}), 401
+    try:
+        # 1. Delete all movies
+        deleted_shows = TVShow.query.filter_by(category='movie').delete()
+        # 2. Delete all skipped logs
+        deleted_skips = SkippedFile.query.delete()
+        
+        db.session.commit()
+        return jsonify({'success': True, 'message': f'Purged {deleted_shows} movies and {deleted_skips} skipped logs.'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)})
+
 @app.route('/nuke/backfill/status')
 def nuke_backfill_status():
     if not _is_authed(request):
         return jsonify({'error': 'Unauthorized'}), 401
     try:
-        status = _redis().hgetall('backfill:status')
+        r = _redis()
+        status = r.hgetall('backfill:status')
+        # Add the live file processing log
+        status['current_file'] = r.get('backfill:current_file') or 'Idle'
         return jsonify(status)
     except Exception:
         return jsonify({})
@@ -582,3 +621,4 @@ def internal_server_error(e):
         logger.error(f"Error during rollback in 500 handler: {rollback_error}")
     return render_template('500.html', title="Internal Server Error",
                            meta_description="We encountered an internal error. Please try again later."), 500
+        
