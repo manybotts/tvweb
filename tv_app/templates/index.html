@@ -1,175 +1,176 @@
-{% extends "base.html" %}
+import os
+import logging
+import hashlib
+from datetime import datetime
+from urllib.parse import urlencode, urlparse
 
-{% block title %}{{ title }}{% endblock %}
-{% block meta_description %}Your ultimate source for searching and downloading the latest {{ site_mode|upper }} shows. Explore trending content and find download links easily on iBOX TV.{% endblock %}
+from flask import (
+    Flask, render_template, redirect, url_for, request,
+    jsonify, send_from_directory, Response, make_response
+)
+from sqlalchemy import func
+from dotenv import load_dotenv
+from redis import Redis
+from werkzeug.exceptions import NotFound
 
-{% block content %}
-<div class="container-fluid">
-  <div class="row">
-    <div class="col-lg-2 d-none d-lg-block text-center">
-      <div style="position: sticky; top: 20px;">
-        <div id="ezoic-pub-ad-placeholder-107"></div>
-      </div>
-    </div>
+# UPDATED: Added SkippedFile
+from .models import db, TVShow, Genre, SkippedFile
 
-    <div class="col-12 col-lg-8">
-      
-      {% if search_query %}
+load_dotenv()
+
+app = Flask(__name__)
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your_secret_key')
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///tv_shows.db')
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+db.init_app(app)
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+
+# --- HELPERS ---
+
+def get_site_mode():
+    """
+    Determines if we are on 'tv', 'anime', or 'movies' based on subdomain.
+    """
+    host = request.host.lower()
+    if 'anime.' in host:
+        return 'anime'
+    if 'movies.' in host:
+        return 'movies'
+    return 'tv'
+
+@app.context_processor
+def inject_globals():
+    """Injects 'now' and 'site_mode' into every template."""
+    return {
+        'now': datetime.utcnow,
+        'site_mode': get_site_mode()
+    }
+
+def get_trending_shows(limit: int = 6, category: str = 'tv'):
+    """Fetches top clicked shows FOR THE CURRENT CATEGORY only."""
+    with app.app_context():
+        # Map 'movies' mode to 'movie' db category
+        target_cat = 'movie' if category == 'movies' else category
+        return TVShow.query.filter_by(category=target_cat)\
+                       .order_by(TVShow.clicks.desc())\
+                       .limit(limit).all()
+
+def count_search_results(category: str, query_str: str) -> int:
+    """
+    NEW: consistently counts results for a category to populate the search tabs.
+    Uses ILIKE for speed/consistency across tabs.
+    """
+    if not query_str:
+        return 0
+    try:
+        # Note: We map 'movies' (site mode) to 'movie' (DB category) if needed,
+        # but the caller should pass the correct DB category ('tv', 'anime', 'movie').
+        return TVShow.query.filter(
+            TVShow.category == category,
+            TVShow.show_name.ilike(f'%{query_str}%')
+        ).count()
+    except Exception:
+        return 0
+
+def _page_urls(base_endpoint: str, page_obj, extra_params=None):
+    extra_params = extra_params or {}
+    def _u(p):
+        params = {**extra_params, 'page': p}
+        return url_for(base_endpoint, _external=True, **params)
+    prev_url = _u(page_obj.prev_num) if page_obj.has_prev else None
+    next_url = _u(page_obj.next_num) if page_obj.has_next else None
+    canonical_url = _u(page_obj.page)
+    meta_robots = "index,follow" if page_obj.page == 1 else "noindex,follow"
+    return canonical_url, prev_url, next_url, meta_robots
+
+@app.template_filter('hostonly')
+def hostonly(url):
+    try:
+        return urlparse(url).netloc or '—'
+    except Exception:
+        return '—'
+
+# ----------------------------- Public pages -----------------------------
+
+@app.route('/')
+def index():
+    mode = get_site_mode() # 'tv', 'anime', or 'movies'
+    
+    # Map mode to DB category ('movies' mode -> 'movie' db category)
+    db_category = 'movie' if mode == 'movies' else mode
+    
+    search_query = (request.args.get('search') or '').strip()
+    page = request.args.get('page', 1, type=int)
+    
+    # Adjust per_page based on content type
+    per_page = 24 if mode == 'movies' else 10
+    
+    # Base query filters by the current site mode
+    base_query = TVShow.query.filter(TVShow.category == db_category)
+
+    # Trending logic (scoped to current category)
+    trending_shows = get_trending_shows(limit=6, category=mode)
+    
+    message = None
+    shows = None
+    
+    # NEW: Dictionary to hold counts for ALL tabs
+    result_counts = {'tv': 0, 'anime': 0, 'movies': 0}
+
+    if search_query:
+        # 1. SEARCH CURRENT CATEGORY
+        try:
+            # Try Postgres fuzzy search first
+            shows = base_query.filter(
+                func.similarity(TVShow.show_name, search_query) > 0.1
+            ).order_by(
+                func.similarity(TVShow.show_name, search_query).desc()
+            ).paginate(page=page, per_page=per_page, error_out=False)
+
+            if not shows.items:
+                # Fallback to ILIKE
+                shows = base_query.filter(
+                    TVShow.show_name.ilike(f'%{search_query}%')
+                ).order_by(TVShow.created_at.desc()).paginate(page=page, per_page=per_page, error_out=False)
+
+                if not shows.items:
+                    # If still nothing, show latest but warn user
+                    shows = base_query.order_by(TVShow.created_at.desc()).paginate(page=page, per_page=per_page, error_out=False)
+                    message = f"No matches found in {mode.upper()}. Showing recent additions."
+                    page_title = f"No Results for '{search_query}'"
+        except Exception as e:
+            logger.error(f"Database error during search: {e}")
+            shows = base_query.order_by(TVShow.created_at.desc()).paginate(page=page, per_page=per_page, error_out=False)
+            message = "An error occurred. Showing recent additions."
+            page_title = "Search Error"
+
+        if not message:
+            page_title = f"Search Results: {search_query}"
+
+        # 2. POPULATE COUNTS FOR ALL TABS (Active & Inactive)
+        # We use the DB categories: 'tv', 'anime', 'movie'
+        result_counts['tv'] = count_search_results('tv', search_query)
+        result_counts['anime'] = count_search_results('anime', search_query)
+        result_counts['movies'] = count_search_results('movie', search_query)
+
+    else:
+        # Default Homepage View (No Search)
+        shows = base_query.order_by(TVShow.created_at.desc()).paginate(page=page, per_page=per_page, error_out=False)
         
-        <div class="search-tabs">
-            <div class="search-tab active">
-                <i class="fas {% if site_mode == 'anime' %}fa-torii-gate{% else %}fa-tv{% endif %}"></i>
-                {{ site_mode|upper }} Results 
-                <span class="count-badge" style="background:rgba(255,255,255,0.2); color:#fff;">
-                    {{ shows.total if not message else 0 }}
-                </span>
-            </div>
+        if mode == 'anime':
+             page_title = "Search & Download Latest Anime"
+        elif mode == 'movies':
+             page_title = "Search & Download Latest Movies"
+        else:
+             page_title = "Search & Download Latest TV Shows"
 
-            {% if other_count > 0 %}
-            <a href="https://{{ 'ibox-tv.com' if site_mode == 'anime' else 'anime.ibox-tv.com' }}/?search={{ search_query }}" class="search-tab">
-                <i class="fas fa-exchange-alt"></i>
-                Switch to {{ other_mode|upper }}
-                <span class="count-badge" style="background:#e50914; color:#fff;">{{ other_count }}</span>
-            </a>
-            {% endif %}
-        </div>
-
-        {% if message %}
-            <div class="alert alert-warning text-center" role="alert" style="background:#222; border:1px solid #444; color:#ddd;">
-                <p style="margin-bottom:5px;">{{ message }}</p>
-                {% if other_count > 0 %}
-                    <p style="margin-bottom:0; color:#fff; font-size:1.1em;">
-                        💡 <strong>Hint:</strong> We found {{ other_count }} matches in the 
-                        <a href="https://{{ 'ibox-tv.com' if site_mode == 'anime' else 'anime.ibox-tv.com' }}/?search={{ search_query }}" style="color:#e50914; text-decoration:underline;">
-                            {{ other_mode|upper }} section
-                        </a>.
-                    </p>
-                {% endif %}
-            </div>
-            <h2 style="font-size:1.2em; color:#aaa; margin-top:30px;">Showing Recent Additions</h2>
-        {% else %}
-            <h2 style="text-align:center; font-size:1.4em; margin-bottom:20px;">
-                Results for "<span style="color:#e50914;">{{ search_query }}</span>"
-            </h2>
-        {% endif %}
-
-        <div class="tv-shows">
-          {% if shows.items %}
-            {% for show in shows.items %}
-              <div class="show-card">
-                <a href="{{ url_for('show_details', slug=show.slug) }}">
-                  {% if show.poster_path %}
-                    <img src="{{ show.poster_path }}" alt="{{ show.show_name }}" loading="lazy">
-                  {% else %}
-                    <div class="placeholder-image">No Poster</div>
-                  {% endif %}
-                  <h3>{{ show.show_name }}</h3>
-                  <p class="episode-title">{{ show.episode_title }}</p>
-                </a>
-              </div>
-            {% endfor %}
-          {% else %}
-            <p>No results found.</p>
-          {% endif %}
-        </div>
-
-      {% else %}
-        
-        <h2><span class="eye-icon" aria-hidden="true"></span> Most Watched Today</h2>
-        
-        <div class="slideshow-container">
-          <div class="desktop-slideshow">
-            <div class="slideshow-inner">
-              {% for show in trending_shows %}
-                <div class="mySlides slideshow-item">
-                  <a href="{{ url_for('show_details', slug=show.slug) }}">
-                    {% if show.poster_path %}
-                      <img src="{{ show.poster_path }}" alt="{{ show.show_name }}" class="slideshow-image">
-                    {% else %}
-                      <div class="placeholder-image">No Poster</div>
-                    {% endif %}
-                    <div class="slide-caption">{{ show.show_name }}</div>
-                  </a>
-                </div>
-              {% endfor %}
-            </div>
-          </div>
-
-          <div class="mobile-slideshow">
-            <div class="slideshow-inner">
-              {% for show in trending_shows %}
-                <div class="mySlides slideshow-item">
-                  <a href="{{ url_for('show_details', slug=show.slug) }}">
-                    {% if show.poster_path %}
-                      <img src="{{ show.poster_path }}" alt="{{ show.show_name }}" class="slideshow-image">
-                    {% else %}
-                      <div class="placeholder-image">No Poster</div>
-                    {% endif %}
-                    <div class="slide-caption">{{ show.show_name }}</div>
-                  </a>
-                </div>
-              {% endfor %}
-            </div>
-            <div class="slideshow-controls">
-                <button class="prev">&#10094;</button>
-                <button class="next">&#10095;</button>
-            </div>
-            <div class="slideshow-dots"></div>
-          </div>
-        </div>
-
-        <h2><span class="new-icon" aria-hidden="true"></span> Newly Added</h2>
-        <div class="tv-shows">
-          {% for show in shows.items %}
-            <div class="show-card">
-              <a href="{{ url_for('show_details', slug=show.slug) }}">
-                {% if show.poster_path %}
-                  <img src="{{ show.poster_path }}" alt="{{ show.show_name }}" loading="lazy">
-                {% else %}
-                  <div class="placeholder-image">No Poster</div>
-                {% endif %}
-                <h3>{{ show.show_name }}</h3>
-                <p class="episode-title">{{ show.episode_title }}</p>
-              </a>
-            </div>
-          {% endfor %}
-        </div>
-
-      {% endif %}
-
-      <div class="pagination">
-        {% if shows.has_prev %}
-          <a href="{{ url_for('index', page=shows.prev_num, search=request.args.get('search', '')) }}">Previous</a>
-        {% else %}
-          <span class="disabled">Previous</span>
-        {% endif %}
-
-        {% for page_num in shows.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
-          {% if page_num %}
-            {% if shows.page == page_num %}
-              <span class="current-page">{{ page_num }}</span>
-            {% else %}
-              <a href="{{ url_for('index', page=page_num, search=request.args.get('search', '')) }}">{{ page_num }}</a>
-            {% endif %}
-          {% else %}
-            <span class="ellipsis">…</span>
-          {% endif %}
-        {% endfor %}
-
-        {% if shows.has_next %}
-          <a href="{{ url_for('index', page=shows.next_num, search=request.args.get('search', '')) }}">Next</a>
-        {% else %}
-          <span class="disabled">Next</span>
-        {% endif %}
-      </div>
-
-    </div>
-
-    <div class="col-lg-2 d-none d-lg-block text-center">
-      <div style="position: sticky; top: 20px;">
-        <div id="ezoic-pub-ad-placeholder-108"></div>
-      </div>
-    </div>
-  </div>
-</div>
-{% endblock %}
+    canonical_url, prev_url, next_url, meta_robots = _page_urls('index', shows, extra_params={'search': search_query})
+    
+    return render_template('index.html',
+        shows=shows, search_query=search_query, trending_shows=trending_shows,
+        message=message, title=page_title, site_mode=mode,
+        result_counts=result_counts, # <-- NEW Variable passed to template
+        canonical_url=canonical_url, prev_url=prev_url, next_url=next_url, meta_robots=meta_robots
+    )
