@@ -156,30 +156,7 @@
     
     {# --- SCRIPTS --- #}
     
-    {# 1. Search Bar Interaction #}
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-             const searchBtn = document.getElementById('search-icon-btn');
-             const searchBar = document.getElementById('floating-search-bar');
-             
-             if(searchBtn && searchBar) {
-                 searchBtn.addEventListener('click', (e) => {
-                     e.stopPropagation();
-                     searchBar.classList.toggle('active');
-                     if(searchBar.classList.contains('active')) {
-                         const input = searchBar.querySelector('input');
-                         if(input) input.focus();
-                     }
-                 });
-
-                 document.addEventListener('click', (e) => {
-                     if (!searchBar.contains(e.target) && !searchBtn.contains(e.target)) {
-                         searchBar.classList.remove('active');
-                     }
-                 });
-             }
-        });
-    </script>
+    {# 1. Search Bar Interaction - LOGIC MOVED TO script.js #}
     
     {# 2. Main App Script (Handles Slideshow) #}
     <script src="{{ url_for('static', filename='script.js') }}?v={{ range(1, 10000) | random }}"></script>
