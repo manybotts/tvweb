@@ -366,143 +366,180 @@ def test_task():
 
 # ... (Continue to Part 2 for Movie Logic) ...
 # ==============================================================================
-#                               MOVIE LOGIC (UPDATED)
+#                       MOVIE LOGIC (REFINED & OPTIMIZED)
 # ==============================================================================
 
-# Initialize Token Cycle for Backfill
-_tokens_env = os.environ.get("TMDB_BACKFILL_TOKENS", "")
-_token_list = [t.strip() for t in _tokens_env.split(",") if t.strip()]
-if not _token_list:
-    _token_list = [os.environ.get("TMDB_BEARER_TOKEN")]
-_tmdb_token_cycle = itertools.cycle(_token_list)
+# --- PHASE 1: The Input Gate (Regex Patterns) ---
+TV_PATTERNS = [
+    re.compile(r'\bS\d{1,2}E\d{1,2}\b', re.IGNORECASE),    # S01E01
+    re.compile(r'S\d+E\d+', re.IGNORECASE),                # S3E8 (No word boundary, catches S3E8EM)
+    re.compile(r'\b\d{1,2}x\d{1,2}\b', re.IGNORECASE),     # 3x6
+    re.compile(r'\b(Episode|Ep)\s*\d+\b', re.IGNORECASE),  # Episode 05
+    re.compile(r'\bE\d{2,}\b', re.IGNORECASE),             # E12
+    re.compile(r'\bSeason\s*\d+', re.IGNORECASE)           # Season 1
+]
 
-def get_next_tmdb_token():
-    """Rotates through tokens to avoid rate limits during backfill."""
-    return next(_tmdb_token_cycle)
+def is_likely_tv_show(filename: str) -> bool:
+    """Checks if filename matches any TV show patterns."""
+    return any(p.search(filename) for p in TV_PATTERNS)
+
+# --- PHASE 2: Sanitization Helpers ---
 
 def sanitize_movie_filename(filename: str) -> Dict[str, Any]:
-    """
-    Sanitizes AutoFilter filenames:
-    1. Removes spam prefixes (@Channel, www).
-    2. Strips technical jargon (1080p, x264, etc).
-    3. Extracts the year.
-    """
-    # 1. Prefix Removal
-    clean = re.sub(r"^(@\w+|www\.\S+)\s+", "", filename).strip()
+    """Phase 2: Primary Sanitization."""
+    clean = filename
     
-    # 2. Year Extraction
+    # 1. Remove Bracketed Info [1080p]
+    clean = re.sub(r'\[.*?\]', '', clean).strip()
+    
+    # 2. Remove Prefix (Non-Greedy)
+    # Only remove ONE word starting with @ at the beginning
+    clean = re.sub(r'^@\w+\s+', '', clean).strip()
+
+    # 3. Global Spam/Junk Removal
+    # Remove @Mentions anywhere else
+    clean = re.sub(r'@\w+', '', clean)
+    # Remove "Movie", "Film", "Remastered"
+    clean = re.sub(r'\b(Movie|Film|Remastered|Unrated|Rated|Extended)\b', '', clean, flags=re.IGNORECASE)
+
+    # 4. Remove File Extensions
+    clean = re.sub(r'\.(mkv|mp4|avi|webm|flv|mov)$', '', clean, flags=re.IGNORECASE)
+
+    # 5. Year Extraction
     year = None
-    year_match = re.search(r"\b(19|20)\d{2}\b", clean)
+    year_match = re.search(r'\b(19|20)\d{2}\b', clean)
     if year_match:
         year = int(year_match.group(0))
+
+    # 6. Technical & Language Cut-Points
+    # Everything after these markers is discarded
+    markers = [
+        # Tech
+        "1080p", "720p", "480p", "360p", "2160p", "4k", "5k", 
+        "x264", "x265", "hevc", "h264", "h265",
+        "bluray", "web-dl", "dvdrip", "camrip", "hdrip", "brrip", "bdrip", "webrip",
+        "aac", "ac3", "dts", "dolby", "truehd",
+        "www.", ".com", ".net", ".org",
+        # Languages / Regions (Often appear after title)
+        "dual audio", "multi audio", "hindi", "english", "tamil", "telugu", 
+        "malayalam", "kannada", "punjabi", "chinese", "korean", "esub"
+    ]
     
-    # 3. Technical Stripping (Aggressive)
-    tech_pattern = re.compile(r"(?i)\b(1080p|720p|480p|x264|x265|hevc|aac|bluray|web-dl|hdr|dvdrip|camrip|brrip)\b.*")
-    clean = tech_pattern.sub("", clean)
+    clean_lower = clean.lower()
+    lowest_index = len(clean)
     
-    # 4. Cleanup
+    for marker in markers:
+        idx = clean_lower.find(marker)
+        if idx != -1 and idx < lowest_index:
+            lowest_index = idx
+            
+    if lowest_index < len(clean):
+        clean = clean[:lowest_index]
+
+    # 7. Final Cleanup
     clean = re.sub(r"[._-]", " ", clean)
     clean = re.sub(r"\s+", " ", clean).strip()
     
     return {"raw_title": clean, "year": year}
 
-def generate_movie_deep_link(title: str) -> str:
-    """Generates deep link: https://t.me/{BOT}?start=search_{CLEAN_TITLE}"""
-    # FIXED: Uses BOT_USERNAME from your .env
-    bot_username = os.environ.get("BOT_USERNAME", "iBoxTVBot")
+# --- PHASE 3: Fallback Strategies ---
+
+def aggressive_scrub(title: str) -> str:
+    """Attempt 2: Remove digits. Safely strip edges."""
+    clean = re.sub(r'\d+', '', title)
+    tokens = clean.split()
+    if not tokens: return ""
     
-    # Replace non-alphanumeric with underscore and truncate
+    # SAFETY: Only strip short edge words if the title is Long (>= 4 words)
+    # This protects "Make Up" (2 words) or "X Men" (2 words)
+    if len(tokens) >= 4:
+        if len(tokens[0]) < 3: tokens.pop(0)
+        if tokens and len(tokens[-1]) < 3: tokens.pop(-1)
+        
+    return " ".join(tokens)
+
+def extract_core_title(title: str) -> str:
+    """Attempt 3: Middle Word Heuristic."""
+    tokens = title.split()
+    # SAFETY: Only slice if we have enough words to spare
+    if len(tokens) <= 3: return title
+    
+    core = tokens[1:-1]
+    return " ".join(core)
+
+# --- Core Logic ---
+
+_tokens_env = os.environ.get("TMDB_BACKFILL_TOKENS", "")
+_token_list = [t.strip() for t in _tokens_env.split(",") if t.strip()]
+if not _token_list: _token_list = [os.environ.get("TMDB_BEARER_TOKEN")]
+_tmdb_token_cycle = itertools.cycle(_token_list)
+
+def get_next_tmdb_token(): return next(_tmdb_token_cycle)
+
+def generate_movie_deep_link(title: str) -> str:
+    bot_username = os.environ.get("BOT_USERNAME", "iBoxTVBot")
     clean = re.sub(r"[^a-zA-Z0-9]", "_", title)[:50]
     return f"https://t.me/{bot_username}?start=search_{clean}"
 
 def mongo_id_to_int(oid: str) -> int:
-    """
-    CRITICAL FIX: Synthesizes a deterministic 64-bit integer from a String ID.
-    The AutoFilter bot uses string file_ids (e.g. "AgAD..."), not Mongo ObjectIds.
-    """
     if not oid: return 0
-    # Hash the string to a large int, then modulo to fit in Signed 64-bit BigInt
     return int(hashlib.sha256(str(oid).encode('utf-8')).hexdigest(), 16) % (2**63 - 1)
 
+async def search_tmdb(query: str, year: Optional[int], tmdb_token: str) -> Optional[Dict]:
+    if not query or len(query) < 2: return None
+    headers = {"Authorization": f"Bearer {tmdb_token}"}
+    async with aiohttp.ClientSession(headers=headers) as session:
+        search_url = f"{TMDB_BASE_URL}/search/movie?query={quote_plus(query)}&language=en-US"
+        if year: search_url += f"&primary_release_year={year}"
+        try:
+            async with session.get(search_url, timeout=5) as resp:
+                if resp.status == 429: return "RATE_LIMIT"
+                if resp.status != 200: return None
+                return await resp.json()
+        except Exception: return None
+
 async def process_single_movie(file_data: Dict, tmdb_token: str) -> Optional[Dict]:
-    """
-    Orchestrates the check for a single movie file:
-    Sanitize -> Search TMDb -> Match -> Return Data
-    """
-    # FIX: AutoFilter uses 'file_name', not 'filename'
     fname = file_data.get('file_name', '')
     sanitized = sanitize_movie_filename(fname)
     query = sanitized['raw_title']
     year = sanitized['year']
-
-    if not query or len(query) < 2:
-        return None
-
-    headers = {"Authorization": f"Bearer {tmdb_token}"}
     
-    async with aiohttp.ClientSession(headers=headers) as session:
-        # 1. Search
-        search_url = f"{TMDB_BASE_URL}/search/movie?query={quote_plus(query)}&language=en-US"
-        if year:
-            search_url += f"&primary_release_year={year}"
-            
-        try:
-            async with session.get(search_url, timeout=5) as resp:
-                if resp.status == 429:
-                    # Rate limit hit, return special flag
-                    return "RATE_LIMIT"
-                if resp.status != 200:
-                    return None
-                data = await resp.json()
-        except Exception:
-            return None
-
-        if not data.get('results'):
-            return None
-
-        # 2. Match Validation
-        best_match = None
-        best_score = 0
+    attempts = [("Standard", query), ("Aggressive", aggressive_scrub(query)), ("Core", extract_core_title(query))]
+    best_match = None
+    best_score = 0
+    
+    for _, search_q in attempts:
+        if not search_q: continue
+        data = await search_tmdb(search_q, year, tmdb_token)
+        if data == "RATE_LIMIT": return "RATE_LIMIT"
+        if not data or not data.get('results'): continue
         
         for res in data['results']:
             title = res.get('title', '')
-            # Similarity Gate: > 80
-            score = fuzz.token_sort_ratio(query.lower(), title.lower())
-            
-            # Boost if year matches exactly
+            score = fuzz.token_sort_ratio(search_q.lower(), title.lower())
             res_date = res.get('release_date', '')
-            if year and res_date.startswith(str(year)):
-                score += 10
-            
+            if year and res_date.startswith(str(year)): score += 10
             if score > best_score:
                 best_score = score
                 best_match = res
+        if best_score > 85: break
+            
+    if not best_match or best_score < 80: return None
 
-        if not best_match or best_score < 80:
-            return None
-
-        # 3. Format Data
-        return {
-            'tmdb_id': best_match['id'],
-            'show_name': best_match['title'],
-            'overview': best_match.get('overview'),
-            'poster_path': f"{TMDB_IMAGE_BASE_URL}{best_match.get('poster_path')}" if best_match.get('poster_path') else None,
-            'vote_average': best_match.get('vote_average'),
-            'release_date': best_match.get('release_date'),
-            'year': int(best_match['release_date'][:4]) if best_match.get('release_date') else None
-        }
+    return {
+        'tmdb_id': best_match['id'],
+        'show_name': best_match['title'],
+        'overview': best_match.get('overview'),
+        'poster_path': f"{TMDB_IMAGE_BASE_URL}{best_match.get('poster_path')}" if best_match.get('poster_path') else None,
+        'vote_average': best_match.get('vote_average'),
+        'release_date': best_match.get('release_date'),
+        'year': int(best_match['release_date'][:4]) if best_match.get('release_date') else None
+    }
 
 @celery.task(bind=True, name="tv_app.tasks.backfill_movies_task")
 def backfill_movies_task(self):
-    """
-    Phase 5: The Backfill Engine.
-    Iterates through configured collection using String ID checkpoints.
-    """
     redis_client = Redis.from_url(os.environ.get("REDIS_URL"), decode_responses=True)
-    
-    if redis_client.get("backfill:pause"):
-        logger.info("Backfill paused by user.")
-        return "Paused"
+    if redis_client.get("backfill:pause"): return "Paused"
 
     from tv_app.app import app
     with app.app_context():
@@ -510,8 +547,6 @@ def backfill_movies_task(self):
 
         uris = [os.environ.get("MONGO_URI_1"), os.environ.get("MONGO_URI_2")]
         uris = [u for u in uris if u]
-        
-        # CRITICAL FIX: Explicitly use DB and Collection from .env
         target_db_name = os.environ.get('MONGO_DB_NAME', 'Huswy')
         target_col_name = os.environ.get('MONGO_COL_NAME', 'Husw')
 
@@ -520,103 +555,96 @@ def backfill_movies_task(self):
         for uri in uris:
             try:
                 client = MongoClient(uri)
-                # FIX: Access DB explicitly by name, do not use get_default_database()
                 db_obj = client[target_db_name]
                 coll = db_obj[target_col_name]
-
-                # Retrieve Checkpoint (Last processed String ID)
                 checkpoint_key = f"backfill:checkpoint:{target_db_name}"
-                last_id = redis_client.get(checkpoint_key)
-                
-                # Filter for files > 300MB
-                query = {"file_size": {"$gt": 314572800}} 
-                
-                # If we have a checkpoint, get items 'less than' it (walking backwards)
-                if last_id:
-                    query["_id"] = {"$lt": last_id}
 
-                # Sort by _id DESC to walk backwards
-                cursor = coll.find(query).sort("_id", DESCENDING).limit(100)
-
-                batch = list(cursor)
-                if not batch:
-                    continue
-
-                for doc in batch:
+                while True:
                     if redis_client.get("backfill:pause"):
+                        redis_client.set("backfill:current_file", "Paused by user...", ex=3600)
                         break
 
-                    # FIX: Use 'file_name' (AutoFilter standard)
-                    file_name = doc.get('file_name')
-                    
-                    # 1. Check Skipped
-                    if SkippedFile.query.filter_by(filename=file_name).first():
-                        continue
-                    
-                    # 2. Process
-                    token = get_next_tmdb_token()
-                    result = asyncio.run(process_single_movie({'file_name': file_name}, token))
+                    last_id = redis_client.get(checkpoint_key)
+                    query = {"file_size": {"$gt": 314572800}} 
+                    if last_id: query["_id"] = {"$lt": last_id}
 
-                    if result == "RATE_LIMIT":
-                        break 
+                    cursor = coll.find(query).sort("_id", DESCENDING).limit(100)
+                    batch = list(cursor)
                     
-                    if not result:
-                        db.session.add(SkippedFile(filename=file_name, reason="No Match or Low Score"))
-                        db.session.commit()
-                        continue
+                    if not batch:
+                        logger.info(f"No more files in {uri}. Moving to next DB.")
+                        break
 
-                    # 3. Save
-                    # Convert String ID to Int Hash
-                    syn_id = mongo_id_to_int(doc['_id'])
-                    
-                    if not TVShow.query.filter_by(tmdb_id=result['tmdb_id'], category='movie').first():
-                        show = TVShow(
-                            tmdb_id=result['tmdb_id'],
-                            message_id=syn_id,
-                            show_name=result['show_name'],
-                            overview=result['overview'],
-                            poster_path=result['poster_path'],
-                            vote_average=result['vote_average'],
-                            year=result['year'],
-                            rating=result['vote_average'],
-                            category='movie',
-                            download_link=generate_movie_deep_link(result['show_name']),
-                            content_hash=str(doc['_id']),
-                            slug=None
-                        )
-                        db.session.add(show)
-                        db.session.commit()
+                    for doc in batch:
+                        if redis_client.get("backfill:pause"): break
+
+                        file_name = doc.get('file_name')
+                        redis_client.set("backfill:current_file", f"Processing: {file_name}", ex=300)
+                        redis_client.hincrby("backfill:status", "progress", 1)
+
+                        if is_likely_tv_show(file_name):
+                            redis_client.set("backfill:current_file", f"Ignored (TV Show): {file_name}", ex=5)
+                            redis_client.set(checkpoint_key, str(doc['_id']))
+                            continue
+
+                        if SkippedFile.query.filter_by(filename=file_name).first():
+                            redis_client.set(checkpoint_key, str(doc['_id']))
+                            continue
                         
-                        redis_client.hincrby("backfill:status", "added", 1)
+                        token = get_next_tmdb_token()
+                        result = asyncio.run(process_single_movie({'file_name': file_name}, token))
 
-                    # Update Checkpoint with the String ID
-                    redis_client.set(checkpoint_key, str(doc['_id']))
-                    total_processed += 1
+                        if result == "RATE_LIMIT":
+                            redis_client.set("backfill:current_file", "Rate Limit Hit! Waiting...", ex=60)
+                            asyncio.run(asyncio.sleep(10)) 
+                            break 
+                        
+                        if not result:
+                            db.session.add(SkippedFile(filename=file_name, reason="No Match (Tiered Search Failed)"))
+                            db.session.commit()
+                            redis_client.set("backfill:current_file", f"Skipped: {file_name}", ex=10)
+                            redis_client.set(checkpoint_key, str(doc['_id']))
+                            continue
+
+                        syn_id = mongo_id_to_int(doc['_id'])
+                        if not TVShow.query.filter_by(tmdb_id=result['tmdb_id'], category='movie').first():
+                            show = TVShow(
+                                tmdb_id=result['tmdb_id'],
+                                message_id=syn_id,
+                                show_name=result['show_name'],
+                                overview=result['overview'],
+                                poster_path=result['poster_path'],
+                                vote_average=result['vote_average'],
+                                year=result['year'],
+                                rating=result['vote_average'],
+                                category='movie',
+                                download_link=generate_movie_deep_link(result['show_name']),
+                                content_hash=str(doc['_id']),
+                                slug=None
+                            )
+                            db.session.add(show)
+                            db.session.commit()
+                            redis_client.hincrby("backfill:status", "added", 1)
+                            redis_client.set("backfill:current_file", f"✅ Added: {result['show_name']}", ex=30)
+
+                        redis_client.set(checkpoint_key, str(doc['_id']))
+                        total_processed += 1
 
                 client.close()
-                
             except Exception as e:
                 logger.error(f"Backfill Error on {uri}: {e}")
                 continue
-
     return f"Processed {total_processed} movies."
 
 @celery.task(name="tv_app.tasks.sync_movies")
 def sync_movies():
-    """
-    Phase 6: The Sync Engine.
-    Polls for new movies (approx top 50 recently added).
-    """
     redis_client = Redis.from_url(os.environ.get("REDIS_URL"), decode_responses=True)
-    
     from tv_app.app import app
     with app.app_context():
         from tv_app.models import db, TVShow, SkippedFile
 
         uris = [os.environ.get("MONGO_URI_1"), os.environ.get("MONGO_URI_2")]
         uris = [u for u in uris if u]
-
-        # CRITICAL FIX: Explicit DB/Col Config
         target_db_name = os.environ.get('MONGO_DB_NAME', 'Huswy')
         target_col_name = os.environ.get('MONGO_COL_NAME', 'Husw')
 
@@ -625,23 +653,15 @@ def sync_movies():
                 client = MongoClient(uri)
                 db_obj = client[target_db_name]
                 coll = db_obj[target_col_name]
-
-                # Sort by natural insertion order (reverse) to get latest
                 cursor = coll.find({"file_size": {"$gt": 314572800}}).sort("$natural", DESCENDING).limit(50)
 
                 for doc in cursor:
                     file_name = doc.get('file_name')
-                    
-                    # Convert ID
+                    if is_likely_tv_show(file_name): continue
                     syn_id = mongo_id_to_int(doc['_id'])
-                    
-                    # Fast check
-                    if TVShow.query.filter_by(message_id=syn_id, category='movie').first():
-                        continue
-                    if SkippedFile.query.filter_by(filename=file_name).first():
-                        continue
+                    if TVShow.query.filter_by(message_id=syn_id, category='movie').first(): continue
+                    if SkippedFile.query.filter_by(filename=file_name).first(): continue
 
-                    # Process
                     token = os.environ.get("TMDB_BEARER_TOKEN")
                     result = asyncio.run(process_single_movie({'file_name': file_name}, token))
 
@@ -668,7 +688,7 @@ def sync_movies():
                         db.session.add(show)
                         db.session.commit()
                         logger.info(f"Sync: Added movie {result['show_name']}")
-
                 client.close()
             except Exception as e:
                 logger.error(f"Sync Error: {e}")
+        
