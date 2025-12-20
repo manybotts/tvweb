@@ -4,6 +4,7 @@ import re
 import asyncio
 import logging
 import itertools
+import hashlib
 from typing import Dict, Optional, List, Any
 from urllib.parse import quote_plus
 from datetime import datetime
@@ -13,9 +14,7 @@ from celery import Celery
 from dotenv import load_dotenv
 from redis import Redis
 from thefuzz import fuzz, process
-# New imports for Movie Logic (Part 2)
 from pymongo import MongoClient, DESCENDING
-from bson import ObjectId
 
 load_dotenv()
 
@@ -30,7 +29,7 @@ TMDB_BASE_URL = "https://api.themoviedb.org/3"
 TMDB_IMAGE_BASE_URL = "https://image.tmdb.org/t/p/w500"
 
 # ---------------- Text Helpers ----------------
-_ACRONYM_DOTS = re.compile(r"\b([A-Z]\.){2,}\b")       # A.T.O.M.
+_ACRONYM_DOTS = re.compile(r"\b([A-Z]\.){2,}\b")       
 _NON_BASIC = re.compile(r"[^\w\s,&'\-.:]")
 _TOK = re.compile(r"[a-z0-9]+")
 
@@ -58,10 +57,6 @@ def strip_leading_article(s: str) -> str:
     return " ".join(toks)
 
 def strong_title_score(query: str, candidate: str) -> int:
-    """
-    Calculates similarity, but penalizes results that are significantly longer 
-    than the query (to prevent 'FBI' matching 'Enemies: ... FBI').
-    """
     qn = normalize(query)
     cn = normalize(candidate)
 
@@ -138,7 +133,6 @@ def parse_telegram_post(post) -> Optional[Dict]:
         title_line = lines[0]
         season_line = lines[1]
 
-        # --- FIX: AGGRESSIVE YEAR STRIPPING ---
         clean_line = re.sub(r"[\[\]\(\)]", " ", title_line)
         norm_title = normalize(clean_line)
         year_match = re.search(r"(\d{4})$", norm_title)
@@ -196,7 +190,6 @@ def parse_telegram_post(post) -> Optional[Dict]:
 async def fetch_tmdb_tv_data(show_name: str, search_year: Optional[int], search_season: Optional[int]) -> Optional[Dict]:
     """
     Exclusively for TV Shows/Anime (uses /search/tv).
-    Renamed from 'fetch_tmdb_data' to distinguish from movies.
     """
     tmdb_bearer_token = os.environ.get("TMDB_BEARER_TOKEN")
     headers = {"Authorization": f"Bearer {tmdb_bearer_token}"}
@@ -370,7 +363,11 @@ def reset_clicks():
 @celery.task(name="tv_app.tasks.test_task")
 def test_task():
     return "Test task complete"
-    # ---------------- Movie Logic: Helpers ----------------
+
+# ... (Continue to Part 2 for Movie Logic) ...
+# ==============================================================================
+#                               MOVIE LOGIC (UPDATED)
+# ==============================================================================
 
 # Initialize Token Cycle for Backfill
 _tokens_env = os.environ.get("TMDB_BACKFILL_TOKENS", "")
@@ -385,7 +382,7 @@ def get_next_tmdb_token():
 
 def sanitize_movie_filename(filename: str) -> Dict[str, Any]:
     """
-    Phase 2 Sanitization:
+    Sanitizes AutoFilter filenames:
     1. Removes spam prefixes (@Channel, www).
     2. Strips technical jargon (1080p, x264, etc).
     3. Extracts the year.
@@ -411,28 +408,28 @@ def sanitize_movie_filename(filename: str) -> Dict[str, Any]:
 
 def generate_movie_deep_link(title: str) -> str:
     """Generates deep link: https://t.me/{BOT}?start=search_{CLEAN_TITLE}"""
-    bot_username = os.environ.get("TELEGRAM_BOT_USERNAME", "iBoxTVBot")
-    # Replace non-alphanumeric with underscore
-    clean = re.sub(r"[^a-zA-Z0-9]", "_", title)
-    # Truncate to 50 chars to stay within Telegram's 64-char limit for start params
-    clean = clean[:50]
+    # FIXED: Uses BOT_USERNAME from your .env
+    bot_username = os.environ.get("BOT_USERNAME", "iBoxTVBot")
+    
+    # Replace non-alphanumeric with underscore and truncate
+    clean = re.sub(r"[^a-zA-Z0-9]", "_", title)[:50]
     return f"https://t.me/{bot_username}?start=search_{clean}"
 
 def mongo_id_to_int(oid: str) -> int:
-    """Synthesizes a deterministic 64-bit integer from MongoDB ObjectId."""
-    # 1. Convert hex to int
-    full_int = int(str(oid), 16)
-    # 2. Modulo to fit into BigInteger (signed 64-bit)
-    # Max value is 2^63 - 1
-    return full_int % (2**63 - 1)
-
-# ---------------- Movie Logic: Core Processor ----------------
+    """
+    CRITICAL FIX: Synthesizes a deterministic 64-bit integer from a String ID.
+    The AutoFilter bot uses string file_ids (e.g. "AgAD..."), not Mongo ObjectIds.
+    """
+    if not oid: return 0
+    # Hash the string to a large int, then modulo to fit in Signed 64-bit BigInt
+    return int(hashlib.sha256(str(oid).encode('utf-8')).hexdigest(), 16) % (2**63 - 1)
 
 async def process_single_movie(file_data: Dict, tmdb_token: str) -> Optional[Dict]:
     """
     Orchestrates the check for a single movie file:
     Sanitize -> Search TMDb -> Match -> Return Data
     """
+    # FIX: AutoFilter uses 'file_name', not 'filename'
     fname = file_data.get('file_name', '')
     sanitized = sanitize_movie_filename(fname)
     query = sanitized['raw_title']
@@ -452,7 +449,7 @@ async def process_single_movie(file_data: Dict, tmdb_token: str) -> Optional[Dic
         try:
             async with session.get(search_url, timeout=5) as resp:
                 if resp.status == 429:
-                    logger.warning("TMDb Rate Limit hit (429).")
+                    # Rate limit hit, return special flag
                     return "RATE_LIMIT"
                 if resp.status != 200:
                     return None
@@ -495,17 +492,14 @@ async def process_single_movie(file_data: Dict, tmdb_token: str) -> Optional[Dic
             'year': int(best_match['release_date'][:4]) if best_match.get('release_date') else None
         }
 
-# ---------------- Movie Tasks: Backfill & Sync ----------------
-
 @celery.task(bind=True, name="tv_app.tasks.backfill_movies_task")
 def backfill_movies_task(self):
     """
     Phase 5: The Backfill Engine.
-    Iterates strictly through historical MongoDB data using checkpoints.
+    Iterates through configured collection using String ID checkpoints.
     """
     redis_client = Redis.from_url(os.environ.get("REDIS_URL"), decode_responses=True)
     
-    # Check Pause
     if redis_client.get("backfill:pause"):
         logger.info("Backfill paused by user.")
         return "Paused"
@@ -514,41 +508,48 @@ def backfill_movies_task(self):
     with app.app_context():
         from tv_app.models import db, TVShow, SkippedFile
 
-        # URIs
         uris = [os.environ.get("MONGO_URI_1"), os.environ.get("MONGO_URI_2")]
         uris = [u for u in uris if u]
+        
+        # CRITICAL FIX: Explicitly use DB and Collection from .env
+        target_db_name = os.environ.get('MONGO_DB_NAME', 'Huswy')
+        target_col_name = os.environ.get('MONGO_COL_NAME', 'Husw')
 
         total_processed = 0
         
         for uri in uris:
             try:
                 client = MongoClient(uri)
-                # Assuming generic db/coll names, usually 'Telegram' or derived from URI
-                db_name = client.get_default_database().name
-                coll = client[db_name]['fs.files'] # Or specific collection name
+                # FIX: Access DB explicitly by name, do not use get_default_database()
+                db_obj = client[target_db_name]
+                coll = db_obj[target_col_name]
 
-                # Retrieve Checkpoint
-                checkpoint_key = f"backfill:checkpoint:{db_name}"
+                # Retrieve Checkpoint (Last processed String ID)
+                checkpoint_key = f"backfill:checkpoint:{target_db_name}"
                 last_id = redis_client.get(checkpoint_key)
                 
-                query = {"file_size": {"$gt": 314572800}} # > 300MB
+                # Filter for files > 300MB
+                query = {"file_size": {"$gt": 314572800}} 
+                
+                # If we have a checkpoint, get items 'less than' it (walking backwards)
                 if last_id:
-                    query["_id"] = {"$lt": ObjectId(last_id)} # Descending walk
+                    query["_id"] = {"$lt": last_id}
 
-                cursor = coll.find(query).sort("_id", DESCENDING).limit(100) # Batch of 100
+                # Sort by _id DESC to walk backwards
+                cursor = coll.find(query).sort("_id", DESCENDING).limit(100)
 
                 batch = list(cursor)
                 if not batch:
                     continue
 
                 for doc in batch:
-                    # Check Pause (Granular)
                     if redis_client.get("backfill:pause"):
                         break
 
-                    file_name = doc.get('filename')
+                    # FIX: Use 'file_name' (AutoFilter standard)
+                    file_name = doc.get('file_name')
                     
-                    # 1. Skipped Check
+                    # 1. Check Skipped
                     if SkippedFile.query.filter_by(filename=file_name).first():
                         continue
                     
@@ -557,16 +558,15 @@ def backfill_movies_task(self):
                     result = asyncio.run(process_single_movie({'file_name': file_name}, token))
 
                     if result == "RATE_LIMIT":
-                        break # Stop this batch, retry later
+                        break 
                     
                     if not result:
-                        # Log to Skipped
                         db.session.add(SkippedFile(filename=file_name, reason="No Match or Low Score"))
                         db.session.commit()
                         continue
 
                     # 3. Save
-                    # Synthesize ID
+                    # Convert String ID to Int Hash
                     syn_id = mongo_id_to_int(doc['_id'])
                     
                     if not TVShow.query.filter_by(tmdb_id=result['tmdb_id'], category='movie').first():
@@ -587,10 +587,9 @@ def backfill_movies_task(self):
                         db.session.add(show)
                         db.session.commit()
                         
-                        # Update Redis Stats
                         redis_client.hincrby("backfill:status", "added", 1)
 
-                    # Update Checkpoint
+                    # Update Checkpoint with the String ID
                     redis_client.set(checkpoint_key, str(doc['_id']))
                     total_processed += 1
 
@@ -606,8 +605,7 @@ def backfill_movies_task(self):
 def sync_movies():
     """
     Phase 6: The Sync Engine.
-    Runs frequently (3 mins) to catch NEW arrivals in MongoDB.
-    Does NOT use checkpoints; just looks at the top 50.
+    Polls for new movies (approx top 50 recently added).
     """
     redis_client = Redis.from_url(os.environ.get("REDIS_URL"), decode_responses=True)
     
@@ -618,29 +616,33 @@ def sync_movies():
         uris = [os.environ.get("MONGO_URI_1"), os.environ.get("MONGO_URI_2")]
         uris = [u for u in uris if u]
 
+        # CRITICAL FIX: Explicit DB/Col Config
+        target_db_name = os.environ.get('MONGO_DB_NAME', 'Huswy')
+        target_col_name = os.environ.get('MONGO_COL_NAME', 'Husw')
+
         for uri in uris:
             try:
                 client = MongoClient(uri)
-                db_name = client.get_default_database().name
-                coll = client[db_name]['fs.files']
+                db_obj = client[target_db_name]
+                coll = db_obj[target_col_name]
 
-                # Just latest 50 > 300MB
-                cursor = coll.find({"file_size": {"$gt": 314572800}}).sort("_id", DESCENDING).limit(50)
+                # Sort by natural insertion order (reverse) to get latest
+                cursor = coll.find({"file_size": {"$gt": 314572800}}).sort("$natural", DESCENDING).limit(50)
 
                 for doc in cursor:
-                    file_name = doc.get('filename')
+                    file_name = doc.get('file_name')
                     
-                    # Optimization: If exists in DB or Skipped, ignore
+                    # Convert ID
                     syn_id = mongo_id_to_int(doc['_id'])
                     
-                    # Fast check by Message ID (Mongo ID)
+                    # Fast check
                     if TVShow.query.filter_by(message_id=syn_id, category='movie').first():
                         continue
                     if SkippedFile.query.filter_by(filename=file_name).first():
                         continue
 
                     # Process
-                    token = os.environ.get("TMDB_BEARER_TOKEN") # Use main token for sync
+                    token = os.environ.get("TMDB_BEARER_TOKEN")
                     result = asyncio.run(process_single_movie({'file_name': file_name}, token))
 
                     if not result:
@@ -648,8 +650,6 @@ def sync_movies():
                         db.session.commit()
                         continue
 
-                    # Insert
-                    # Check duplication by TMDB ID as well
                     if not TVShow.query.filter_by(tmdb_id=result['tmdb_id'], category='movie').first():
                         show = TVShow(
                             tmdb_id=result['tmdb_id'],
