@@ -439,7 +439,7 @@ def nuke_home():
     if not q and view_dupes is None:
         view_dupes = '1'
     
-    # NEW: Fetch skipped files for monitoring
+    # MEMORY FIX: Only fetch last 20 skipped files to prevent page lag
     recent_skipped = []
     try:
         recent_skipped = SkippedFile.query.order_by(SkippedFile.created_at.desc()).limit(20).all()
@@ -598,9 +598,11 @@ def nuke_backfill_reset():
     try:
         r = _redis()
         # 1. Clear status and live logs
-        r.delete('backfill:status', 'backfill:current_file', 'backfill:logs') # <--- ADDED 'backfill:logs'
+        r.delete('backfill:status', 'backfill:current_file', 'backfill:logs') 
+        # 2. CRITICAL: Clear stuck locks (The Unjammer)
+        r.delete('backfill:active', 'update_tv_shows_lock')
         
-        # 2. Clear checkpoint (Need correct DB name key)
+        # 3. Clear checkpoint (Need correct DB name key)
         db_name = os.environ.get('MONGO_DB_NAME', 'Huswy')
         r.delete(f"backfill:checkpoint:{db_name}")
         
@@ -635,7 +637,7 @@ def nuke_backfill_status():
         # Add the live file processing log
         status['current_file'] = r.get('backfill:current_file') or 'Idle'
         # Add the log list for the matrix view
-        status['logs'] = r.lrange('backfill:logs', 0, 49) # <--- ADDED
+        status['logs'] = r.lrange('backfill:logs', 0, 49) # Matrix Logs
         return jsonify(status)
     except Exception:
         return jsonify({})
