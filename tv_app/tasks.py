@@ -105,12 +105,17 @@ async def fetch_new_telegram_posts(channel_env_var: str, redis_key_suffix: str) 
         
         posts = [u.channel_post or u.edited_channel_post for u in updates if (u.channel_post or u.edited_channel_post) and str((u.channel_post or u.edited_channel_post).sender_chat.id) == channel_id]
         if updates: redis_client.set(last_offset_key, updates[-1].update_id)
+        
+        if posts: logger.info(f"[{channel_env_var}] Found {len(posts)} new posts.")
         return posts
     except Exception as e:
         logger.exception(f"Error fetching Telegram posts for {channel_env_var}: {e}")
         return []
 
 def parse_telegram_post(post) -> Optional[Dict]:
+    """
+    RESTORED FULL 3-STEP PARSING LOGIC from original code.
+    """
     try:
         text = post.caption
         lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
@@ -121,22 +126,42 @@ def parse_telegram_post(post) -> Optional[Dict]:
         search_year = int(year_match.group(1)) if year_match else None
         show_name = re.sub(r"\s*\d{4}$", "", norm_title).strip() if year_match else norm_title
         
-        link = None
+        # --- RESTORED LINK EXTRACTION ---
+        download_link_from_post = None
+        
+        # 1. Look for "Click Here" links
         if post.caption_entities:
             for ent in post.caption_entities:
                 if ent.type == "text_link":
-                    if "click here" in text[ent.offset:ent.offset+ent.length].lower():
-                        link = ent.url; break
-        if not link:
+                    et = text[ent.offset: ent.offset + ent.length]
+                    if "click here" in et.lower():
+                        download_link_from_post = ent.url
+                        break
+        
+        # 2. Look for ANY text link (if step 1 failed) - THIS WAS MISSING
+        if not download_link_from_post and post.caption_entities:
+            for ent in reversed(post.caption_entities):
+                if ent.type == "text_link":
+                    et = text[ent.offset: ent.offset + ent.length]
+                    if "#_" not in et:
+                        download_link_from_post = ent.url
+                        break
+        
+        # 3. Look for raw URLs in text lines
+        if not download_link_from_post:
             for ln in reversed(lines):
-                if "http" in ln and "#_" not in ln: link = re.search(r"(https?://\S+)", ln).group(1); break
+                if "#_" in ln: continue
+                m = re.search(r"(https?://\S+)", ln)
+                if m:
+                    download_link_from_post = m.group(1)
+                    break
 
         return {
             "show_name_for_search": show_name,
             "search_year": search_year,
             "search_season": parse_season_info(lines[1]),
             "season_episode_from_post": lines[1],
-            "download_link_from_post": link,
+            "download_link_from_post": download_link_from_post,
             "message_id": int(post.message_id),
         }
     except Exception: return None
@@ -161,14 +186,40 @@ async def fetch_tmdb_tv_data(show_name: str, search_year: int, search_season: in
             except: continue
             
         best = (None, -1)
+        qn = normalize(show_name)
+
         for r in detailed:
-            s = strong_title_score(show_name, r.get("name",""))
-            if search_year and r.get("first_air_date","")[:4] == str(search_year): s += 10
-            if search_season and r.get("number_of_seasons",0) >= search_season: s += 5
+            name = r.get("name") or ""
+            oname = r.get("original_name") or ""
+            
+            # Score against Name AND Original Name
+            s = max(strong_title_score(show_name, name), strong_title_score(show_name, oname))
+            
+            # Year Boost
+            fa = r.get("first_air_date") or ""
+            if search_year and fa[:4].isdigit() and int(fa[:4]) == search_year: 
+                s += 10
+            
+            # Season Logic (Restored Math)
+            if search_season:
+                sc = int(r.get("number_of_seasons") or 0)
+                if sc >= search_season:
+                    s += max(0, 6 - abs(sc - search_season))
+            
             if s > best[1]: best = (r, s)
             
         found = best[0]
-        if not found or best[1] < 50: return None
+        
+        # Fuzzy Fallback (Restored)
+        if not found or best[1] < 50:
+            names = [x.get("name") for x in detailed if x.get("name")]
+            pick = process.extractOne(qn, names, scorer=fuzz.token_set_ratio)
+            if pick:
+                for r in detailed:
+                    if r.get("name") == pick[0]:
+                        found = r; break
+
+        if not found: return None
         
         return {
             "tmdb_id": found["id"],
@@ -183,43 +234,87 @@ async def fetch_tmdb_tv_data(show_name: str, search_year: int, search_season: in
 @celery.task(bind=True, retry_backoff=True, max_retries=3)
 def update_tv_shows(self):
     redis_client = Redis.from_url(os.environ.get("REDIS_URL"), decode_responses=True)
-    if redis_client.get("backfill:active"): return
-    if not redis_client.lock("update_tv_shows_lock", timeout=120).acquire(blocking=False): return
+    lock = redis_client.lock("update_tv_shows_lock", timeout=120)
+    if not lock.acquire(blocking=False): return
 
     from tv_app.app import app
     with app.app_context():
         try:
             from tv_app.models import db, TVShow
+            logger.info("update_tv_shows: Started processing...")
+            
             for src in [{'type':'tv','v':'TELEGRAM_CHANNEL_ID','k':'tv_main'}, {'type':'anime','v':'TELEGRAM_ANIME_CHANNEL_ID','k':'anime_main'}]:
                 posts = asyncio.run(fetch_new_telegram_posts(src['v'], src['k']))
                 for post in posts:
                     if redis_client.exists(f"processed_messages:{post.message_id}"): continue
                     p = parse_telegram_post(post)
                     if not p: continue
+                    
+                    # SAFETY: Skip if absolutely no link found (prevents overwriting good links with None)
+                    if not p["download_link_from_post"]:
+                        logger.warning(f"Skipping {p['show_name_for_search']}: Link parsing failed.")
+                        continue
+
                     tmdb = asyncio.run(fetch_tmdb_tv_data(p["show_name_for_search"], p["search_year"], p["search_season"]))
                     if not tmdb: continue
 
-                    existing = TVShow.query.filter_by(tmdb_id=tmdb["tmdb_id"], category=src['type']).first()
-                    if existing: db.session.delete(existing)
+                    c_hash = f"{tmdb['tmdb_id']}-{p['season_episode_from_post']}"
                     
-                    db.session.add(TVShow(
-                        tmdb_id=tmdb["tmdb_id"],
-                        message_id=p["message_id"],
-                        show_name=tmdb["show_name_from_tmdb"],
-                        episode_title=p["season_episode_from_post"],
-                        download_link=p["download_link_from_post"],
-                        poster_path=tmdb["poster_path"],
-                        overview=tmdb["overview"],
-                        vote_average=tmdb["vote_average"],
-                        year=tmdb["year"],
-                        rating=tmdb["rating"],
-                        category=src['type']
-                    ))
+                    # FIX: Find ALL matching entries (to handle duplicates)
+                    existing_entries = TVShow.query.filter_by(tmdb_id=tmdb["tmdb_id"], category=src['type']).all()
+                    
+                    target_entry = None
+                    if existing_entries:
+                        # Use the first one as our target
+                        target_entry = existing_entries[0]
+                        # Delete any extras (Clean up duplicates)
+                        if len(existing_entries) > 1:
+                            for extra in existing_entries[1:]:
+                                db.session.delete(extra)
+                    
+                    if target_entry:
+                        # UPDATE Existing
+                        target_entry.message_id = p["message_id"]
+                        target_entry.show_name = tmdb["show_name_from_tmdb"]
+                        target_entry.episode_title = p["season_episode_from_post"]
+                        target_entry.download_link = p["download_link_from_post"]
+                        target_entry.poster_path = tmdb["poster_path"]
+                        target_entry.overview = tmdb["overview"]
+                        target_entry.vote_average = tmdb["vote_average"]
+                        target_entry.year = tmdb["year"]
+                        target_entry.rating = tmdb["rating"]
+                        target_entry.content_hash = c_hash
+                        # BUMP TIMESTAMP so it appears as "Recently Added"
+                        target_entry.created_at = datetime.utcnow()
+                        target_entry.updated_at = datetime.utcnow()
+                        logger.info(f"♻️ Updated: {tmdb['show_name_from_tmdb']}")
+                    else:
+                        # INSERT New
+                        db.session.add(TVShow(
+                            tmdb_id=tmdb["tmdb_id"],
+                            message_id=p["message_id"],
+                            show_name=tmdb["show_name_from_tmdb"],
+                            episode_title=p["season_episode_from_post"],
+                            download_link=p["download_link_from_post"],
+                            poster_path=tmdb["poster_path"],
+                            overview=tmdb["overview"],
+                            vote_average=tmdb["vote_average"],
+                            year=tmdb["year"],
+                            rating=tmdb["rating"],
+                            category=src['type'],
+                            content_hash=c_hash
+                        ))
+                        logger.info(f"✅ Added: {tmdb['show_name_from_tmdb']}")
+                    
                     redis_client.set(f"processed_messages:{post.message_id}", 1, ex=86400)
+            
             db.session.commit()
+            logger.info("update_tv_shows: Batch Committed.")
         except Exception as e:
             logger.error(f"Error in update_tv_shows: {e}")
             db.session.rollback()
+        finally:
+            if lock.locked(): lock.release()
 
 @celery.task(name="tv_app.tasks.reset_clicks")
 def reset_clicks():
@@ -313,9 +408,7 @@ def clean_movie_name(raw_name: str) -> Dict[str, Any]:
     clean = re.sub(r"[^a-zA-Z0-9\s'-]", "", clean)
     clean = re.sub(r"\s+", " ", clean).strip()
     
-    # Only return if we have a halfway decent string
     if len(clean) < 2: return {"raw_title": "", "year": year}
-
     return {"raw_title": clean, "year": year}
 
 # Shared TMDb Token Cycler
@@ -392,8 +485,8 @@ def save_checkpoint(last_id):
     try:
         with open(CHECKPOINT_FILE, "w") as f:
             f.write(str(last_id))
-            f.flush() # Ensure write to disk
-            os.fsync(f.fileno()) # Force write
+            f.flush()
+            os.fsync(f.fileno())
     except Exception as e:
         logger.error(f"Failed to save checkpoint: {e}")
 
@@ -509,8 +602,7 @@ async def batch_processor_engine(uris, db_name, col_name, redis_client):
                                     except Exception:
                                         db.session.rollback()
                                 else:
-                                    # redis_client.lpush("backfill:logs", f"♻️ Exists: {tmdb['show_name']}") # Optional
-                                    pass
+                                    pass # Silent duplicate
 
                             elif res['status'] == 'no_match' and SkippedFile:
                                 if not SkippedFile.query.filter_by(filename=res['file']).first():
@@ -569,7 +661,7 @@ def backfill_movies_task(self):
 def sync_movies():
     """Restored Sync Functionality"""
     redis_client = Redis.from_url(os.environ.get("REDIS_URL"), decode_responses=True)
-    if redis_client.get("backfill:active"): return
+    # UNBLOCKED: Runs regardless of backfill state
     
     uris = [os.environ.get("MONGO_URI_1"), os.environ.get("MONGO_URI_2")]
     uris = [u for u in uris if u]
