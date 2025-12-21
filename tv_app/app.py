@@ -1,3 +1,4 @@
+# --- PART 1 START: IMPORTS & PUBLIC ROUTES ---
 import os
 import logging
 import hashlib
@@ -387,7 +388,11 @@ def sitemap_xml():
     except Exception as e:
         logger.error(f"sitemap error: {e}")
         return Response("<?xml version='1.0' encoding='UTF-8'?><urlset/>", mimetype="application/xml")
-        # ----------------------------- Nuke panel (auth + dupes) -----------------------------
+
+# --- PART 1 END ---
+# --- PART 2 START: NUKE PANEL & ADMIN LOGIC ---
+
+# ----------------------------- Nuke panel (auth + dupes) -----------------------------
 def _redis():
     return Redis.from_url(os.environ.get('REDIS_URL', 'redis://localhost:6379/0'), decode_responses=True)
 
@@ -447,10 +452,12 @@ def nuke_home():
         logger.error(f"Error fetching skipped files: {e}")
 
     if view_dupes:
+        # --- THE FIX: IGNORE MOVIES IN DUPLICATE SCAN ---
         rows = db.session.query(
             TVShow.download_link, func.count(TVShow.id).label('cnt')
         ).filter(
-            TVShow.download_link.isnot(None)
+            TVShow.download_link.isnot(None),
+            TVShow.category.in_(['tv', 'anime']) # <--- IGNORES MOVIES
         ).group_by(
             TVShow.download_link
         ).having(
@@ -461,7 +468,12 @@ def nuke_home():
 
         dupe_groups = []
         for link, _cnt in rows:
-            shows = TVShow.query.filter_by(download_link=link).order_by(TVShow.created_at.desc()).all()
+            # Also limit the sub-query to TV/Anime just in case
+            shows = TVShow.query.filter(
+                TVShow.download_link == link,
+                TVShow.category.in_(['tv', 'anime'])
+            ).order_by(TVShow.created_at.desc()).all()
+            
             dupe_groups.append({
                 'link': link,
                 'domain': urlparse(link).netloc if link else '',
@@ -660,3 +672,6 @@ def internal_server_error(e):
         logger.error(f"Error during rollback in 500 handler: {rollback_error}")
     return render_template('500.html', title="Internal Server Error",
                            meta_description="We encountered an internal error. Please try again later."), 500
+
+# --- PART 2 END ---
+
