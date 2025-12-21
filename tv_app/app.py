@@ -3,7 +3,8 @@ import os
 import logging
 import hashlib
 from datetime import datetime
-from urllib.parse import urlencode, urlparse
+# UPDATED: Added parse_qs for link processing
+from urllib.parse import urlencode, urlparse, parse_qs
 
 from flask import (
     Flask, render_template, redirect, url_for, request,
@@ -342,15 +343,69 @@ def show_details(slug):
         logger.error(f"Error in show_details slug={slug}: {e}")
         return render_template('500.html', title="Server Error",
                                meta_description="An error occurred viewing show details."), 500
-    
+
+# --- PART 1 END ---
+# ==========================================
+# START OF PART 2
+# ==========================================
+
 # --- Download Redirect ---
 @app.route('/download/<int:show_id>')
 def redirect_to_download(show_id):
     try:
         show = TVShow.query.get_or_404(show_id)
-        # If we have a direct link, go there
+        # If we have a direct link
         if show.download_link:
-            return redirect(show.download_link)
+            link = show.download_link
+            
+            # 🚀 NEW: Automatic fix for Telegram Bot Deep Links (Slugify + Smart Truncate)
+            if 't.me' in link and 'start=search_' in link:
+                try:
+                    u = urlparse(link)
+                    q = parse_qs(u.query)
+                    
+                    if 'start' in q:
+                        raw_start = q['start'][0] # e.g. "search_Steve Backshall's Royal Arctic Challenge"
+                        
+                        # 1. Get the title part
+                        if 'search_' in raw_start:
+                            prefix, title = raw_start.split('search_', 1)
+                        else:
+                            title = raw_start
+
+                        # 2. Remove apostrophes (Better for DB matching)
+                        # "Backshall's" -> "Backshalls"
+                        title = title.replace("'", "")
+
+                        # 3. Clean: Replace non-alphanumeric chars with hyphens
+                        import re
+                        safe_title = re.sub(r'[^a-zA-Z0-9]', '-', title)
+                        safe_title = re.sub(r'-+', '-', safe_title).strip('-')
+                        
+                        # 4. SAFETY: Smart Truncate to 64 chars MAX (Drop last word if cut)
+                        # Telegram limit is 64 chars. "search_" uses 7.
+                        max_len = 64 - len("search_")
+                        
+                        if len(safe_title) > max_len:
+                            # Cut to the limit
+                            truncated = safe_title[:max_len]
+                            # Find the last hyphen to safely drop the incomplete word
+                            last_hyphen = truncated.rfind('-')
+                            if last_hyphen != -1:
+                                safe_title = truncated[:last_hyphen]
+                            else:
+                                # Fallback: If it's one massive word, hard truncate
+                                safe_title = truncated
+
+                        safe_start = f"search_{safe_title}"
+                        
+                        # Rebuild URL
+                        new_query = urlencode({'start': safe_start})
+                        link = u._replace(query=new_query).geturl()
+                except Exception as ex:
+                    logger.error(f"Failed to fix Telegram link: {ex}")
+            
+            return redirect(link)
         
         # Fallback: If no link, go back to details
         return redirect(url_for('show_details', slug=show.slug))
@@ -388,9 +443,6 @@ def sitemap_xml():
     except Exception as e:
         logger.error(f"sitemap error: {e}")
         return Response("<?xml version='1.0' encoding='UTF-8'?><urlset/>", mimetype="application/xml")
-
-# --- PART 1 END ---
-# --- PART 2 START: NUKE PANEL & ADMIN LOGIC ---
 
 # ----------------------------- Nuke panel (auth + dupes) -----------------------------
 def _redis():
@@ -674,4 +726,3 @@ def internal_server_error(e):
                            meta_description="We encountered an internal error. Please try again later."), 500
 
 # --- PART 2 END ---
-
