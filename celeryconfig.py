@@ -9,18 +9,19 @@ result_backend = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')  # Use 
 
 # Configure Celery Beat's schedule
 beat_schedule = {
-    'update-tv-shows-every-5-minutes': {
+    # --- TV SHOW UPDATE: Updated to 10 Minutes ---
+    'update-tv-shows-every-10-minutes': {
         'task': 'tv_app.tasks.update_tv_shows',
-        'schedule': crontab(minute='*/5'),
+        'schedule': crontab(minute='*/10'),
     },
-    # --- NEW: Movie Sync Schedule (Debug Mode: Every 3 mins) ---
-    'sync-movies-every-3-mins': {
+    # --- MOVIE SYNC: Updated to 1 Hour ---
+    'sync-movies-every-hour': {
         'task': 'tv_app.tasks.sync_movies',
-        'schedule': crontab(minute='*/3'),
+        'schedule': crontab(minute=0),
     },
     'reset-clicks-every-12-hours': {
         'task': 'tv_app.tasks.reset_clicks',
-        'schedule': crontab(minute=0, hour='*/12'),  # ← every 12 hours at 00:00 and 12:00
+        'schedule': crontab(minute=0, hour='*/12'),
     },
 }
 broker_connection_retry_on_startup = True
