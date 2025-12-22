@@ -5,6 +5,17 @@ from sqlalchemy import Index, text, event
 
 db = SQLAlchemy()
 
+# --- NEW: System State (The Brain for Checkpoints) 🧠 ---
+class SystemState(db.Model):
+    __tablename__ = 'system_state'
+    
+    key = db.Column(db.String(50), primary_key=True)
+    value = db.Column(db.String(255), nullable=True)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def __repr__(self):
+        return f"<SystemState {self.key}={self.value}>"
+
 # --- M2M association: TVShow <-> Genre ---
 show_genres = db.Table(
     "show_genres",
