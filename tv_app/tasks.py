@@ -113,9 +113,6 @@ async def fetch_new_telegram_posts(channel_env_var: str, redis_key_suffix: str) 
         return []
 
 def parse_telegram_post(post) -> Optional[Dict]:
-    """
-    RESTORED FULL 3-STEP PARSING LOGIC from original code.
-    """
     try:
         text = post.caption
         lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
@@ -126,7 +123,6 @@ def parse_telegram_post(post) -> Optional[Dict]:
         search_year = int(year_match.group(1)) if year_match else None
         show_name = re.sub(r"\s*\d{4}$", "", norm_title).strip() if year_match else norm_title
         
-        # --- RESTORED LINK EXTRACTION ---
         download_link_from_post = None
         
         # 1. Look for "Click Here" links
@@ -138,7 +134,7 @@ def parse_telegram_post(post) -> Optional[Dict]:
                         download_link_from_post = ent.url
                         break
         
-        # 2. Look for ANY text link (if step 1 failed) - THIS WAS MISSING
+        # 2. Look for ANY text link (if step 1 failed)
         if not download_link_from_post and post.caption_entities:
             for ent in reversed(post.caption_entities):
                 if ent.type == "text_link":
@@ -192,15 +188,12 @@ async def fetch_tmdb_tv_data(show_name: str, search_year: int, search_season: in
             name = r.get("name") or ""
             oname = r.get("original_name") or ""
             
-            # Score against Name AND Original Name
             s = max(strong_title_score(show_name, name), strong_title_score(show_name, oname))
             
-            # Year Boost
             fa = r.get("first_air_date") or ""
             if search_year and fa[:4].isdigit() and int(fa[:4]) == search_year: 
                 s += 10
             
-            # Season Logic (Restored Math)
             if search_season:
                 sc = int(r.get("number_of_seasons") or 0)
                 if sc >= search_season:
@@ -210,7 +203,6 @@ async def fetch_tmdb_tv_data(show_name: str, search_year: int, search_season: in
             
         found = best[0]
         
-        # Fuzzy Fallback (Restored)
         if not found or best[1] < 50:
             names = [x.get("name") for x in detailed if x.get("name")]
             pick = process.extractOne(qn, names, scorer=fuzz.token_set_ratio)
@@ -250,7 +242,6 @@ def update_tv_shows(self):
                     p = parse_telegram_post(post)
                     if not p: continue
                     
-                    # SAFETY: Skip if absolutely no link found (prevents overwriting good links with None)
                     if not p["download_link_from_post"]:
                         logger.warning(f"Skipping {p['show_name_for_search']}: Link parsing failed.")
                         continue
@@ -260,20 +251,16 @@ def update_tv_shows(self):
 
                     c_hash = f"{tmdb['tmdb_id']}-{p['season_episode_from_post']}"
                     
-                    # FIX: Find ALL matching entries (to handle duplicates)
                     existing_entries = TVShow.query.filter_by(tmdb_id=tmdb["tmdb_id"], category=src['type']).all()
                     
                     target_entry = None
                     if existing_entries:
-                        # Use the first one as our target
                         target_entry = existing_entries[0]
-                        # Delete any extras (Clean up duplicates)
                         if len(existing_entries) > 1:
                             for extra in existing_entries[1:]:
                                 db.session.delete(extra)
                     
                     if target_entry:
-                        # UPDATE Existing
                         target_entry.message_id = p["message_id"]
                         target_entry.show_name = tmdb["show_name_from_tmdb"]
                         target_entry.episode_title = p["season_episode_from_post"]
@@ -284,12 +271,10 @@ def update_tv_shows(self):
                         target_entry.year = tmdb["year"]
                         target_entry.rating = tmdb["rating"]
                         target_entry.content_hash = c_hash
-                        # BUMP TIMESTAMP so it appears as "Recently Added"
                         target_entry.created_at = datetime.utcnow()
                         target_entry.updated_at = datetime.utcnow()
                         logger.info(f"♻️ Updated: {tmdb['show_name_from_tmdb']}")
                     else:
-                        # INSERT New
                         db.session.add(TVShow(
                             tmdb_id=tmdb["tmdb_id"],
                             message_id=p["message_id"],
@@ -331,14 +316,14 @@ def test_task():
 #                        MOVIE LOGIC (BATCH ENGINE)
 # ==============================================================================
 
-# --- TV Pattern Filters (Restored from Old Code) ---
+# --- TV Pattern Filters ---
 TV_PATTERNS = [
-    re.compile(r'\bS\d{1,2}E\d{1,2}\b', re.IGNORECASE),    # S01E01
-    re.compile(r'S\d+E\d+', re.IGNORECASE),                # S3E8
-    re.compile(r'\b\d{1,2}x\d{1,2}\b', re.IGNORECASE),     # 3x6
-    re.compile(r'\b(Episode|Ep)\s*\d+\b', re.IGNORECASE), # Episode 05
-    re.compile(r'\bE\d{2,}\b', re.IGNORECASE),             # E12
-    re.compile(r'\bSeason\s*\d+', re.IGNORECASE)           # Season 1
+    re.compile(r'\bS\d{1,2}E\d{1,2}\b', re.IGNORECASE),    
+    re.compile(r'S\d+E\d+', re.IGNORECASE),                
+    re.compile(r'\b\d{1,2}x\d{1,2}\b', re.IGNORECASE),     
+    re.compile(r'\b(Episode|Ep)\s*\d+\b', re.IGNORECASE), 
+    re.compile(r'\bE\d{2,}\b', re.IGNORECASE),             
+    re.compile(r'\bSeason\s*\d+', re.IGNORECASE)           
 ]
 
 def is_likely_tv_show(filename: str) -> bool:
@@ -347,39 +332,26 @@ def is_likely_tv_show(filename: str) -> bool:
 
 def clean_movie_name(raw_name: str) -> Dict[str, Any]:
     """
-    AGGRESSIVE CLEANER v8.0 ("The Final Cut")
-    1. Finds the Year FIRST.
-    2. Cuts the string BEFORE the year (removing Year + Junk).
-    3. Cleans whatever remains.
+    AGGRESSIVE CLEANER v8.0
     """
     if not raw_name: return {"raw_title": "", "year": None}
     
     clean = raw_name
-    
-    # 1. Normalize Separators
     clean = re.sub(r'[._]', ' ', clean)
 
-    # 2. THE CUT: Find Year & Truncate
-    # We look for 19xx or 20xx. We take the LAST valid year found to avoid false positives.
     year = None
     year_matches = list(re.finditer(r'\b(19[5-9]\d|20\d{2})\b', clean))
     
     if year_matches:
         match = year_matches[-1]
         year = int(match.group(0))
-        # CUT EVERYTHING starting from the year.
-        # "Gladiator (2000) Theatrical" -> "Gladiator ("
-        # "The Flash 2023 1080p" -> "The Flash "
         clean = clean[:match.start()]
 
-    # 3. Clean Bracketed Content & Spam URLs (from what remains)
     clean = re.sub(r'\[.*?\]', '', clean)
     clean = re.sub(r'\(.*?\)', ' ', clean) 
     clean = re.sub(r'\{.*?\}', '', clean)
     clean = re.sub(r'(@\w+|https?://\S+|www\.\S+)', '', clean) 
 
-    # 4. KILL LIST: Nuke specific words if they survived the year cut (or if no year)
-    # Includes encodes, qualities, and your specific spam words
     kill_list = [
         r'\bjoin\b', r'\bchannel\b', r'\bofficial\b', r'\bsearch\b',
         r'\bmkv\b', r'\bmp4\b', r'\bavi\b', r'\bwebm\b',
@@ -395,16 +367,10 @@ def clean_movie_name(raw_name: str) -> Dict[str, Any]:
     for pattern in kill_list:
         clean = re.sub(pattern, '', clean, flags=re.IGNORECASE)
 
-    # 5. File Size Stripper (e.g. 1.4GB, 400MB)
     clean = re.sub(r'\b\d+(\.\d+)?\s*(MB|GB)\b', '', clean, flags=re.IGNORECASE)
-
-    # 6. Prefix Garbage (e.g. "MLM Harry Potter" -> "Harry Potter")
-    # Removes short all-caps/digit words at start (2-3 chars)
     clean = re.sub(r'^\s*[A-Z0-9]{2,3}\s+', '', clean)
-    # Removes specific known spam prefixes
     clean = re.sub(r'^\s*(blasters|movies|links)\s+', '', clean, flags=re.IGNORECASE)
 
-    # 7. Final Polish
     clean = re.sub(r"[^a-zA-Z0-9\s'-]", "", clean)
     clean = re.sub(r"\s+", " ", clean).strip()
     
@@ -428,7 +394,6 @@ async def resolve_single_movie(file_name: str, doc_id: str, session: aiohttp.Cli
     token = get_tmdb_token()
     headers = {"Authorization": f"Bearer {token}"}
     
-    # Strategies: 1. Cleaned Name, 2. Cleaned Name without Digits (for sequels like Iron Man 3 -> Iron Man fallback)
     strategies = [q]
     q_no_digits = re.sub(r'\d+', '', q).strip()
     if len(q_no_digits) > 2 and q_no_digits != q:
@@ -450,9 +415,7 @@ async def resolve_single_movie(file_name: str, doc_id: str, session: aiohttp.Cli
                     for res in results:
                         score = fuzz.token_sort_ratio(attempt_q, res['title'])
                         
-                        # LOGIC: High score boost if Year Matches
                         if y and res.get('release_date', '').startswith(str(y)): score += 20
-                        # LOGIC: Boost if exact name match
                         if attempt_q.lower() == res['title'].lower(): score += 15
 
                         if score > 85: 
@@ -478,34 +441,65 @@ async def resolve_single_movie(file_name: str, doc_id: str, session: aiohttp.Cli
         }
     }
 
-# --- PERSISTENT CHECKPOINT SYSTEM ---
-CHECKPOINT_FILE = "/root/tvweb/checkpoint.txt"
+# --- NEW: UNIVERSAL DB-BASED CHECKPOINT SYSTEM 🌍 ---
 
-def save_checkpoint(last_id):
-    try:
-        with open(CHECKPOINT_FILE, "w") as f:
-            f.write(str(last_id))
-            f.flush()
-            os.fsync(f.fileno())
-    except Exception as e:
-        logger.error(f"Failed to save checkpoint: {e}")
+def save_checkpoint_to_db(key_name, valid_object_id_str):
+    """
+    Saves the checkpoint string (Universal Mode - accepts raw strings).
+    """
+    from tv_app.app import app
+    from tv_app.models import db, SystemState
+    
+    # Just simple whitespace cleaning, no hex validation
+    clean_val = str(valid_object_id_str).strip()
+    
+    with app.app_context():
+        try:
+            state = SystemState.query.get(key_name)
+            if state:
+                state.value = clean_val
+            else:
+                db.session.add(SystemState(key=key_name, value=clean_val))
+            
+            db.session.commit()
+        except Exception as e:
+            logger.error(f"🔥 DB Save Failed: {e}")
+            db.session.rollback()
 
-def load_checkpoint():
-    try:
-        if os.path.exists(CHECKPOINT_FILE):
-            with open(CHECKPOINT_FILE, "r") as f:
-                val = f.read().strip()
-                return val if len(val) == 24 else None
-    except: pass
-    return None
+def load_checkpoint_from_db(key_name):
+    """
+    Loads raw checkpoint string (Universal Mode).
+    Accepts Telegram IDs (BQADB...) and standard ObjectIds.
+    """
+    from tv_app.app import app
+    from tv_app.models import db, SystemState
+    
+    with app.app_context():
+        try:
+            state = SystemState.query.get(key_name)
+            if not state or not state.value:
+                return None
+            
+            clean = state.value.strip()
+            # Basic sanity check only: must be at least 5 chars
+            if len(clean) > 5:
+                return clean
+            else:
+                return None
+        except Exception as e:
+            logger.error(f"🔥 DB Load Failed: {e}")
+            return None
 
 async def batch_processor_engine(uris, db_name, col_name, redis_client):
     from tv_app.app import app
     bot_username = os.environ.get('BOT_USERNAME', 'bot')
     
+    # Define a unique key for this database backfill
+    CHECKPOINT_KEY = f"checkpoint_movies_{db_name}"
+    
     with app.app_context():
         try:
-            from tv_app.models import db, TVShow, SkippedFile
+            from tv_app.models import db, TVShow, SkippedFile, SystemState
         except ImportError:
             from tv_app.models import db, TVShow; SkippedFile = None
 
@@ -517,18 +511,17 @@ async def batch_processor_engine(uris, db_name, col_name, redis_client):
                     if col_name not in mdb.list_collection_names(): continue
                     coll = mdb[col_name]
 
-                    # --- RESUME LOGIC ---
-                    last_id_str = load_checkpoint() or redis_client.get(f"backfill:checkpoint:{db_name}")
+                    # --- RESUME LOGIC (Universal) ---
+                    last_id_str = load_checkpoint_from_db(CHECKPOINT_KEY)
                     
                     query = {"file_size": {"$gt": 300 * 1024 * 1024}}
                     if last_id_str:
-                        try: 
-                            query["_id"] = {"$lt": ObjectId(last_id_str)}
-                            redis_client.lpush("backfill:logs", f"📂 Resuming from ID: ...{str(last_id_str)[-6:]}")
-                        except: 
-                            redis_client.lpush("backfill:logs", "⚠️ Checkpoint invalid, starting fresh.")
+                        # ⚠️ CRITICAL FIX: Treat ID as raw string, NOT ObjectId
+                        query["_id"] = {"$lt": last_id_str}
+                        redis_client.lpush("backfill:logs", f"📂 Resuming from: {last_id_str[:10]}...")
+                        logger.info(f"RESUMING from {last_id_str}")
                     else:
-                        redis_client.lpush("backfill:logs", "▶️ Starting Fresh (No Checkpoint Found)")
+                        redis_client.lpush("backfill:logs", "▶️ Starting Fresh (No SQL Checkpoint)")
 
                     cursor = coll.find(query).sort("_id", DESCENDING)
                     BATCH_SIZE = 50
@@ -560,11 +553,11 @@ async def batch_processor_engine(uris, db_name, col_name, redis_client):
                             tasks.append(resolve_single_movie(fname, doc['_id'], session))
                             valid_docs.append(doc)
 
-                        # Checkpoint Save (Even if batch empty of valid movies)
+                        # SAVE CHECKPOINT (Empty batch catch)
                         if not tasks:
                             if batch_docs:
                                 last_id = str(batch_docs[-1]['_id'])
-                                save_checkpoint(last_id)
+                                save_checkpoint_to_db(CHECKPOINT_KEY, last_id)
                                 redis_client.set(f"backfill:checkpoint:{db_name}", last_id)
                             continue
 
@@ -632,7 +625,7 @@ async def batch_processor_engine(uris, db_name, col_name, redis_client):
                         # --- SAVE CHECKPOINT ---
                         if batch_docs:
                             last_id = str(batch_docs[-1]['_id'])
-                            save_checkpoint(last_id)
+                            save_checkpoint_to_db(CHECKPOINT_KEY, last_id)
                             redis_client.set(f"backfill:checkpoint:{db_name}", last_id)
                             
                         redis_client.hincrby("backfill:status", "progress", len(batch_docs))
@@ -642,20 +635,53 @@ async def batch_processor_engine(uris, db_name, col_name, redis_client):
 
 @celery.task(bind=True, name="tv_app.tasks.backfill_movies_task")
 def backfill_movies_task(self):
+    """
+    Backfill Task with LOUD DEBUGGING to diagnose Idle issues.
+    """
     redis_client = Redis.from_url(os.environ.get("REDIS_URL"), decode_responses=True)
-    redis_client.set("backfill:active", "true", ex=86400)
-    redis_client.hset("backfill:status", "state", "Running (Final Cut v8.0)")
     
+    # 1. DEBUG: Prove the task started
+    logger.info("🚀 BACKFILL TASK STARTED! Checking configurations...")
+    redis_client.lpush("backfill:logs", "🚀 Task Triggered by Worker")
+
     uris = [os.environ.get("MONGO_URI_1"), os.environ.get("MONGO_URI_2")]
     uris = [u for u in uris if u]
+    
+    # 2. DEBUG: Scream if URIs are missing
+    if not uris:
+        error_msg = "❌ CRITICAL: No MONGO_URI found in env vars! Task aborting."
+        logger.error(error_msg)
+        redis_client.lpush("backfill:logs", error_msg)
+        return "Failed: No Mongo URI"
+
     db_name = os.environ.get("MONGO_DB_NAME", "Huswy")
     col_name = os.environ.get("MONGO_COL_NAME", "Husw")
+    
+    # 3. DEBUG: Verify Database Model Import
+    try:
+        from tv_app.app import app
+        with app.app_context():
+            from tv_app.models import SystemState
+            logger.info("✅ SystemState model imported successfully.")
+    except ImportError:
+        error_msg = "❌ CRITICAL: models.py is missing 'SystemState' class!"
+        logger.error(error_msg)
+        redis_client.lpush("backfill:logs", error_msg)
+        return "Failed: Model missing"
 
+    # Start the engine
+    redis_client.set("backfill:active", "true", ex=86400)
+    redis_client.hset("backfill:status", "state", "Running (DB Checkpoint)")
+    
     try:
         asyncio.run(batch_processor_engine(uris, db_name, col_name, redis_client))
+    except Exception as e:
+        logger.exception(f"🔥 FATAL CRASH in Engine: {e}")
+        redis_client.lpush("backfill:logs", f"🔥 FATAL: {str(e)}")
     finally:
         redis_client.delete("backfill:active")
         redis_client.hset("backfill:status", "state", "Idle")
+        logger.info("🛑 Backfill Task Finished")
 
 @celery.task(name="tv_app.tasks.sync_movies")
 def sync_movies():
@@ -712,3 +738,5 @@ def sync_movies():
     
     asyncio.run(run_sync())
     return "Sync Done"
+
+# --- END OF FILE ---
