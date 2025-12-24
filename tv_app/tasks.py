@@ -1,3 +1,4 @@
+# --- START OF PART 1 ---
 import os
 import re
 import sys
@@ -5,6 +6,7 @@ import asyncio
 import logging
 import itertools
 import hashlib
+import gc
 from typing import Dict, Optional, List, Any
 from urllib.parse import quote_plus
 from datetime import datetime
@@ -312,7 +314,9 @@ def reset_clicks():
 @celery.task(name="tv_app.tasks.test_task")
 def test_task():
     return "Test task complete"
-    # ==============================================================================
+# --- END OF PART 1 ---
+# --- START OF PART 2 ---
+# ==============================================================================
 #                        MOVIE LOGIC (BATCH ENGINE)
 # ==============================================================================
 
@@ -450,7 +454,6 @@ def save_checkpoint_to_db(key_name, valid_object_id_str):
     from tv_app.app import app
     from tv_app.models import db, SystemState
     
-    # Just simple whitespace cleaning, no hex validation
     clean_val = str(valid_object_id_str).strip()
     
     with app.app_context():
@@ -469,7 +472,6 @@ def save_checkpoint_to_db(key_name, valid_object_id_str):
 def load_checkpoint_from_db(key_name):
     """
     Loads raw checkpoint string (Universal Mode).
-    Accepts Telegram IDs (BQADB...) and standard ObjectIds.
     """
     from tv_app.app import app
     from tv_app.models import db, SystemState
@@ -479,17 +481,12 @@ def load_checkpoint_from_db(key_name):
             state = SystemState.query.get(key_name)
             if not state or not state.value:
                 return None
-            
-            clean = state.value.strip()
-            # Basic sanity check only: must be at least 5 chars
-            if len(clean) > 5:
-                return clean
-            else:
-                return None
+            return state.value.strip()
         except Exception as e:
             logger.error(f"🔥 DB Load Failed: {e}")
             return None
-
+# --- END OF PART 2 ---
+# --- START OF PART 3 ---
 async def batch_processor_engine(uris, db_name, col_name, redis_client):
     from tv_app.app import app
     bot_username = os.environ.get('BOT_USERNAME', 'bot')
@@ -523,11 +520,17 @@ async def batch_processor_engine(uris, db_name, col_name, redis_client):
                     else:
                         redis_client.lpush("backfill:logs", "▶️ Starting Fresh (No SQL Checkpoint)")
 
-                    cursor = coll.find(query).sort("_id", DESCENDING)
+                    # ⚠️ ATLAS FIX: Removed 'no_cursor_timeout=True'
+                    cursor = coll.find(query)
                     BATCH_SIZE = 50
                     
                     while True:
-                        if redis_client.get("backfill:pause"): return "Paused"
+                        if redis_client.get("backfill:pause"): 
+                            cursor.close()
+                            return "Paused"
+
+                        # ⚠️ MEMORY SAFETY MERGE:
+                        gc.collect()
 
                         batch_docs = []
                         try:
@@ -570,9 +573,15 @@ async def batch_processor_engine(uris, db_name, col_name, redis_client):
                             
                             if res['status'] == 'found':
                                 tmdb = res['tmdb']
-                                existing = TVShow.query.filter_by(tmdb_id=tmdb['tmdb_id'], category='movie').first()
+                                syn_id = int(hashlib.sha256(tmdb['content_hash'].encode()).hexdigest(), 16) % (10**18)
+                                
+                                # Double-lock duplicate check
+                                existing = TVShow.query.filter(
+                                    ((TVShow.tmdb_id == tmdb['tmdb_id']) | (TVShow.message_id == syn_id)),
+                                    TVShow.category == 'movie'
+                                ).first()
+
                                 if not existing:
-                                    syn_id = int(hashlib.sha256(tmdb['content_hash'].encode()).hexdigest(), 16) % (10**18)
                                     try:
                                         db.session.add(TVShow(
                                             tmdb_id=tmdb['tmdb_id'],
@@ -629,7 +638,8 @@ async def batch_processor_engine(uris, db_name, col_name, redis_client):
                             redis_client.set(f"backfill:checkpoint:{db_name}", last_id)
                             
                         redis_client.hincrby("backfill:status", "progress", len(batch_docs))
-
+                    
+                    cursor.close()
                 except Exception as e:
                     logger.error(f"Engine Error: {e}"); continue
 
@@ -687,10 +697,7 @@ def backfill_movies_task(self):
 def sync_movies():
     """Restored Sync Functionality"""
     redis_client = Redis.from_url(os.environ.get("REDIS_URL"), decode_responses=True)
-    # UNBLOCKED: Runs regardless of backfill state
-    
-    uris = [os.environ.get("MONGO_URI_1"), os.environ.get("MONGO_URI_2")]
-    uris = [u for u in uris if u]
+    uris = [u for u in [os.environ.get("MONGO_URI_1"), os.environ.get("MONGO_URI_2")] if u]
     db_name = os.environ.get("MONGO_DB_NAME", "Huswy")
     col_name = os.environ.get("MONGO_COL_NAME", "Husw")
     
@@ -739,4 +746,16 @@ def sync_movies():
     asyncio.run(run_sync())
     return "Sync Done"
 
-# --- END OF FILE ---
+@celery.task(name="tv_app.tasks.hard_reset_backfill")
+def hard_reset_backfill():
+    """
+    MERGED UTILITY: Nukes the checkpoint to restart scanning.
+    """
+    from tv_app.app import app
+    from tv_app.models import db, SystemState
+    with app.app_context():
+        db.session.query(SystemState).filter(SystemState.key.like('checkpoint_movies_%')).delete(synchronize_session=False)
+        db.session.commit()
+        return "✅ Ready for Natural Order Scan."
+
+# --- END OF PART 3 (END OF FILE) ---
