@@ -80,12 +80,12 @@
             .desktop-slideshow { display: none !important; }
         }
 
-        /* --- 🐶 PUPPY EYES / BRAVE BLOCKER UI --- */
+        /* --- 🐶 REFINED "PUPPY" UI STYLES --- */
         .brave-overlay {
             position: fixed;
-            inset: 0; /* Shorthand for top/left/right/bottom: 0 */
-            background: rgba(20, 24, 32, 0.92); /* Slightly darker for focus */
-            backdrop-filter: blur(12px);
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(26, 30, 40, 0.95); /* Deep dark blue-gray */
+            backdrop-filter: blur(15px);
             z-index: 9999999;
             display: none; /* Hidden by default */
             justify-content: center;
@@ -96,84 +96,92 @@
         .brave-card {
             background: #ffffff;
             width: 100%;
-            max-width: 440px;
-            padding: 40px;
-            border-radius: 30px;
+            max-width: 450px;
+            padding: 45px 35px;
+            border-radius: 35px;
             text-align: center;
-            box-shadow: 0 30px 80px rgba(0,0,0,0.5);
-            animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            box-shadow: 0 40px 100px rgba(0,0,0,0.6);
+            animation: popIn 0.4s cubic-bezier(0.19, 1, 0.22, 1);
             position: relative;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
         }
 
         .brave-card img {
-            width: 130px;
+            width: 140px;
             margin-bottom: 25px;
-            filter: drop-shadow(0 8px 16px rgba(0,0,0,0.15));
+            filter: drop-shadow(0 10px 20px rgba(0,0,0,0.1));
             transition: transform 0.3s ease;
         }
         
         .brave-card img:hover {
-            transform: rotate(-5deg) scale(1.05);
+            transform: rotate(-8deg) scale(1.1);
         }
 
         .brave-card h2 {
             font-size: 28px;
             font-weight: 800;
-            margin-bottom: 15px;
-            color: #2c3e50;
-            font-family: 'Segoe UI', sans-serif;
+            margin-bottom: 12px;
+            color: #1a1a1a;
+            letter-spacing: -0.5px;
         }
 
         .brave-card p {
             font-size: 17px;
-            color: #5f6c7b;
+            color: #666;
             line-height: 1.6;
-            margin-bottom: 25px;
-            font-weight: 500;
-        }
-        
-        /* Browser Switcher Visuals */
-        .browser-list {
-            display: flex;
-            justify-content: center;
-            gap: 20px;
             margin-bottom: 30px;
-            font-size: 0.95em;
-            color: #888;
-        }
-        .browser-list span {
-            font-weight: 700;
-            color: #ff7675; /* Salmon accent */
+            font-weight: 500;
+            padding: 0 10px;
         }
 
-        /* The "I Disabled It" Button */
-        .brave-btn {
+        /* The Button Container */
+        .action-area {
+            margin-top: 20px;
+        }
+
+        /* Generic Button Style */
+        .modal-btn {
             display: block;
             width: 100%;
-            padding: 16px;
-            border-radius: 50px;
-            background: linear-gradient(135deg,#ff9a9e,#fad0c4);
-            color: #fff;
-            font-weight: 800;
+            padding: 18px;
+            border-radius: 16px; /* Modern "squircle" */
+            font-weight: 700;
+            font-size: 16px;
             text-decoration: none;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            box-shadow: 0 10px 25px rgba(255,154,158,0.4);
-            transition: transform 0.2s, box-shadow 0.2s;
             border: none;
             cursor: pointer;
-            margin-top: 10px;
-        }
-        
-        .brave-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 15px 35px rgba(255,154,158,0.6);
-            color: #fff;
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin-bottom: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
         }
 
-        /* Animation */
+        /* 1. Refresh Button (Green/Teal for "Go") */
+        .btn-refresh {
+            background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+            color: #0c5030;
+            text-shadow: 0 1px 0 rgba(255,255,255,0.4);
+        }
+        .btn-refresh:hover { transform: translateY(-3px); box-shadow: 0 10px 30px rgba(67, 233, 123, 0.5); }
+
+        /* 2. Brave Button (Blue for "Switch") */
+        .btn-brave {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .btn-brave:hover { transform: translateY(-3px); box-shadow: 0 10px 30px rgba(118, 75, 162, 0.5); }
+
+        /* Secondary Text Link */
+        .secondary-link {
+            font-size: 14px;
+            color: #999;
+            text-decoration: none;
+            margin-top: 15px;
+            display: inline-block;
+        }
+        .secondary-link:hover { text-decoration: underline; color: #666; }
+
         @keyframes popIn {
-            from { transform: scale(0.85); opacity: 0; }
+            from { transform: scale(0.9); opacity: 0; }
             to { transform: scale(1); opacity: 1; }
         }
     </style>
@@ -185,18 +193,14 @@
     <div id="brave-overlay" class="brave-overlay">
         <div class="brave-card">
             <img src="https://cdn-icons-png.flaticon.com/512/2395/2395796.png" alt="Sad Puppy">
-            <h2>Please Don’t Go 😔</h2>
-            <p>
-                iBOX TV is funded by <strong>very small, non-intrusive ads</strong> that pay for our servers.<br><br>
-                If you are using <strong>Brave</strong> or an <strong>AdBlocker</strong>, please consider disabling it to keep us alive.
-            </p>
-            <div class="browser-list">
-                <span>Chrome</span> • <span>Firefox</span> • <span>Edge</span>
-            </div>
             
-            <button class="brave-btn" onclick="resolveAdBlock()">
-                I've Disabled It! (Refresh)
-            </button>
+            <h2 id="modal-title">Uh oh...</h2>
+            <p id="modal-desc">
+                We noticed you are blocking ads. iBOX TV survives on very small ads. Please support us. 🥺
+            </p>
+
+            <div class="action-area" id="modal-actions">
+            </div>
         </div>
     </div>
 
@@ -211,25 +215,15 @@
             </div>
             
             <div class="nav-links">
-                {# --- 1. TV SHOWS (Base Domain) --- #}
                 <a href="https://ibox-tv.com" class="nav-link {% if site_mode == 'tv' %}active{% endif %}">
-                  <i class="fas fa-home"></i>
-                  <span class="link-text {% if site_mode != 'tv' %}smart-reveal{% endif %}">TV Shows</span>
+                  <i class="fas fa-home"></i> <span class="link-text {% if site_mode != 'tv' %}smart-reveal{% endif %}">TV Shows</span>
                 </a>
-
-                {# --- 2. ANIME (Subdomain) --- #}
                 <a href="https://anime.ibox-tv.com" class="nav-link {% if site_mode == 'anime' %}active{% endif %}" style="color: #ff7675;">
-                  <i class="fas fa-torii-gate"></i>
-                  <span class="link-text {% if site_mode != 'anime' %}smart-reveal{% endif %}">Anime</span>
+                  <i class="fas fa-torii-gate"></i> <span class="link-text {% if site_mode != 'anime' %}smart-reveal{% endif %}">Anime</span>
                 </a>
-                
-                {# --- 3. MOVIES (Subdomain) --- #}
                 <a href="https://movies.ibox-tv.com" class="nav-link {% if site_mode == 'movies' %}active{% endif %}">
-                    <i class="fas fa-film"></i>
-                    <span class="link-text {% if site_mode != 'movies' %}smart-reveal{% endif %}">Movies</span>
+                    <i class="fas fa-film"></i> <span class="link-text {% if site_mode != 'movies' %}smart-reveal{% endif %}">Movies</span>
                 </a>
-
-                {# --- 4. BROWSE --- #}
                 <a href="{{ url_for('list_shows') }}" class="nav-link {% if request.endpoint == 'list_shows' %}active{% endif %}">
                   <i class="fas fa-tv"></i><span class="link-text">Browse</span>
                 </a>
@@ -265,9 +259,7 @@
     </footer>
     
     {# --- SCRIPTS --- #}
-    
     <script src="{{ url_for('static', filename='script.js') }}?v={{ range(1, 10000) | random }}"></script>
-
     {% block scripts_extra %}{% endblock %}
 
     {# 2. Ezoic Trigger #}
@@ -281,32 +273,64 @@
         });
     </script>
 
-    {# 3. 🛡️ HYBRID ADBLOCK DETECTOR (Brave + Standard) #}
+    {# 3. 🛡️ SMART ADBLOCK DETECTOR (Brave Aware) #}
     <script>
         function resolveAdBlock() {
             fetch('/api/stats/adblock', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({ event: 'resolved' })
-            })
-            .then(() => location.reload())
-            .catch(() => location.reload());
+            }).then(() => location.reload()).catch(() => location.reload());
+        }
+
+        // Helper to copy current URL for the "Switch Browser" action
+        function copyAndInstruct() {
+            navigator.clipboard.writeText(window.location.href);
+            alert("URL Copied! Please paste it into Chrome or Edge.");
         }
 
         document.addEventListener("DOMContentLoaded", function() {
             const overlay = document.getElementById('brave-overlay');
+            const title = document.getElementById('modal-title');
+            const desc = document.getElementById('modal-desc');
+            const actions = document.getElementById('modal-actions');
             const bait = document.getElementById('ads-test-bait');
             let flagged = false;
 
             function raiseShields(reason) {
                 if (flagged) return;
                 flagged = true;
+                
                 console.log("🥺 Puppy Eyes Activated: " + reason);
                 
-                if(overlay) {
-                    overlay.style.display = 'flex'; // Use flex to center
+                // --- DYNAMIC UI LOGIC ---
+                if (reason === "Brave Browser") {
+                    // 🦁 BRAVE MODE UI
+                    title.innerText = "Brave Shields Detected";
+                    // MODIFIED TEXT HERE:
+                    desc.innerHTML = "iBOX TV is funded by very small, non-intrusive ads. Unfortunately, Brave blocks them by default.<br><br>Please help us keep the lights on by switching to a standard browser.";
+                    
+                    // The "Switch" Button
+                    actions.innerHTML = `
+                        <button class="modal-btn btn-brave" onclick="copyAndInstruct()">
+                            <i class="fas fa-copy"></i> Copy Link & Switch Browser
+                        </button>
+                        <a href="#" class="secondary-link" onclick="location.reload()">I turned off Shields (Try Refresh)</a>
+                    `;
+                } else {
+                    // 🚫 STANDARD BLOCKER UI (Chrome/Edge/Firefox)
+                    title.innerText = "Please Don't Go 😔";
+                    desc.innerHTML = "iBOX TV is funded by very small, safe ads.<br>Please disable your AdBlocker to support us.";
+                    // The "Refresh" Button
+                    actions.innerHTML = `
+                        <button class="modal-btn btn-refresh" onclick="resolveAdBlock()">
+                            I've Disabled It! (Refresh)
+                        </button>
+                    `;
                 }
-                document.body.style.overflow = 'hidden'; // Stop scrolling
+
+                if(overlay) overlay.style.display = 'flex';
+                document.body.style.overflow = 'hidden';
 
                 // Log it
                 fetch('/api/stats/adblock', {
@@ -316,14 +340,14 @@
                 }).catch(()=>{});
             }
 
-            // --- CHECK 1: The "Brave" Specific Check (Fastest) ---
+            // 1. BRAVE CHECK
             (async function () {
                 if (navigator.brave && await navigator.brave.isBrave()) {
                     raiseShields("Brave Browser");
                 }
             })();
 
-            // --- CHECK 2: The "Bait" Check (For uBlock on Chrome/Edge) ---
+            // 2. ELEMENT BAIT CHECK (Standard)
             setTimeout(function() {
                 if (bait) {
                     const style = window.getComputedStyle(bait);
@@ -333,10 +357,9 @@
                 }
             }, 800);
 
-            // --- CHECK 3: The Network Trap (For DNS Blockers) ---
+            // 3. NETWORK CHECK
             fetch('https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js', { 
-                method: 'HEAD', 
-                mode: 'no-cors' 
+                method: 'HEAD', mode: 'no-cors' 
             }).catch(() => {
                 raiseShields("Network Block");
             });
