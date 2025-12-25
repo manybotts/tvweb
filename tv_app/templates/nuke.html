@@ -10,6 +10,26 @@
     </div>
   {% endif %}
 
+  {# --- 0. ADBLOCK ANALYTICS PANEL (NEW) --- #}
+  {% if adblock_stats %}
+  <div class="card" style="margin: 20px 0; padding: 20px; border: 1px solid #444; background: #111; color: #ddd; display: flex; align-items: center; justify-content: space-between;">
+      <div>
+        <h3 style="margin: 0; color: #fff; font-size: 1.2rem;"><i class="fas fa-shield-alt" style="color: #e74c3c;"></i> AdBlock Stats</h3>
+        <small style="color: #888;">Live tracking from Redis</small>
+      </div>
+      <div style="display: flex; gap: 30px; text-align: center;">
+          <div>
+              <div style="font-size: 2rem; font-weight: bold; color: #e74c3c;">{{ adblock_stats.detected }}</div>
+              <div style="font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px;">Detected</div>
+          </div>
+          <div>
+              <div style="font-size: 2rem; font-weight: bold; color: #2ecc71;">{{ adblock_stats.resolved }}</div>
+              <div style="font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px;">Resolved</div>
+          </div>
+      </div>
+  </div>
+  {% endif %}
+
   {# --- 1. BACKFILL MATRIX PANEL --- #}
   <div class="card" style="margin: 20px 0; padding: 20px; border: 1px solid #444; background: #1a1a1a; color: #ddd;">
       <h3 style="margin-top:0; color: #fff;">🎬 Movie Backfill Engine (Matrix Mode)</h3>
