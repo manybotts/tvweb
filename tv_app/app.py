@@ -3,7 +3,6 @@ import os
 import logging
 import hashlib
 from datetime import datetime
-# UPDATED: Added parse_qs for link processing
 from urllib.parse import urlencode, urlparse, parse_qs
 
 from flask import (
@@ -349,6 +348,26 @@ def show_details(slug):
 # START OF PART 2
 # ==========================================
 
+# --- NEW: AdBlock Analytics API 🥷 ---
+@app.route('/api/stats/adblock', methods=['POST'])
+def track_adblock_stats():
+    """Tracks adblock detection and resolution events."""
+    try:
+        data = request.json
+        event_type = data.get('event') # 'detected' or 'resolved'
+        
+        # Use the existing Redis connection helper
+        r = _redis()
+        
+        if event_type == 'detected':
+            r.incr("stats:adblock_detected")
+        elif event_type == 'resolved':
+            r.incr("stats:adblock_resolved")
+            
+        return jsonify({"status": "logged"}), 200
+    except Exception as e:
+        return jsonify({"status": "error", "error": str(e)}), 500
+
 # --- Download Redirect ---
 @app.route('/download/<int:show_id>')
 def redirect_to_download(show_id):
@@ -358,14 +377,14 @@ def redirect_to_download(show_id):
         if show.download_link:
             link = show.download_link
             
-            # 🚀 NEW: Automatic fix for Telegram Bot Deep Links (Slugify + Smart Truncate)
+            # 🚀 Automatic fix for Telegram Bot Deep Links (Slugify + Smart Truncate)
             if 't.me' in link and 'start=search_' in link:
                 try:
                     u = urlparse(link)
                     q = parse_qs(u.query)
                     
                     if 'start' in q:
-                        raw_start = q['start'][0] # e.g. "search_Steve Backshall's Royal Arctic Challenge"
+                        raw_start = q['start'][0]
                         
                         # 1. Get the title part
                         if 'search_' in raw_start:
@@ -374,7 +393,6 @@ def redirect_to_download(show_id):
                             title = raw_start
 
                         # 2. Remove apostrophes (Better for DB matching)
-                        # "Backshall's" -> "Backshalls"
                         title = title.replace("'", "")
 
                         # 3. Clean: Replace non-alphanumeric chars with hyphens
@@ -382,19 +400,15 @@ def redirect_to_download(show_id):
                         safe_title = re.sub(r'[^a-zA-Z0-9]', '-', title)
                         safe_title = re.sub(r'-+', '-', safe_title).strip('-')
                         
-                        # 4. SAFETY: Smart Truncate to 64 chars MAX (Drop last word if cut)
-                        # Telegram limit is 64 chars. "search_" uses 7.
+                        # 4. SAFETY: Smart Truncate to 64 chars MAX
                         max_len = 64 - len("search_")
                         
                         if len(safe_title) > max_len:
-                            # Cut to the limit
                             truncated = safe_title[:max_len]
-                            # Find the last hyphen to safely drop the incomplete word
                             last_hyphen = truncated.rfind('-')
                             if last_hyphen != -1:
                                 safe_title = truncated[:last_hyphen]
                             else:
-                                # Fallback: If it's one massive word, hard truncate
                                 safe_title = truncated
 
                         safe_start = f"search_{safe_title}"
@@ -490,13 +504,20 @@ def nuke_home():
     if not _is_authed(request):
         msg = request.args.get('msg', '')
         return render_template('nuke_login.html', title="Access Nuke", message=msg)
+    
+    # --- FETCH ADBLOCK STATS ---
+    r = _redis()
+    adblock_stats = {
+        'detected': r.get("stats:adblock_detected") or 0,
+        'resolved': r.get("stats:adblock_resolved") or 0
+    }
 
     q = (request.args.get('q') or '').strip()
     view_dupes = request.args.get('dupes')
     if not q and view_dupes is None:
         view_dupes = '1'
     
-    # MEMORY FIX: Only fetch last 20 skipped files to prevent page lag
+    # Only fetch last 20 skipped files to prevent page lag
     recent_skipped = []
     try:
         recent_skipped = SkippedFile.query.order_by(SkippedFile.created_at.desc()).limit(20).all()
@@ -504,12 +525,12 @@ def nuke_home():
         logger.error(f"Error fetching skipped files: {e}")
 
     if view_dupes:
-        # --- THE FIX: IGNORE MOVIES IN DUPLICATE SCAN ---
+        # IGNORE MOVIES IN DUPLICATE SCAN
         rows = db.session.query(
             TVShow.download_link, func.count(TVShow.id).label('cnt')
         ).filter(
             TVShow.download_link.isnot(None),
-            TVShow.category.in_(['tv', 'anime']) # <--- IGNORES MOVIES
+            TVShow.category.in_(['tv', 'anime']) 
         ).group_by(
             TVShow.download_link
         ).having(
@@ -520,7 +541,6 @@ def nuke_home():
 
         dupe_groups = []
         for link, _cnt in rows:
-            # Also limit the sub-query to TV/Anime just in case
             shows = TVShow.query.filter(
                 TVShow.download_link == link,
                 TVShow.category.in_(['tv', 'anime'])
@@ -531,7 +551,7 @@ def nuke_home():
                 'domain': urlparse(link).netloc if link else '',
                 'shows': shows
             })
-        return render_template('nuke.html', title="Nuke", view_dupes=True, dupe_groups=dupe_groups, q=q, skipped_files=recent_skipped)
+        return render_template('nuke.html', title="Nuke", view_dupes=True, dupe_groups=dupe_groups, q=q, skipped_files=recent_skipped, adblock_stats=adblock_stats)
 
     page = request.args.get('page', 1, type=int)
     per_page = 30
@@ -545,7 +565,7 @@ def nuke_home():
         query = query.order_by(TVShow.created_at.desc())
 
     shows = query.paginate(page=page, per_page=per_page, error_out=False)
-    return render_template('nuke.html', title="Nuke", shows=shows, q=q, view_dupes=False, skipped_files=recent_skipped)
+    return render_template('nuke.html', title="Nuke", shows=shows, q=q, view_dupes=False, skipped_files=recent_skipped, adblock_stats=adblock_stats)
 
 @app.route('/nuke/login', methods=['POST'])
 def nuke_login():
