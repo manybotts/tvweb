@@ -75,6 +75,21 @@
           <p class="year"><strong>Year:</strong> {{ show.year }}</p>
         {% endif %}
 
+        {# --- 📢 NEW INLINE TELEGRAM ALERT (Modern Design) --- #}
+        <div class="tg-inline-alert" style="background: rgba(34, 158, 217, 0.1); border: 1px solid rgba(34, 158, 217, 0.3); border-left: 4px solid #229ED9; padding: 15px; margin: 25px 0; border-radius: 8px; display: flex; align-items: center; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
+            <div style="background: #229ED9; width: 42px; height: 42px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 15px; flex-shrink: 0; box-shadow: 0 4px 10px rgba(34, 158, 217, 0.4);">
+                 <i class="fab fa-telegram-plane" style="color: white; font-size: 20px; margin-left: -2px;"></i>
+            </div>
+            <div>
+                <p style="margin: 0; color: #eee; font-size: 15px; line-height: 1.4; margin-bottom: 4px;">
+                    <strong>Heads Up:</strong> Our Telegram Channel has moved.
+                </p>
+                <a href="https://t.me/i_boxtv" target="_blank" style="color: #229ED9; text-decoration: none; font-weight: 700; font-size: 14px; letter-spacing: 0.3px;">
+                    Join the new channel here <i class="fas fa-arrow-right" style="font-size: 12px; margin-left: 3px;"></i>
+                </a>
+            </div>
+        </div>
+
         {% if show.download_link %}
           <a href="{{ url_for('redirect_to_download', show_id=show.id) }}" class="download-button" rel="nofollow">Download Now</a>
         {% else %}
@@ -163,4 +178,3 @@
   {% endif %}
   </script>
 {% endblock %}
-
