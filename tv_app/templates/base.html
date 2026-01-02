@@ -204,7 +204,8 @@
         </div>
     </div>
 
-    <div id="ads-test-bait" style="height: 1px; width: 1px; position: absolute; left: -9999px; top: -9999px;"></div>
+    {# --- UPDATED BAIT: "Nuclear" Classes that trigger almost ALL blocklists --- #}
+    <div id="ad-banner-wrapper" class="adsbox ad-banner pub_300x250 pub_728x90 text-ad textAd banner_ad" style="position: absolute; top: -9999px; left: -9999px; width: 1px; height: 1px;">&nbsp;</div>
 
     <nav class="navbar google-auto-ads-ignore">
         <div class="navbar-container">
@@ -273,7 +274,7 @@
         });
     </script>
 
-    {# 3. 🛡️ SMART ADBLOCK DETECTOR (Brave Aware) #}
+    {# 3. 🛡️ SMART ADBLOCK DETECTOR (Forensic Mode) #}
     <script>
         function resolveAdBlock() {
             fetch('/api/stats/adblock', {
@@ -294,7 +295,7 @@
             const title = document.getElementById('modal-title');
             const desc = document.getElementById('modal-desc');
             const actions = document.getElementById('modal-actions');
-            const bait = document.getElementById('ads-test-bait');
+            const bait = document.getElementById('ad-banner-wrapper');
             let flagged = false;
 
             function raiseShields(reason) {
@@ -307,21 +308,31 @@
                 if (reason === "Brave Browser") {
                     // 🦁 BRAVE MODE UI
                     title.innerText = "Brave Shields Detected";
-                    // MODIFIED TEXT HERE:
                     desc.innerHTML = "iBOX TV is funded by very small, non-intrusive ads. Unfortunately, Brave blocks them by default.<br><br>Please help us keep the lights on by switching to a standard browser.";
                     
-                    // The "Switch" Button
                     actions.innerHTML = `
                         <button class="modal-btn btn-brave" onclick="copyAndInstruct()">
                             <i class="fas fa-copy"></i> Copy Link & Switch Browser
                         </button>
                         <a href="#" class="secondary-link" onclick="location.reload()">I turned off Shields (Try Refresh)</a>
                     `;
-                } else {
-                    // 🚫 STANDARD BLOCKER UI (Chrome/Edge/Firefox)
+                } 
+                else if (reason === "Network Block") {
+                     // 🔌 HYBRID MODE UI (Could be Extension OR Network)
+                    title.innerText = "Hold on! 🛑";
+                    desc.innerHTML = "We can't connect to our sponsors. 😔<br><br>This is usually caused by an <b>Adblock Extension</b>, though a <b>VPN</b> or <b>DNS</b> could also be the culprit.<br><br>Please whitelist iBOX TV to help us keep the lights on! 💡";
+                    
+                    actions.innerHTML = `
+                        <button class="modal-btn btn-refresh" onclick="location.reload()">
+                            I've Disabled My Blocker 🔄
+                        </button>
+                    `;
+                }
+                else {
+                    // 🚫 STANDARD EXTENSION UI (AdGuard, uBlock, etc.)
                     title.innerText = "Please Don't Go 😔";
-                    desc.innerHTML = "iBOX TV is funded by very small, safe ads.<br>Please disable your AdBlocker to support us.";
-                    // The "Refresh" Button
+                    desc.innerHTML = "iBOX TV is funded by very small, safe ads.<br>Please disable your AdBlocker extension to support us.";
+                    
                     actions.innerHTML = `
                         <button class="modal-btn btn-refresh" onclick="resolveAdBlock()">
                             I've Disabled It! (Refresh)
@@ -340,6 +351,21 @@
                 }).catch(()=>{});
             }
 
+            // --- HELPER: Returns true if bait is killed ---
+            function checkBait() {
+                if (!bait) return false;
+                const style = window.getComputedStyle(bait);
+                if (
+                    style.display === 'none' || 
+                    style.visibility === 'hidden' || 
+                    bait.offsetHeight === 0 || 
+                    bait.offsetParent === null
+                ) {
+                    return true; // It's hidden!
+                }
+                return false; // It's visible
+            }
+
             // 1. BRAVE CHECK
             (async function () {
                 if (navigator.brave && await navigator.brave.isBrave()) {
@@ -347,21 +373,29 @@
                 }
             })();
 
-            // 2. ELEMENT BAIT CHECK (Standard)
+            // 2. ELEMENT BAIT CHECK (Immediate Check for Laptop/Strict Cosmetic)
+            // We check this after a small layout delay to catch "Cosmetic Only" blockers
             setTimeout(function() {
-                if (bait) {
-                    const style = window.getComputedStyle(bait);
-                    if (style.display === 'none' || style.visibility === 'hidden' || bait.offsetHeight === 0) {
-                        raiseShields("Element Hiding");
-                    }
+                if (checkBait()) {
+                    raiseShields("Element Hiding (Cosmetic)");
                 }
             }, 800);
 
-            // 3. NETWORK CHECK
+            // 3. NETWORK CHECK (Forensic Correlation)
             fetch('https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js', { 
                 method: 'HEAD', mode: 'no-cors' 
             }).catch(() => {
-                raiseShields("Network Block");
+                // FETCH FAILED: It's either an Extension OR Network.
+                // CRITICAL: Wait 200ms to allow the extension to update the DOM (race condition fix)
+                setTimeout(function() {
+                    if (checkBait()) {
+                        // If bait is hidden, it is DEFINITELY an extension.
+                        raiseShields("Element Hiding (Extension)");
+                    } else {
+                        // If bait is still visible but network failed, it is DNS/VPN.
+                        raiseShields("Network Block");
+                    }
+                }, 200);
             });
         });
     </script>
