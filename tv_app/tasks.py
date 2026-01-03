@@ -514,6 +514,7 @@ async def batch_processor_engine(uris, db_name, col_name, redis_client):
                     query = {"file_size": {"$gt": 300 * 1024 * 1024}}
                     if last_id_str:
                         # ⚠️ CRITICAL FIX: Treat ID as raw string, NOT ObjectId
+                        # Scanning from Z -> A, so we want items SMALLER than the last checkpoint
                         query["_id"] = {"$lt": last_id_str}
                         redis_client.lpush("backfill:logs", f"📂 Resuming from: {last_id_str[:10]}...")
                         logger.info(f"RESUMING from {last_id_str}")
@@ -521,7 +522,8 @@ async def batch_processor_engine(uris, db_name, col_name, redis_client):
                         redis_client.lpush("backfill:logs", "▶️ Starting Fresh (No SQL Checkpoint)")
 
                     # ⚠️ ATLAS FIX: Removed 'no_cursor_timeout=True'
-                    cursor = coll.find(query)
+                    # ⚠️ SORTING FIX: Explicitly sort by _id DESCENDING to ensure consistent walk from Z to A
+                    cursor = coll.find(query).sort("_id", DESCENDING)
                     BATCH_SIZE = 50
                     
                     while True:
@@ -709,8 +711,9 @@ def sync_movies():
                     mdb = client[db_name] if db_name in client.list_database_names() else client.get_database()
                     if col_name not in mdb.list_collection_names(): continue
                     coll = mdb[col_name]
-                    # Fetch latest 20
-                    cursor = coll.find({"file_size": {"$gt": 300 * 1024 * 1024}}).sort("_id", DESCENDING).limit(20)
+                    # Fetch latest 100 via NATURAL ORDER (Creation Time)
+                    # This ignores the random File ID and gets the actual newest additions.
+                    cursor = coll.find({"file_size": {"$gt": 300 * 1024 * 1024}}).sort("$natural", -1).limit(100)
                     
                     for doc in cursor:
                         fname = doc.get('file_name')
