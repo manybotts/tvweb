@@ -491,9 +491,6 @@ async def batch_processor_engine(uris, db_name, col_name, redis_client):
     from tv_app.app import app
     bot_username = os.environ.get('BOT_USERNAME', 'bot')
     
-    # Define a unique key for this database backfill
-    CHECKPOINT_KEY = f"checkpoint_movies_{db_name}"
-    
     with app.app_context():
         try:
             from tv_app.models import db, TVShow, SkippedFile, SystemState
@@ -501,7 +498,10 @@ async def batch_processor_engine(uris, db_name, col_name, redis_client):
             from tv_app.models import db, TVShow; SkippedFile = None
 
         async with aiohttp.ClientSession() as session:
-            for uri in uris:
+            # FIX: Iterate URIs with index to create UNIQUE checkpoints per source
+            for i, uri in enumerate(uris):
+                CHECKPOINT_KEY = f"checkpoint_movies_{db_name}_src_{i}"
+                
                 try:
                     client = MongoClient(uri)
                     mdb = client[db_name] if db_name in client.list_database_names() else client.get_database()
@@ -511,18 +511,35 @@ async def batch_processor_engine(uris, db_name, col_name, redis_client):
                     # --- RESUME LOGIC (Universal) ---
                     last_id_str = load_checkpoint_from_db(CHECKPOINT_KEY)
                     
-                    query = {"file_size": {"$gt": 300 * 1024 * 1024}}
+                    # Basic filter: File size > 300MB
+                    base_query = {"file_size": {"$gt": 300 * 1024 * 1024}}
+                    query = base_query.copy()
+
                     if last_id_str:
                         # ⚠️ CRITICAL FIX: Treat ID as raw string, NOT ObjectId
-                        # Scanning from Z -> A, so we want items SMALLER than the last checkpoint
                         query["_id"] = {"$lt": last_id_str}
-                        redis_client.lpush("backfill:logs", f"📂 Resuming from: {last_id_str[:10]}...")
-                        logger.info(f"RESUMING from {last_id_str}")
-                    else:
-                        redis_client.lpush("backfill:logs", "▶️ Starting Fresh (No SQL Checkpoint)")
+                        
+                        # --- PROGRESS MATH ---
+                        try:
+                            # Count Remaining (Older than checkpoint)
+                            remaining = coll.count_documents(query)
+                            
+                            # Count Behind/Done (Newer or equal to checkpoint)
+                            done_query = base_query.copy()
+                            done_query["_id"] = {"$gte": last_id_str}
+                            done = coll.count_documents(done_query)
+                            
+                            log_msg = f"📂 Src {i}: Resuming. Done: {done} | Remaining: {remaining}"
+                            redis_client.lpush("backfill:logs", log_msg)
+                            logger.info(log_msg)
+                        except Exception as e:
+                            logger.error(f"Math Error: {e}")
+                            redis_client.lpush("backfill:logs", f"📂 Src {i}: Resuming from {last_id_str[:10]}...")
 
-                    # ⚠️ ATLAS FIX: Removed 'no_cursor_timeout=True'
-                    # ⚠️ SORTING FIX: Explicitly sort by _id DESCENDING to ensure consistent walk from Z to A
+                    else:
+                        redis_client.lpush("backfill:logs", f"▶️ Src {i}: Starting Fresh")
+
+                    # ⚠️ SORTING FIX: Explicitly sort by _id DESCENDING
                     cursor = coll.find(query).sort("_id", DESCENDING)
                     BATCH_SIZE = 50
                     
@@ -540,7 +557,7 @@ async def batch_processor_engine(uris, db_name, col_name, redis_client):
                         except StopIteration: pass
                         if not batch_docs: break
 
-                        redis_client.set("backfill:current_file", f"Processing batch of {len(batch_docs)}...", ex=60)
+                        redis_client.set("backfill:current_file", f"Src {i}: Batch of {len(batch_docs)}...", ex=60)
 
                         tasks, valid_docs = [], []
                         for doc in batch_docs:
@@ -549,7 +566,6 @@ async def batch_processor_engine(uris, db_name, col_name, redis_client):
                             
                             # TV Filter
                             if is_likely_tv_show(fname):
-                                redis_client.lpush("backfill:logs", f"📺 Ignored TV: {fname[:15]}...")
                                 continue
 
                             fhash = hashlib.md5(fname.encode()).hexdigest()
@@ -563,7 +579,7 @@ async def batch_processor_engine(uris, db_name, col_name, redis_client):
                             if batch_docs:
                                 last_id = str(batch_docs[-1]['_id'])
                                 save_checkpoint_to_db(CHECKPOINT_KEY, last_id)
-                                redis_client.set(f"backfill:checkpoint:{db_name}", last_id)
+                                redis_client.set(f"backfill:checkpoint:{db_name}_src_{i}", last_id)
                             continue
 
                         results = await asyncio.gather(*tasks)
@@ -637,7 +653,7 @@ async def batch_processor_engine(uris, db_name, col_name, redis_client):
                         if batch_docs:
                             last_id = str(batch_docs[-1]['_id'])
                             save_checkpoint_to_db(CHECKPOINT_KEY, last_id)
-                            redis_client.set(f"backfill:checkpoint:{db_name}", last_id)
+                            redis_client.set(f"backfill:checkpoint:{db_name}_src_{i}", last_id)
                             
                         redis_client.hincrby("backfill:status", "progress", len(batch_docs))
                     
