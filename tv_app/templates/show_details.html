@@ -29,19 +29,7 @@
   <div class="ad-layout-wrapper">
 
     <div class="ad-sidebar left-sidebar">
-      <div class="ad-sticky-container">
-        <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3351229899410110"
-             crossorigin="anonymous"></script>
-        <ins class="adsbygoogle"
-             style="display:block"
-             data-ad-client="ca-pub-3351229899410110"
-             data-ad-slot="9819581395"
-             data-ad-format="auto"
-             data-full-width-responsive="true"></ins>
-        <script>
-             (adsbygoogle = window.adsbygoogle || []).push({});
-        </script>
-      </div>
+      <div class="ad-sticky-container"></div>
     </div>
 
     <div class="show-details-main">
@@ -75,58 +63,42 @@
           <p class="year"><strong>Year:</strong> {{ show.year }}</p>
         {% endif %}
 
-        {# --- 📢 NEW INLINE TELEGRAM ALERT (Modern Design) --- #}
+        {# --- 📢 TELEGRAM ALERT (Updated) --- #}
         <div class="tg-inline-alert" style="background: rgba(34, 158, 217, 0.1); border: 1px solid rgba(34, 158, 217, 0.3); border-left: 4px solid #229ED9; padding: 15px; margin: 25px 0; border-radius: 8px; display: flex; align-items: center; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
             <div style="background: #229ED9; width: 42px; height: 42px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 15px; flex-shrink: 0; box-shadow: 0 4px 10px rgba(34, 158, 217, 0.4);">
                  <i class="fab fa-telegram-plane" style="color: white; font-size: 20px; margin-left: -2px;"></i>
             </div>
             <div>
                 <p style="margin: 0; color: #eee; font-size: 15px; line-height: 1.4; margin-bottom: 4px;">
-                    <strong>Heads Up:</strong> Our Telegram Channel has moved.
+                    <strong>Heads Up:</strong> Join Our Telegram For instant Updates and direct Files 🔥
                 </p>
                 <a href="https://t.me/i_boxtv" target="_blank" style="color: #229ED9; text-decoration: none; font-weight: 700; font-size: 14px; letter-spacing: 0.3px;">
-                    Join the new channel here <i class="fas fa-arrow-right" style="font-size: 12px; margin-left: 3px;"></i>
+                    Join the channel here <i class="fas fa-arrow-right" style="font-size: 12px; margin-left: 3px;"></i>
                 </a>
             </div>
         </div>
 
+        {# --- 🔽 DOWNLOAD BUTTON (Moved UP - Priority #1) --- #}
         {% if show.download_link %}
-          <a href="{{ url_for('redirect_to_download', show_id=show.id) }}" class="download-button" rel="nofollow">Download Now</a>
+          <div style="margin-bottom: 0;">
+            <a href="{{ url_for('redirect_to_download', show_id=show.id) }}" class="download-button" rel="nofollow">Download Now</a>
+          </div>
         {% else %}
           <p><em>Download link not available for this item.</em></p>
         {% endif %}
 
-        <div class="ad-horizontal-bottom">
-          <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3351229899410110"
-               crossorigin="anonymous"></script>
-          <ins class="adsbygoogle"
-               style="display:block"
-               data-ad-client="ca-pub-3351229899410110"
-               data-ad-slot="2469357376"
-               data-ad-format="auto"
-               data-full-width-responsive="true"></ins>
-          <script>
-               (adsbygoogle = window.adsbygoogle || []).push({});
-          </script>
+        {# --- 💰 ADSTERRA NATIVE BANNER (Moved DOWN - Priority #2) --- #}
+        {# Added margin-top: 30px to create space between button and ads #}
+        <div style="margin-top: 30px; margin-bottom: 20px; text-align: center;">
+            <script async="async" data-cfasync="false" src="https://enoughprosperabsorbed.com/bbe4068b6366be013ab27b3042e5d4b2/invoke.js"></script>
+            <div id="container-bbe4068b6366be013ab27b3042e5d4b2"></div>
         </div>
 
       </div>
     </div>
 
     <div class="ad-sidebar right-sidebar">
-      <div class="ad-sticky-container">
-        <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3351229899410110"
-             crossorigin="anonymous"></script>
-        <ins class="adsbygoogle"
-             style="display:block"
-             data-ad-client="ca-pub-3351229899410110"
-             data-ad-slot="6120009539"
-             data-ad-format="auto"
-             data-full-width-responsive="true"></ins>
-        <script>
-             (adsbygoogle = window.adsbygoogle || []).push({});
-        </script>
-      </div>
+      <div class="ad-sticky-container"></div>
     </div>
 
   </div>
@@ -134,7 +106,6 @@
 {% endblock %}
 
 {% block scripts_extra %}
-  {# JSON-LD: Schema fixed to include bestRating: 10 #}
   <script type="application/ld+json">
   {% if show.episode_title %}
   {
